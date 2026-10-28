@@ -69,11 +69,87 @@ class AttendanceProvider extends ChangeNotifier {
     await PowerSyncService().initialize();
 
     _workshops = await StorageService.loadWorkshops();
+    await _normalizeMultiDaySessions();
     _isLoading = false;
     notifyListeners();
 
     // Sincronizar automáticamente desde Supabase al iniciar
     syncAllActiveSessionsFromSupabase();
+  }
+
+  /// Si una sesión tenía múltiples días concatenados (ej. "Martes 20/10/2026 • Miércoles 21/10/2026..."),
+  /// la separa automáticamente en sesiones individuales (Sesión 1 = Día 1, Sesión 2 = Día 2, etc.)
+  Future<void> _normalizeMultiDaySessions() async {
+    bool changed = false;
+    for (final w in _workshops) {
+      final List<WorkshopSession> expanded = [];
+      int sessionNum = 1;
+      for (final s in w.sessions) {
+        if (s.impartedDaysLabel.contains('•')) {
+          final parts = s.impartedDaysLabel
+              .split('•')
+              .map((p) => p.trim())
+              .where((p) => p.isNotEmpty)
+              .toList();
+          if (parts.length > 1) {
+            changed = true;
+            String baseTopic = s.title;
+            final colonIdx = baseTopic.indexOf(':');
+            if (colonIdx != -1 && colonIdx + 1 < baseTopic.length) {
+              baseTopic = baseTopic.substring(colonIdx + 1).trim();
+            } else {
+              baseTopic = 'Práctica y Evaluación';
+            }
+
+            for (int i = 0; i < parts.length; i++) {
+              final parsedDate =
+                  WorkshopSession.tryParseSpanishDate(parts[i]) ??
+                  s.date.add(Duration(days: i));
+              final singleLabel =
+                  WorkshopSession.formatSingleDateWithDay(parsedDate);
+              final newTitle = 'Sesión $sessionNum: $baseTopic';
+              sessionNum++;
+
+              if (i == 0) {
+                s.title = newTitle;
+                s.date = parsedDate;
+                s.impartedDaysLabel = singleLabel;
+                expanded.add(s);
+              } else {
+                expanded.add(
+                  WorkshopSession(
+                    id: 'ses_${_uuid.v4().substring(0, 8)}',
+                    workshopId: w.id,
+                    title: newTitle,
+                    date: parsedDate,
+                    impartedDaysLabel: singleLabel,
+                    startTimeLabel: s.startTimeLabel,
+                    endTimeLabel: s.endTimeLabel,
+                    actualStartedAt: s.actualStartedAt,
+                    currentPhase: SessionPhase.pending,
+                    secretKey: 'KEY_${_uuid.v4().substring(0, 12)}',
+                    toleranceMinutes: s.toleranceMinutes,
+                    registrationWindowMinutes: s.registrationWindowMinutes,
+                    records: {},
+                  ),
+                );
+              }
+            }
+            continue;
+          }
+        }
+        expanded.add(s);
+        sessionNum++;
+      }
+      if (changed) {
+        w.sessions
+          ..clear()
+          ..addAll(expanded);
+      }
+    }
+    if (changed) {
+      await _persist();
+    }
   }
 
   /// Sincroniza todas las sesiones del taller activo con Supabase
@@ -112,6 +188,7 @@ class AttendanceProvider extends ChangeNotifier {
     required String description,
     String? initialSessionTitle,
     DateTime? initialSessionDate,
+    List<DateTime>? initialSessionDates,
     String? initialImpartedDaysLabel,
     String? initialStartTimeLabel,
     String? initialEndTimeLabel,
@@ -129,15 +206,32 @@ class AttendanceProvider extends ChangeNotifier {
     await _persist();
     _pushWorkshopToSupabaseAsync(newWorkshop);
 
+    final datesToCreate = (initialSessionDates != null && initialSessionDates.isNotEmpty)
+        ? initialSessionDates
+        : <DateTime>[initialSessionDate ?? DateTime.now()];
+
     if (initialSessionTitle != null && initialSessionTitle.trim().isNotEmpty) {
-      await createSession(
-        workshopId: newWorkshop.id,
-        title: initialSessionTitle.trim(),
-        date: initialSessionDate ?? DateTime.now(),
-        impartedDaysLabel: initialImpartedDaysLabel,
-        startTimeLabel: initialStartTimeLabel,
-        endTimeLabel: initialEndTimeLabel,
-      );
+      String baseTopic = initialSessionTitle.trim();
+      final colonIdx = baseTopic.indexOf(':');
+      if (colonIdx != -1 && colonIdx + 1 < baseTopic.length) {
+        baseTopic = baseTopic.substring(colonIdx + 1).trim();
+      }
+
+      for (int i = 0; i < datesToCreate.length; i++) {
+        final d = datesToCreate[i];
+        final singleDateLabel = WorkshopSession.formatSingleDateWithDay(d);
+        final sessionTitle = datesToCreate.length == 1
+            ? initialSessionTitle.trim()
+            : 'Sesión ${i + 1}: $baseTopic';
+        await createSession(
+          workshopId: newWorkshop.id,
+          title: sessionTitle,
+          date: d,
+          impartedDaysLabel: singleDateLabel,
+          startTimeLabel: initialStartTimeLabel,
+          endTimeLabel: initialEndTimeLabel,
+        );
+      }
     }
 
     return newWorkshop;
@@ -297,12 +391,19 @@ class AttendanceProvider extends ChangeNotifier {
     final index = _workshops.indexWhere((w) => w.id == workshopId);
     if (index == -1) return null;
 
+    final singleDayLabel =
+        (impartedDaysLabel != null &&
+            impartedDaysLabel.trim().isNotEmpty &&
+            !impartedDaysLabel.contains('•'))
+        ? impartedDaysLabel.trim()
+        : WorkshopSession.formatSingleDateWithDay(date);
+
     final newSession = WorkshopSession(
       id: 'ses_${_uuid.v4().substring(0, 8)}',
       workshopId: workshopId,
       title: title,
       date: date,
-      impartedDaysLabel: impartedDaysLabel,
+      impartedDaysLabel: singleDayLabel,
       startTimeLabel: startTimeLabel,
       endTimeLabel: endTimeLabel,
       actualStartedAt: DateTime.now(),
@@ -313,14 +414,26 @@ class AttendanceProvider extends ChangeNotifier {
       records: {},
     );
 
-    _workshops[index].sessions.insert(0, newSession);
+    _workshops[index].sessions.add(newSession);
     await _persist();
     _pushWorkshopToSupabaseAsync(_workshops[index]);
     _pushSessionToSupabaseAsync(_workshops[index], newSession);
     return newSession;
   }
 
-  /// Permite al docente editar la(s) fecha(s) de los días que se impartirá la sesión, la hora de inicio, la hora de término y la tolerancia para dejar evidencia exacta
+  /// Permite eliminar una sesión del taller
+  Future<void> deleteSession({
+    required String workshopId,
+    required String sessionId,
+  }) async {
+    final wIdx = _workshops.indexWhere((w) => w.id == workshopId);
+    if (wIdx == -1) return;
+    _workshops[wIdx].sessions.removeWhere((s) => s.id == sessionId);
+    await _persist();
+    notifyListeners();
+  }
+
+  /// Permite al docente editar la fecha del día en que se impartirá esta sesión, la hora de inicio, la hora de término y la tolerancia para dejar evidencia exacta
   Future<void> updateSessionSchedule({
     required String workshopId,
     required String sessionId,
@@ -338,7 +451,9 @@ class AttendanceProvider extends ChangeNotifier {
 
     session.title = title.trim().isNotEmpty ? title.trim() : session.title;
     session.date = date;
-    if (impartedDaysLabel != null && impartedDaysLabel.trim().isNotEmpty) {
+    if (impartedDaysLabel != null &&
+        impartedDaysLabel.trim().isNotEmpty &&
+        !impartedDaysLabel.contains('•')) {
       session.impartedDaysLabel = impartedDaysLabel.trim();
     } else {
       session.impartedDaysLabel = WorkshopSession.formatSingleDateWithDay(date);

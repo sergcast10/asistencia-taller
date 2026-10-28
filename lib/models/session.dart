@@ -79,9 +79,23 @@ class WorkshopSession {
     return '$dayName ${l.day.toString().padLeft(2, '0')}/${l.month.toString().padLeft(2, '0')}/${l.year}';
   }
 
-  /// Devuelve las fechas de los días en que se impartirá la sesión (ej. "Miércoles 28/10/2026, Jueves 29/10/2026")
+  static DateTime? tryParseSpanishDate(String text) {
+    final match = RegExp(r'(\d{1,2})/(\d{1,2})/(\d{4})').firstMatch(text);
+    if (match != null) {
+      final day = int.tryParse(match.group(1)!);
+      final month = int.tryParse(match.group(2)!);
+      final year = int.tryParse(match.group(3)!);
+      if (day != null && month != null && year != null) {
+        return DateTime(year, month, day, 12, 0);
+      }
+    }
+    return null;
+  }
+
+  /// Devuelve la fecha del día en que se impartirá esta sesión (ej. "Jueves 29/10/2026")
   String get formattedDateWithDay {
-    if (impartedDaysLabel.trim().isNotEmpty) {
+    if (impartedDaysLabel.trim().isNotEmpty &&
+        !impartedDaysLabel.contains('•')) {
       return impartedDaysLabel.trim();
     }
     return formatSingleDateWithDay(date);

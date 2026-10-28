@@ -245,6 +245,22 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                         ),
                       ),
                     ),
+                    const SizedBox(width: 4),
+                    IconButton(
+                      tooltip: 'Eliminar esta sesión',
+                      visualDensity: VisualDensity.compact,
+                      icon: const Icon(
+                        Icons.delete_outline_rounded,
+                        size: 18,
+                        color: AppTheme.slate600,
+                      ),
+                      onPressed: () {
+                        provider.deleteSession(
+                          workshopId: workshop.id,
+                          sessionId: session.id,
+                        );
+                      },
+                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -1322,16 +1338,20 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
     WorkshopSession? existingSession,
   }) {
     final now = DateTime.now();
+    final tomorrow = now.add(const Duration(days: 1));
+    final dayAfterTomorrow = now.add(const Duration(days: 2));
+
     final defaultStart =
         '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
     final endDt = now.add(const Duration(hours: 2));
     final defaultEnd =
         '${endDt.hour.toString().padLeft(2, '0')}:${endDt.minute.toString().padLeft(2, '0')}';
 
+    final nextSessionNumber = workshop.sessions.length + 1;
     final titleController = TextEditingController(
       text:
           existingSession?.title ??
-          'Sesión ${workshop.sessions.length + 1}: Práctica y Evaluación',
+          'Sesión $nextSessionNumber: Práctica y Evaluación',
     );
     final startCtrl = TextEditingController(
       text: existingSession?.startTimeLabel ?? defaultStart,
@@ -1342,21 +1362,13 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
     final tolCtrl = TextEditingController(
       text: '${existingSession?.toleranceMinutes ?? 15}',
     );
-    DateTime selectedDate = existingSession?.date ?? now;
-    final List<DateTime> selectedDates = [selectedDate];
-    final impartedDaysCtrl = TextEditingController(
-      text:
-          existingSession?.impartedDaysLabel ??
-          WorkshopSession.formatSingleDateWithDay(selectedDate),
-    );
 
-    void syncImpartedDaysText() {
-      selectedDates.sort((a, b) => a.compareTo(b));
-      selectedDate = selectedDates.first;
-      impartedDaysCtrl.text = selectedDates
-          .map((d) => WorkshopSession.formatSingleDateWithDay(d))
-          .join(' • ');
-    }
+    // Por defecto, cada sesión tiene SU PROPIO DÍA único
+    DateTime selectedDate = existingSession?.date ?? now;
+    final List<DateTime> sessionDates = [selectedDate];
+
+    bool isSameDay(DateTime a, DateTime b) =>
+        a.year == b.year && a.month == b.month && a.day == b.day;
 
     showDialog(
       context: context,
@@ -1373,8 +1385,8 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                 Expanded(
                   child: Text(
                     existingSession != null
-                        ? 'Editar Fechas de Impartición y Horario'
-                        : 'Crear Nueva Sesión (Fechas de Días y Horario)',
+                        ? 'Editar Día y Horario de ${existingSession.title.split(":").first}'
+                        : 'Crear Sesión (Día de Impartición y Horario)',
                     style: const TextStyle(fontSize: 15),
                   ),
                 ),
@@ -1393,9 +1405,11 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                         color: AppTheme.primaryLight,
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Text(
-                        'Agrega la fecha o las fechas de los días en que se impartirá esta sesión, junto con su hora de inicio y término, para que quede evidencia oficial.',
-                        style: TextStyle(
+                      child: Text(
+                        existingSession != null
+                            ? 'Selecciona la fecha única en que se impartirá esta sesión y su horario de inicio y término.'
+                            : 'Cada sesión tiene su propia fecha individual (por ejemplo, Sesión 1 mañana y Sesión 2 mañana o pasado mañana). Si agregas más días abajo, se creará una sesión independiente por cada día.',
+                        style: const TextStyle(
                           fontSize: 11,
                           color: AppTheme.slate800,
                         ),
@@ -1403,7 +1417,7 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                     ),
                     const SizedBox(height: 12),
                     const Text(
-                      '1. Título o sección del taller:',
+                      '1. Título o sección de la sesión:',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
@@ -1418,130 +1432,237 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                       ),
                     ),
                     const SizedBox(height: 14),
-                    const Text(
-                      '2. 📅 Fecha(s) de los Días que se Impartirá esta Sesión (Evidencia):',
-                      style: TextStyle(
+                    Text(
+                      existingSession != null
+                          ? '2. 📅 Fecha del Día que se Impartirá esta Sesión:'
+                          : '2. 📅 Fecha del Día de cada Sesión (1 Sesión por Día):',
+                      style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: selectedDates.map((d) {
-                        final label = WorkshopSession.formatSingleDateWithDay(
-                          d,
-                        );
-                        return InputChip(
-                          avatar: const Icon(
-                            Icons.calendar_today_rounded,
-                            size: 14,
-                            color: AppTheme.primary,
-                          ),
-                          label: Text(
-                            label,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          onDeleted: selectedDates.length > 1
-                              ? () {
-                                  setDialogState(() {
-                                    selectedDates.remove(d);
-                                    syncImpartedDaysText();
-                                  });
-                                }
-                              : null,
-                        );
-                      }).toList(),
-                    ),
                     const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
-                      children: [
-                        OutlinedButton.icon(
-                          icon: const Icon(Icons.add_circle_outline, size: 16),
-                          label: const Text(
-                            '➕ Agregar Fecha / Día',
-                            style: TextStyle(fontSize: 11),
+
+                    // Lista de sesiones a crear o la sesión única que se está editando
+                    ...List.generate(
+                      existingSession != null ? 1 : sessionDates.length,
+                      (idx) {
+                        final d = existingSession != null
+                            ? selectedDate
+                            : sessionDates[idx];
+                        final sessionNumLabel = existingSession != null
+                            ? existingSession.title.split(':').first
+                            : 'Sesión ${nextSessionNumber + idx}';
+
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AppTheme.slate50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppTheme.slate200),
                           ),
-                          onPressed: () async {
-                            final picked = await showDatePicker(
-                              context: ctx,
-                              initialDate: selectedDates.last,
-                              firstDate: DateTime(2024),
-                              lastDate: DateTime(2030),
-                            );
-                            if (picked != null) {
-                              setDialogState(() {
-                                final exists = selectedDates.any(
-                                  (d) =>
-                                      d.year == picked.year &&
-                                      d.month == picked.month &&
-                                      d.day == picked.day,
-                                );
-                                if (!exists) {
-                                  selectedDates.add(picked);
-                                }
-                                syncImpartedDaysText();
-                              });
-                            }
-                          },
-                        ),
-                        OutlinedButton.icon(
-                          icon: const Icon(Icons.date_range_rounded, size: 16),
-                          label: const Text(
-                            '📆 Rango de Días (Del ... Al ...)',
-                            style: TextStyle(fontSize: 11),
-                          ),
-                          onPressed: () async {
-                            final range = await showDateRangePicker(
-                              context: ctx,
-                              firstDate: DateTime(2024),
-                              lastDate: DateTime(2030),
-                              initialDateRange: DateTimeRange(
-                                start: selectedDates.first,
-                                end: selectedDates.last.isAfter(
-                                  selectedDates.first,
-                                )
-                                    ? selectedDates.last
-                                    : selectedDates.first.add(
-                                        const Duration(days: 2),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.calendar_month_rounded,
+                                    size: 16,
+                                    color: AppTheme.primary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      '$sessionNumLabel ➔ ${WorkshopSession.formatSingleDateWithDay(d)}',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppTheme.slate900,
                                       ),
+                                    ),
+                                  ),
+                                  if (existingSession == null &&
+                                      sessionDates.length > 1)
+                                    IconButton(
+                                      tooltip: 'Quitar esta sesión',
+                                      visualDensity: VisualDensity.compact,
+                                      icon: const Icon(
+                                        Icons.close_rounded,
+                                        size: 16,
+                                        color: AppTheme.absentColor,
+                                      ),
+                                      onPressed: () {
+                                        setDialogState(() {
+                                          sessionDates.removeAt(idx);
+                                          selectedDate = sessionDates.first;
+                                        });
+                                      },
+                                    ),
+                                ],
                               ),
-                            );
-                            if (range != null) {
-                              setDialogState(() {
-                                selectedDates.clear();
-                                var cur = range.start;
-                                int safety = 0;
-                                while (!cur.isAfter(range.end) && safety < 15) {
-                                  selectedDates.add(cur);
-                                  cur = cur.add(const Duration(days: 1));
-                                  safety++;
-                                }
-                                syncImpartedDaysText();
-                              });
-                            }
-                          },
-                        ),
-                      ],
+                              const SizedBox(height: 6),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: [
+                                  ChoiceChip(
+                                    label: const Text(
+                                      'Hoy',
+                                      style: TextStyle(fontSize: 11),
+                                    ),
+                                    selected: isSameDay(d, now),
+                                    onSelected: (_) {
+                                      setDialogState(() {
+                                        if (existingSession != null) {
+                                          selectedDate = now;
+                                        } else {
+                                          sessionDates[idx] = now;
+                                          selectedDate = sessionDates.first;
+                                        }
+                                      });
+                                    },
+                                  ),
+                                  ChoiceChip(
+                                    label: const Text(
+                                      'Mañana',
+                                      style: TextStyle(fontSize: 11),
+                                    ),
+                                    selected: isSameDay(d, tomorrow),
+                                    onSelected: (_) {
+                                      setDialogState(() {
+                                        if (existingSession != null) {
+                                          selectedDate = tomorrow;
+                                        } else {
+                                          sessionDates[idx] = tomorrow;
+                                          selectedDate = sessionDates.first;
+                                        }
+                                      });
+                                    },
+                                  ),
+                                  ChoiceChip(
+                                    label: const Text(
+                                      'Pasado Mañana',
+                                      style: TextStyle(fontSize: 11),
+                                    ),
+                                    selected: isSameDay(d, dayAfterTomorrow),
+                                    onSelected: (_) {
+                                      setDialogState(() {
+                                        if (existingSession != null) {
+                                          selectedDate = dayAfterTomorrow;
+                                        } else {
+                                          sessionDates[idx] = dayAfterTomorrow;
+                                          selectedDate = sessionDates.first;
+                                        }
+                                      });
+                                    },
+                                  ),
+                                  OutlinedButton.icon(
+                                    icon: const Icon(
+                                      Icons.edit_calendar_rounded,
+                                      size: 14,
+                                    ),
+                                    label: const Text(
+                                      'Elegir en Calendario',
+                                      style: TextStyle(fontSize: 11),
+                                    ),
+                                    onPressed: () async {
+                                      final picked = await showDatePicker(
+                                        context: ctx,
+                                        initialDate: d,
+                                        firstDate: DateTime(2024),
+                                        lastDate: DateTime(2030),
+                                      );
+                                      if (picked != null) {
+                                        setDialogState(() {
+                                          if (existingSession != null) {
+                                            selectedDate = picked;
+                                          } else {
+                                            sessionDates[idx] = picked;
+                                            selectedDate = sessionDates.first;
+                                          }
+                                        });
+                                      }
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        );
+                      },
                     ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: impartedDaysCtrl,
-                      maxLines: 2,
-                      decoration: const InputDecoration(
-                        labelText:
-                            'Evidencia de Fechas / Días en que se impartirá',
-                        prefixIcon: Icon(Icons.event_note_rounded),
-                        hintText:
-                            'Ej. Miércoles 28/10/2026 • Jueves 29/10/2026',
+
+                    if (existingSession == null) ...[
+                      const SizedBox(height: 4),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: [
+                          OutlinedButton.icon(
+                            icon: const Icon(
+                              Icons.add_circle_outline,
+                              size: 15,
+                            ),
+                            label: Text(
+                              '➕ Agregar Otra Sesión (Sesión ${nextSessionNumber + sessionDates.length})',
+                              style: const TextStyle(fontSize: 11),
+                            ),
+                            onPressed: () async {
+                              final picked = await showDatePicker(
+                                context: ctx,
+                                initialDate: sessionDates.last,
+                                firstDate: DateTime(2024),
+                                lastDate: DateTime(2030),
+                              );
+                              if (picked != null) {
+                                setDialogState(() {
+                                  sessionDates.add(picked);
+                                });
+                              }
+                            },
+                          ),
+                          OutlinedButton.icon(
+                            icon: const Icon(
+                              Icons.date_range_rounded,
+                              size: 15,
+                            ),
+                            label: const Text(
+                              '📆 Rango de Días (1 Sesión por Día)',
+                              style: TextStyle(fontSize: 11),
+                            ),
+                            onPressed: () async {
+                              final range = await showDateRangePicker(
+                                context: ctx,
+                                firstDate: DateTime(2024),
+                                lastDate: DateTime(2030),
+                                initialDateRange: DateTimeRange(
+                                  start: sessionDates.first,
+                                  end: sessionDates.first.add(
+                                    const Duration(days: 2),
+                                  ),
+                                ),
+                              );
+                              if (range != null) {
+                                setDialogState(() {
+                                  sessionDates.clear();
+                                  var cur = range.start;
+                                  int safety = 0;
+                                  while (!cur.isAfter(range.end) &&
+                                      safety < 15) {
+                                    sessionDates.add(cur);
+                                    cur = cur.add(const Duration(days: 1));
+                                    safety++;
+                                  }
+                                  selectedDate = sessionDates.first;
+                                });
+                              }
+                            },
+                          ),
+                        ],
                       ),
-                    ),
+                    ],
                     const SizedBox(height: 14),
                     const Text(
                       '3. 🕒 Evidencia de Hora de Inicio y Hora de Término:',
@@ -1643,12 +1764,14 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                 icon: const Icon(Icons.save_rounded, size: 18),
                 label: Text(
                   existingSession != null
-                      ? 'Guardar Fechas y Horario'
-                      : 'Crear Sesión con Fechas y Horario',
+                      ? 'Guardar Día y Horario'
+                      : (sessionDates.length > 1
+                            ? 'Crear ${sessionDates.length} Sesiones (1 por Día)'
+                            : 'Crear Sesión'),
                 ),
-                onPressed: () {
-                  final title = titleController.text.trim();
-                  if (title.isEmpty) return;
+                onPressed: () async {
+                  final rawTitle = titleController.text.trim();
+                  if (rawTitle.isEmpty) return;
                   final startStr = startCtrl.text.trim().isNotEmpty
                       ? startCtrl.text.trim()
                       : defaultStart;
@@ -1656,33 +1779,46 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                       ? endCtrl.text.trim()
                       : defaultEnd;
                   final tol = int.tryParse(tolCtrl.text.trim()) ?? 15;
-                  final impartedText = impartedDaysCtrl.text.trim().isNotEmpty
-                      ? impartedDaysCtrl.text.trim()
-                      : WorkshopSession.formatSingleDateWithDay(selectedDate);
 
                   if (existingSession != null) {
-                    provider.updateSessionSchedule(
+                    await provider.updateSessionSchedule(
                       workshopId: workshop.id,
                       sessionId: existingSession.id,
-                      title: title,
+                      title: rawTitle,
                       date: selectedDate,
-                      impartedDaysLabel: impartedText,
+                      impartedDaysLabel: WorkshopSession.formatSingleDateWithDay(
+                        selectedDate,
+                      ),
                       startTimeLabel: startStr,
                       endTimeLabel: endStr,
                       toleranceMinutes: tol,
                     );
                   } else {
-                    provider.createSession(
-                      workshopId: workshop.id,
-                      title: title,
-                      date: selectedDate,
-                      impartedDaysLabel: impartedText,
-                      startTimeLabel: startStr,
-                      endTimeLabel: endStr,
-                      toleranceMinutes: tol,
-                    );
+                    String baseTopic = rawTitle;
+                    final colonIdx = baseTopic.indexOf(':');
+                    if (colonIdx != -1 && colonIdx + 1 < baseTopic.length) {
+                      baseTopic = baseTopic.substring(colonIdx + 1).trim();
+                    }
+
+                    for (int i = 0; i < sessionDates.length; i++) {
+                      final d = sessionDates[i];
+                      final singleDayStr =
+                          WorkshopSession.formatSingleDateWithDay(d);
+                      final sessionTitle = sessionDates.length == 1
+                          ? rawTitle
+                          : 'Sesión ${nextSessionNumber + i}: $baseTopic';
+                      await provider.createSession(
+                        workshopId: workshop.id,
+                        title: sessionTitle,
+                        date: d,
+                        impartedDaysLabel: singleDayStr,
+                        startTimeLabel: startStr,
+                        endTimeLabel: endStr,
+                        toleranceMinutes: tol,
+                      );
+                    }
                   }
-                  Navigator.pop(ctx);
+                  if (ctx.mounted) Navigator.pop(ctx);
                 },
               ),
             ],
