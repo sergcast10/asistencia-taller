@@ -808,7 +808,8 @@
         }
       } catch (err) {
         console.error('Error sellando asistencia:', err);
-        alert('Error conectando con la base de datos de Supabase. Revisa tu conexión a internet.');
+        const errMsg = err.message || (typeof err === 'string' ? err : JSON.stringify(err));
+        alert('Aviso de Supabase: ' + errMsg);
         btn.innerHTML = originalText;
         btn.disabled = false;
       }
