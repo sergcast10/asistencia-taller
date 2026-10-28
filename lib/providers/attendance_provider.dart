@@ -122,7 +122,7 @@ class AttendanceProvider extends ChangeNotifier {
     _pushWorkshopToSupabaseAsync(newWorkshop);
   }
 
-  Future<void> addStudentToWorkshop({
+  Future<Student?> addStudentToWorkshop({
     required String workshopId,
     required String enrollmentNumber,
     required String fullName,
@@ -131,21 +131,133 @@ class AttendanceProvider extends ChangeNotifier {
     final index = _workshops.indexWhere((w) => w.id == workshopId);
     if (index != -1) {
       final cleanEnrollment = enrollmentNumber.trim().toUpperCase();
-      final existing = _workshops[index].enrolledStudents.where(
+      final existingIdx = _workshops[index].enrolledStudents.indexWhere(
         (s) => s.enrollmentNumber.trim().toUpperCase() == cleanEnrollment,
-      ).firstOrNull;
-      if (existing != null) return;
+      );
+      if (existingIdx != -1) {
+        final existing = _workshops[index].enrolledStudents[existingIdx];
+        final updated = Student(
+          id: existing.id,
+          enrollmentNumber: cleanEnrollment,
+          fullName: fullName.trim().isNotEmpty ? fullName.trim() : existing.fullName,
+          email: email.trim().isNotEmpty ? email.trim() : existing.email,
+        );
+        _workshops[index].enrolledStudents[existingIdx] = updated;
+        await _persist();
+        _pushStudentToSupabaseAsync(updated, workshopId);
+        return updated;
+      }
 
       final newStudent = Student(
         id: 'std_${_uuid.v4().substring(0, 8)}',
         enrollmentNumber: cleanEnrollment,
         fullName: fullName.trim(),
-        email: email.trim(),
+        email: email.trim().isNotEmpty
+            ? email.trim()
+            : '${cleanEnrollment.toLowerCase()}@alumno.edu',
       );
       _workshops[index].enrolledStudents.add(newStudent);
       await _persist();
       _pushStudentToSupabaseAsync(newStudent, workshopId);
+      return newStudent;
     }
+    return null;
+  }
+
+  /// Permite editar los datos de un alumno (Nombre, Matrícula, Correo) en la sección de estudiantes
+  Future<Student?> updateStudentInWorkshop({
+    required String workshopId,
+    required String studentId,
+    required String enrollmentNumber,
+    required String fullName,
+    required String email,
+  }) async {
+    final wIdx = _workshops.indexWhere((w) => w.id == workshopId);
+    if (wIdx == -1) return null;
+
+    final workshop = _workshops[wIdx];
+    final sIdx = workshop.enrolledStudents.indexWhere((s) => s.id == studentId);
+    if (sIdx == -1) return null;
+
+    final updated = Student(
+      id: studentId,
+      enrollmentNumber: enrollmentNumber.trim().toUpperCase(),
+      fullName: fullName.trim(),
+      email: email.trim().isNotEmpty
+          ? email.trim()
+          : '${enrollmentNumber.trim().toLowerCase()}@alumno.edu',
+    );
+    workshop.enrolledStudents[sIdx] = updated;
+    await _persist();
+    _pushStudentToSupabaseAsync(updated, workshopId);
+    notifyListeners();
+    return updated;
+  }
+
+  /// Integra o edita a un alumno y le otorga asistencia directa sin celular (por olvido, extravío o circunstancia especial) con evidencia oficial del día
+  Future<AttendanceRecord?> registerOrEditStudentWithoutPhone({
+    required String workshopId,
+    String? sessionId,
+    String? studentId,
+    required String enrollmentNumber,
+    required String fullName,
+    String? email,
+    required String circumstanceReason,
+    String? extraDetails,
+    bool markEntry = true,
+    bool markAccredited = true,
+  }) async {
+    final wIdx = _workshops.indexWhere((w) => w.id == workshopId);
+    if (wIdx == -1) return null;
+    final workshop = _workshops[wIdx];
+
+    // 1. Asegurar que exista el alumno o actualizar sus datos
+    Student? student;
+    if (studentId != null && studentId.isNotEmpty) {
+      student = await updateStudentInWorkshop(
+        workshopId: workshopId,
+        studentId: studentId,
+        enrollmentNumber: enrollmentNumber,
+        fullName: fullName,
+        email: email ?? '',
+      );
+    }
+    student ??= await addStudentToWorkshop(
+      workshopId: workshopId,
+      enrollmentNumber: enrollmentNumber,
+      fullName: fullName,
+      email: email ?? '',
+    );
+    if (student == null) return null;
+
+    // 2. Obtener la sesión activa o crear la sesión de hoy si aún no existe ninguna
+    WorkshopSession? session;
+    if (sessionId != null && sessionId.isNotEmpty) {
+      session = workshop.sessions.where((s) => s.id == sessionId).firstOrNull;
+    }
+    session ??= workshop.sessions.where((s) => s.isQrActive).firstOrNull ??
+        workshop.sessions.firstOrNull;
+
+    session ??= await createSession(
+      workshopId: workshopId,
+      title: 'Sesión 1: Práctica y Evaluación',
+      date: DateTime.now(),
+    );
+    if (session == null) return null;
+
+    // 3. Registrar asistencia y evidencia de la circunstancia (sin celular / olvido / extravío / integración)
+    final detailStr = (extraDetails != null && extraDetails.trim().isNotEmpty)
+        ? '$circumstanceReason — ${extraDetails.trim()}'
+        : circumstanceReason;
+
+    return saveStudentIncidentNote(
+      workshopId: workshop.id,
+      sessionId: session.id,
+      studentId: student.id,
+      noteText: detailStr,
+      markEntry: markEntry,
+      markAccredited: markAccredited,
+    );
   }
 
   Future<WorkshopSession?> createSession({

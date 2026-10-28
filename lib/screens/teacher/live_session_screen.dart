@@ -477,6 +477,27 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                           ),
                         ),
                         ElevatedButton.icon(
+                          icon: const Icon(
+                            Icons.phonelink_erase_rounded,
+                            size: 16,
+                          ),
+                          label: const Text('📵 Integrar / Sin Celular'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF7C3AED),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 10,
+                            ),
+                          ),
+                          onPressed: () => _showGeneralIncidentDialog(
+                            context,
+                            provider,
+                            currentWorkshop,
+                            currentSession,
+                          ),
+                        ),
+                        ElevatedButton.icon(
                           icon: const Icon(Icons.verified_rounded, size: 16),
                           label: const Text('🎓 Acreditar Registrados Hoy'),
                           style: ElevatedButton.styleFrom(
@@ -828,6 +849,117 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                                         ),
                                       ),
                                     ],
+                                    const SizedBox(height: 10),
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 6,
+                                      children: [
+                                        ElevatedButton.icon(
+                                          icon: const Icon(
+                                            Icons.phonelink_erase_rounded,
+                                            size: 14,
+                                          ),
+                                          label: const Text(
+                                            '📵 Sin Celular / Dar Asistencia',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: const Color(
+                                              0xFF7C3AED,
+                                            ),
+                                            foregroundColor: Colors.white,
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 6,
+                                            ),
+                                            minimumSize: Size.zero,
+                                            tapTargetSize: MaterialTapTargetSize
+                                                .shrinkWrap,
+                                          ),
+                                          onPressed: () =>
+                                              _showStudentNoteDialog(
+                                                context,
+                                                provider,
+                                                currentWorkshop,
+                                                currentSession,
+                                                student,
+                                                record,
+                                                defaultNoPhonePreset: true,
+                                              ),
+                                        ),
+                                        OutlinedButton.icon(
+                                          icon: const Icon(
+                                            Icons.edit_note_rounded,
+                                            size: 15,
+                                          ),
+                                          label: const Text(
+                                            '✏️ Editar Alumno / Evidencia',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          style: OutlinedButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 6,
+                                            ),
+                                            minimumSize: Size.zero,
+                                            tapTargetSize: MaterialTapTargetSize
+                                                .shrinkWrap,
+                                          ),
+                                          onPressed: () =>
+                                              _showStudentNoteDialog(
+                                                context,
+                                                provider,
+                                                currentWorkshop,
+                                                currentSession,
+                                                student,
+                                                record,
+                                                defaultNoPhonePreset: false,
+                                              ),
+                                        ),
+                                        if (status !=
+                                            AttendanceStatus.accredited)
+                                          ElevatedButton.icon(
+                                            icon: const Icon(
+                                              Icons.school_rounded,
+                                              size: 14,
+                                            ),
+                                            label: const Text(
+                                              '🎓 Acreditar Hoy',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor:
+                                                  AppTheme.accreditedColor,
+                                              foregroundColor: Colors.white,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 10,
+                                                    vertical: 6,
+                                                  ),
+                                              minimumSize: Size.zero,
+                                              tapTargetSize:
+                                                  MaterialTapTargetSize
+                                                      .shrinkWrap,
+                                            ),
+                                            onPressed: () {
+                                              provider.accreditStudentDirectly(
+                                                workshopId: currentWorkshop.id,
+                                                sessionId: currentSession.id,
+                                                studentId: student.id,
+                                              );
+                                            },
+                                          ),
+                                      ],
+                                    ),
                                   ],
                                 ),
                               ),
@@ -1340,26 +1472,34 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
     );
   }
 
-  /// Diálogo de nota para un alumno específico de la lista
+  /// Diálogo de edición de alumno, asistencia sin celular (olvido/extravío) y nota de evidencia
   void _showStudentNoteDialog(
     BuildContext context,
     AttendanceProvider provider,
     Workshop workshop,
     WorkshopSession session,
     Student student,
-    AttendanceRecord? record,
-  ) {
-    final noteCtrl = TextEditingController(text: '');
-    bool markEntry = true;
-    bool markAccredited = record?.isAccredited ?? false;
+    AttendanceRecord? record, {
+    bool defaultNoPhonePreset = false,
+  }) {
+    final nameCtrl = TextEditingController(text: student.fullName);
+    final matCtrl = TextEditingController(text: student.enrollmentNumber);
+    final emailCtrl = TextEditingController(text: student.email);
 
     final presets = [
-      'Celular sin batería / apagado',
-      'Sin conexión a internet / datos móviles',
-      'Cámara dañada / no escanea QR',
-      'Retraso justificado (avisó al docente)',
-      'Permiso académico / situación médica',
+      '📵 Sin celular en este momento (Autorizado por docente)',
+      '🏠 Olvido de celular en casa',
+      '🔍 Extravío o pérdida de celular',
+      '🔋 Celular sin batería / apagado',
+      '🌐 Sin conexión a internet / datos móviles',
+      '🆕 Integración presencial al taller hoy',
     ];
+
+    final noteCtrl = TextEditingController(
+      text: defaultNoPhonePreset ? presets.first : '',
+    );
+    bool markEntry = true;
+    bool markAccredited = defaultNoPhonePreset || (record?.isAccredited ?? true);
 
     showDialog(
       context: context,
@@ -1371,14 +1511,18 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
             ),
             title: Row(
               children: [
-                const Icon(
-                  Icons.assignment_turned_in_rounded,
-                  color: Color(0xFF7C3AED),
+                Icon(
+                  defaultNoPhonePreset
+                      ? Icons.phonelink_erase_rounded
+                      : Icons.edit_note_rounded,
+                  color: const Color(0xFF7C3AED),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Nota / Evidencia: ${student.fullName}',
+                    defaultNoPhonePreset
+                        ? 'Asistencia sin Celular: ${student.fullName}'
+                        : 'Editar Alumno y Evidencia: ${student.fullName}',
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
@@ -1392,12 +1536,45 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Matrícula: ${student.enrollmentNumber}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.slate600,
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF5F3FF),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFC4B5FD)),
+                    ),
+                    child: const Text(
+                      'Puedes editar los datos del alumno y otorgarle directamente su asistencia aunque no tenga celular (por olvido, extravío o falla), generando su evidencia oficial de hoy.',
+                      style: TextStyle(fontSize: 11, color: Color(0xFF4C1D95)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Datos del Alumno (Editables):',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: nameCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Nombre Completo',
+                      prefixIcon: Icon(Icons.person_rounded),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: matCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Matrícula / Número de Control',
+                      prefixIcon: Icon(Icons.badge_rounded),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: emailCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Correo Electrónico',
+                      prefixIcon: Icon(Icons.email_outlined),
                     ),
                   ),
                   if (record?.hasNotes == true) ...[
@@ -1413,7 +1590,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'Nota registrada actualmente:',
+                            'Evidencia registrada actualmente:',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w800,
@@ -1434,7 +1611,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                   ],
                   const SizedBox(height: 14),
                   const Text(
-                    'Selecciona motivo rápido o escribe la situación:',
+                    'Circunstancia / Motivo (Sin Celular, Olvido, Extravío):',
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 6),
@@ -1456,10 +1633,11 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                   const SizedBox(height: 10),
                   TextField(
                     controller: noteCtrl,
-                    maxLines: 3,
+                    maxLines: 2,
                     decoration: const InputDecoration(
-                      labelText: 'Situación reportada por el alumno',
-                      hintText: 'Ej. Su celular se apagó al entrar; estuvo presente toda la sesión.',
+                      labelText: 'Circunstancia o evidencia del día',
+                      hintText:
+                          'Ej. No trae celular hoy por olvido/extravío; presente en el taller.',
                       prefixIcon: Icon(Icons.edit_note_rounded),
                     ),
                   ),
@@ -1468,7 +1646,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                     contentPadding: EdgeInsets.zero,
                     value: markEntry,
                     title: const Text(
-                      'Sellar Entrada del alumno automáticamente',
+                      'Registrar y sellar Entrada del alumno hoy',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
@@ -1481,14 +1659,14 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                     contentPadding: EdgeInsets.zero,
                     value: markAccredited,
                     title: const Text(
-                      'Acreditar al alumno con esta evidencia',
+                      'Dar Asistencia Completa / Acreditar Hoy al Alumno',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     onChanged: (v) =>
-                        setDialogState(() => markAccredited = v ?? false),
+                        setDialogState(() => markAccredited = v ?? true),
                   ),
                 ],
               ),
@@ -1515,38 +1693,49 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
               ),
               ElevatedButton.icon(
                 icon: const Icon(Icons.save_rounded, size: 18),
-                label: const Text('Guardar Evidencia'),
+                label: const Text('Guardar y Dar Asistencia'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF7C3AED),
                   foregroundColor: Colors.white,
                 ),
                 onPressed: () async {
+                  final newName = nameCtrl.text.trim();
+                  final newMat = matCtrl.text.trim();
+                  final newEmail = emailCtrl.text.trim();
                   final text = noteCtrl.text.trim();
-                  if (text.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Escribe o selecciona el motivo de la nota.',
-                        ),
-                      ),
+
+                  if (newName.isNotEmpty && newMat.isNotEmpty) {
+                    await provider.updateStudentInWorkshop(
+                      workshopId: workshop.id,
+                      studentId: student.id,
+                      enrollmentNumber: newMat,
+                      fullName: newName,
+                      email: newEmail,
                     );
-                    return;
                   }
+
                   final saved = await provider.saveStudentIncidentNote(
                     workshopId: workshop.id,
                     sessionId: session.id,
                     studentId: student.id,
-                    noteText: text,
+                    noteText: text.isNotEmpty
+                        ? text
+                        : '📵 Registro de asistencia sin celular autorizado por el docente',
                     markEntry: markEntry,
                     markAccredited: markAccredited,
                   );
                   if (ctx.mounted) Navigator.pop(ctx);
                   if (context.mounted) {
+                    final updatedStudent =
+                        workshop.enrolledStudents
+                            .where((s) => s.id == student.id)
+                            .firstOrNull ??
+                        student;
                     _showEvidenceReceiptDialog(
                       context,
                       workshop,
                       session,
-                      student,
+                      updatedStudent,
                       saved,
                     );
                   }
