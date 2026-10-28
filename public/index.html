@@ -427,11 +427,22 @@
 
   </div>
 
+  <!-- Supabase Cloud SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <script>
+    // Configuración directa de Supabase en la nube
+    const SUPABASE_URL = 'https://qukqvrowgzdkqoccbfdb.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN';
+    const supabaseClient = (typeof supabase !== 'undefined' && supabase.createClient)
+      ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+      : null;
+
     // Variables globales extraídas de la URL del QR
     const urlParams = new URLSearchParams(window.location.search);
     let token = urlParams.get('token') || '';
     let sessionId = urlParams.get('session') || '';
+    let workshopId = urlParams.get('workshop') || '';
     let currentPhase = urlParams.get('phase') || 'entry';
     let isStudentEnrolledInDb = false;
 
@@ -441,11 +452,19 @@
       try {
         const decoded = JSON.parse(decodeURIComponent(qrParam));
         if (decoded.s) sessionId = decoded.s;
+        if (decoded.w) workshopId = decoded.w;
         if (decoded.p) currentPhase = decoded.p;
         if (decoded.sig && !token) token = `${decoded.p}_${decoded.t}_${decoded.sig}`;
       } catch (e) {
         console.warn('Lectura de parámetro qr alternativo:', e);
       }
+    }
+
+    // Formatear hora local HH:MM:SS
+    function formatTime(isoStr) {
+      if (!isoStr) return '--:--:--';
+      const d = new Date(isoStr);
+      return d.toLocaleTimeString('es-MX', { hour12: false });
     }
 
     // Inicializar al cargar la página
@@ -474,6 +493,35 @@
     }
 
     async function loadSessionMetadata() {
+      // 1. Cargar desde Supabase si tenemos sessionId
+      if (supabaseClient && sessionId) {
+        try {
+          const { data: sess } = await supabaseClient
+            .from('workshop_sessions')
+            .select('id, title, current_phase, workshop_id, workshops(id, name, instructor_name)')
+            .eq('id', sessionId)
+            .maybeSingle();
+
+          if (sess) {
+            workshopId = sess.workshop_id || workshopId;
+            if (sess.workshops) {
+              document.getElementById('workshopTitle').textContent = sess.workshops.name || 'Taller Formativo';
+              document.getElementById('sessionTitle').textContent = `${sess.title} • ${sess.workshops.instructor_name || 'Docente'}`;
+            } else {
+              document.getElementById('sessionTitle').textContent = sess.title;
+            }
+            if (sess.current_phase) {
+              currentPhase = sess.current_phase;
+              setupPhaseBadge(currentPhase);
+            }
+            return;
+          }
+        } catch (e) {
+          console.warn('Aviso leyendo sesión de Supabase:', e);
+        }
+      }
+
+      // 2. Fallback a servidor local si corre en PC
       try {
         const res = await fetch('/api/active-session');
         const data = await res.json();
@@ -485,9 +533,7 @@
             setupPhaseBadge(currentPhase);
           }
         }
-      } catch (e) {
-        console.error('Error cargando datos de sesión', e);
-      }
+      } catch (_) {}
     }
 
     // Comprobar si este celular ya tiene un alumno guardado en localStorage
@@ -496,19 +542,27 @@
       const savedName = localStorage.getItem('asistencia_full_name');
 
       if (savedControl) {
-        // Consultar al servidor para verificar estado actual
-        try {
-          const res = await fetch(`/api/check-student?controlNumber=${encodeURIComponent(savedControl)}&sessionId=${encodeURIComponent(sessionId)}`);
-          const info = await res.json();
+        let studentName = savedName || 'Alumno';
 
-          const studentName = info.exists ? info.student.fullName : (savedName || 'Alumno');
-          document.getElementById('savedGreetingName').textContent = `¡Hola, ${studentName}! 👋`;
-          document.getElementById('savedGreetingControl').textContent = `Matrícula: ${savedControl}`;
+        if (supabaseClient) {
+          try {
+            const { data: std } = await supabaseClient
+              .from('students')
+              .select('full_name')
+              .ilike('enrollment_number', savedControl)
+              .maybeSingle();
+            if (std && std.full_name) {
+              studentName = std.full_name;
+              localStorage.setItem('asistencia_full_name', studentName);
+            }
+          } catch (_) {}
+        }
 
-          document.getElementById('savedStudentView').classList.remove('hidden');
-          document.getElementById('newStudentForm').classList.add('hidden');
-          return;
-        } catch (_) {}
+        document.getElementById('savedGreetingName').textContent = `¡Hola, ${studentName}! 👋`;
+        document.getElementById('savedGreetingControl').textContent = `Matrícula: ${savedControl}`;
+        document.getElementById('savedStudentView').classList.remove('hidden');
+        document.getElementById('newStudentForm').classList.add('hidden');
+        return;
       }
 
       // Si no hay datos guardados, mostrar formulario
@@ -527,24 +581,37 @@
       }
 
       searchTimeout = setTimeout(async () => {
-        try {
-          const res = await fetch(`/api/check-student?controlNumber=${encodeURIComponent(cleanVal)}&sessionId=${encodeURIComponent(sessionId)}`);
-          const info = await res.json();
-          if (info.exists) {
-            // Ya existe en la lista: no pedir nombre
-            isStudentEnrolledInDb = true;
-            document.getElementById('nameGroup').classList.add('hidden');
-            document.getElementById('controlHelper').innerHTML = `✅ Alumno reconocido: <strong>${info.student.fullName}</strong>`;
-            document.getElementById('controlHelper').style.color = 'var(--success)';
-          } else {
-            // No existe: pedir nombre
-            isStudentEnrolledInDb = false;
-            document.getElementById('nameGroup').classList.remove('hidden');
-            document.getElementById('controlHelper').innerHTML = '⚠️ Matrícula no encontrada en lista previa. Ingresa tu nombre para registrarte.';
-            document.getElementById('controlHelper').style.color = 'var(--primary)';
-          }
-        } catch (_) {}
-      }, 400);
+        let foundStudent = null;
+
+        if (supabaseClient) {
+          try {
+            const { data: std } = await supabaseClient
+              .from('students')
+              .select('full_name')
+              .ilike('enrollment_number', cleanVal)
+              .maybeSingle();
+            foundStudent = std;
+          } catch (_) {}
+        } else {
+          try {
+            const res = await fetch(`/api/check-student?controlNumber=${encodeURIComponent(cleanVal)}&sessionId=${encodeURIComponent(sessionId)}`);
+            const info = await res.json();
+            if (info.exists) foundStudent = info.student;
+          } catch (_) {}
+        }
+
+        if (foundStudent) {
+          isStudentEnrolledInDb = true;
+          document.getElementById('nameGroup').classList.add('hidden');
+          document.getElementById('controlHelper').innerHTML = `✅ Alumno reconocido: <strong>${foundStudent.full_name || foundStudent.fullName}</strong>`;
+          document.getElementById('controlHelper').style.color = 'var(--success)';
+        } else {
+          isStudentEnrolledInDb = false;
+          document.getElementById('nameGroup').classList.remove('hidden');
+          document.getElementById('controlHelper').innerHTML = '⚠️ Matrícula no encontrada en lista previa. Ingresa tu nombre para registrarte.';
+          document.getElementById('controlHelper').style.color = 'var(--primary)';
+        }
+      }, 350);
     }
 
     // Cambiar de alumno
@@ -583,24 +650,125 @@
       // Animación de carga
       const btn = useSaved ? document.getElementById('btnConfirmAttendance') : document.getElementById('btnSubmitForm');
       const originalText = btn.innerHTML;
-      btn.innerHTML = '<div class="loading-spinner"></div> Sellando asistencia...';
+      btn.innerHTML = '<div class="loading-spinner"></div> Sellando asistencia en Supabase...';
       btn.disabled = true;
 
       try {
-        const response = await fetch('/api/register-attendance', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            controlNumber,
-            fullName,
-            token,
-            sessionId
-          })
-        });
+        let result = null;
 
-        const result = await response.json();
+        if (supabaseClient) {
+          // --- REGISTRO DIRECTO EN SUPABASE (Sin PC requerida) ---
+          const cleanCtrl = controlNumber.toUpperCase();
 
-        if (result.success) {
+          // 1. Obtener o registrar estudiante
+          let student = null;
+          const { data: existingStd } = await supabaseClient
+            .from('students')
+            .select('*')
+            .ilike('enrollment_number', cleanCtrl)
+            .maybeSingle();
+
+          if (existingStd) {
+            student = existingStd;
+          } else {
+            const newId = 'std_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+            const { data: createdStd, error: stdErr } = await supabaseClient
+              .from('students')
+              .insert({
+                id: newId,
+                workshop_id: workshopId || null,
+                enrollment_number: cleanCtrl,
+                full_name: fullName || 'Alumno',
+                email: `${cleanCtrl.toLowerCase()}@alumno.edu`
+              })
+              .select()
+              .single();
+
+            if (stdErr) throw stdErr;
+            student = createdStd;
+          }
+
+          // 2. Obtener registro de asistencia previo
+          const targetSessionId = sessionId || 'ses_001';
+          const { data: existingRec } = await supabaseClient
+            .from('attendance_records')
+            .select('*')
+            .eq('student_id', student.id)
+            .eq('session_id', targetSessionId)
+            .maybeSingle();
+
+          const nowIso = new Date().toISOString();
+          let newStatus = 'pending';
+          let checkInIso = existingRec ? existingRec.check_in_time : null;
+          let checkOutIso = existingRec ? existingRec.check_out_time : null;
+          let title = '';
+          let message = '';
+
+          if (currentPhase === 'entry') {
+            if (checkInIso) {
+              title = 'Entrada Ya Registrada';
+              message = `Tu entrada ya estaba sellada a las ${formatTime(checkInIso)} hrs. Recuerda escanear la salida al finalizar.`;
+            } else {
+              checkInIso = nowIso;
+              newStatus = checkOutIso ? 'accredited' : 'pending';
+              title = '🟢 Entrada Registrada';
+              message = `Entrada sellada a las ${formatTime(nowIso)} hrs. Recuerda escanear al concluir el taller para Acreditar.`;
+            }
+          } else if (currentPhase === 'exit') {
+            if (checkOutIso) {
+              title = checkInIso ? '¡Taller Ya Acreditado!' : 'Salida Ya Registrada';
+              message = `Tu salida ya estaba sellada a las ${formatTime(checkOutIso)} hrs.`;
+              newStatus = checkInIso ? 'accredited' : 'incompleteExitOnly';
+            } else {
+              checkOutIso = nowIso;
+              if (checkInIso) {
+                newStatus = 'accredited';
+                title = '¡TALLER ACREDITADO! 🎉';
+                message = 'Cumpliste con Entrada y Salida. Has obtenido la Acreditación oficial del taller.';
+              } else {
+                newStatus = 'incompleteExitOnly';
+                title = '⚠️ Salida Registrada Sin Entrada Previa';
+                message = 'Se registró tu salida, pero no tenías entrada sellada al inicio del taller.';
+              }
+            }
+          }
+
+          // 3. Guardar en attendance_records
+          const recId = existingRec ? existingRec.id : ('rec_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6));
+          const { error: upsertErr } = await supabaseClient
+            .from('attendance_records')
+            .upsert({
+              id: recId,
+              student_id: student.id,
+              session_id: targetSessionId,
+              check_in_time: checkInIso,
+              check_out_time: checkOutIso,
+              is_locked: true,
+              status: newStatus
+            });
+
+          if (upsertErr) throw upsertErr;
+
+          result = {
+            success: true,
+            status: newStatus,
+            title,
+            message,
+            student: { fullName: student.full_name, enrollmentNumber: student.enrollment_number },
+            checkInTime: formatTime(checkInIso),
+            checkOutTime: formatTime(checkOutIso)
+          };
+        } else {
+          // Fallback a API local
+          const response = await fetch('/api/register-attendance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ controlNumber, fullName, token, sessionId })
+          });
+          result = await response.json();
+        }
+
+        if (result && result.success) {
           // Guardar en este celular para futuros escaneos automáticos
           localStorage.setItem('asistencia_control_number', controlNumber);
           if (result.student && result.student.fullName) {
@@ -615,7 +783,7 @@
           if (result.status === 'accredited') {
             resultCard.className = 'card result-card result-accredited';
             document.getElementById('resultIcon').textContent = '🎓';
-            document.getElementById('resultTitle').textContent = '¡TALLER ACREDITADO! 🎉';
+            document.getElementById('resultTitle').textContent = result.title || '¡TALLER ACREDITADO! 🎉';
           } else {
             resultCard.className = 'card result-card result-entry';
             document.getElementById('resultIcon').textContent = '✅';
@@ -634,12 +802,13 @@
             document.getElementById('badgeCheckOut').classList.remove('hidden');
           }
         } else {
-          alert(result.message || 'Error al sellar asistencia.');
+          alert((result && result.message) || 'Error al sellar asistencia.');
           btn.innerHTML = originalText;
           btn.disabled = false;
         }
       } catch (err) {
-        alert('Error de conexión con el servidor. Verifica tu señal.');
+        console.error('Error sellando asistencia:', err);
+        alert('Error conectando con la base de datos de Supabase. Revisa tu conexión a internet.');
         btn.innerHTML = originalText;
         btn.disabled = false;
       }
