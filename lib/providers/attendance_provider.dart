@@ -830,10 +830,11 @@ class AttendanceProvider extends ChangeNotifier {
 
           final studentData = item['students'];
           String? sId = item['student_id']?.toString();
+          Student? existingStudent;
 
           if (studentData != null) {
             final enrollment = studentData['enrollment_number']?.toString().trim().toUpperCase();
-            var existingStudent = workshop.enrolledStudents.where(
+            existingStudent = workshop.enrolledStudents.where(
               (s) =>
                   (enrollment != null && s.enrollmentNumber.trim().toUpperCase() == enrollment) ||
                   s.id == sId,
