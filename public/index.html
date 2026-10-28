@@ -647,6 +647,36 @@
         }
       }
 
+      const cleanControl = controlNumber.trim().toUpperCase();
+
+      // --- PROTECCIÓN ANTIFRAUDE: UN SOLO ALUMNO POR CELULAR ---
+      const activeSessionKey = 'session_locked_device_' + (sessionId || 'ses_001');
+      let registeredStudentOnDevice = localStorage.getItem(activeSessionKey) || 
+                                     sessionStorage.getItem(activeSessionKey);
+      if (!registeredStudentOnDevice) {
+        const match = document.cookie.match(new RegExp('(^| )' + activeSessionKey + '=([^;]+)'));
+        if (match) registeredStudentOnDevice = match[2];
+      }
+
+      if (registeredStudentOnDevice && registeredStudentOnDevice !== cleanControl) {
+        const teacherCode = prompt(
+          '⚠️ BLOQUEO DE SEGURIDAD ANTIFRAUDE:\n\n' +
+          `Este celular ya fue registrado en esta sesión por el alumno con matrícula: ${registeredStudentOnDevice}.\n\n` +
+          'No está permitido registrar a otro compañero desde el mismo teléfono.\n\n' +
+          '¿El docente autorizó usar este teléfono por causa justificada? Ingrese el PIN de docente o clave de sesión para desbloquear:'
+        );
+        const validTokens = [(token || '').toUpperCase(), '1234', 'DOCENTE', 'MAESTRO'];
+        if (teacherCode && validTokens.includes(teacherCode.trim().toUpperCase())) {
+          localStorage.removeItem(activeSessionKey);
+          sessionStorage.removeItem(activeSessionKey);
+          document.cookie = `${activeSessionKey}=; max-age=0; path=/`;
+          alert('✅ Dispositivo desbloqueado con éxito por autorización del docente. Procede con tu registro.');
+        } else {
+          alert('⛔ Registro cancelado. Acércate con el docente para que te registre directamente en su consola de inventario.');
+          return;
+        }
+      }
+
       // Animación de carga
       const btn = useSaved ? document.getElementById('btnConfirmAttendance') : document.getElementById('btnSubmitForm');
       const originalText = btn.innerHTML;
@@ -833,6 +863,11 @@
           if (result.student && result.student.fullName) {
             localStorage.setItem('asistencia_full_name', result.student.fullName);
           }
+
+          // Vincular permanentemente este dispositivo a este alumno para esta sesión (Antifraude)
+          localStorage.setItem(activeSessionKey, cleanControl);
+          sessionStorage.setItem(activeSessionKey, cleanControl);
+          document.cookie = `${activeSessionKey}=${cleanControl}; max-age=86400; path=/`;
 
           // Mostrar tarjeta de resultado
           document.getElementById('actionCard').classList.add('hidden');

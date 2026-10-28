@@ -57,6 +57,25 @@ class LiveSessionScreen extends StatelessWidget {
                 },
               ),
               IconButton(
+                tooltip: 'Sincronizar con Supabase Cloud',
+                icon: const Icon(Icons.cloud_sync_rounded, color: AppTheme.accreditedColor),
+                onPressed: () async {
+                  final count = await provider.syncRecordsFromSupabase(
+                    workshopId: currentWorkshop.id,
+                    sessionId: currentSession.id,
+                  );
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('✅ Sincronizados $count registros desde Supabase'),
+                        backgroundColor: AppTheme.accreditedColor,
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                },
+              ),
+              IconButton(
                 tooltip: 'Probar / Simular Escaneo',
                 icon: const Icon(Icons.bolt_rounded, color: AppTheme.primary),
                 onPressed: () {
@@ -806,6 +825,60 @@ class LiveSessionScreen extends StatelessWidget {
                   },
                 ),
               ),
+            if (record != null && (record.hasCheckIn || record.hasCheckOut)) ...[
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.restart_alt_rounded),
+                  label: const Text('🔄 Reabrir / Desbloquear Registro de Alumno'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.incompleteColor,
+                    foregroundColor: AppTheme.slate900,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  onPressed: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (dCtx) => AlertDialog(
+                        title: const Text('¿Desbloquear alumno?'),
+                        content: Text(
+                          'Esto eliminará el sello actual de ${student.fullName} (${student.enrollmentNumber}) en esta sesión tanto en la app como en la nube, permitiéndole escanear nuevamente o usar su propio teléfono.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(dCtx, false),
+                            child: const Text('Cancelar'),
+                          ),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.incompleteColor),
+                            onPressed: () => Navigator.pop(dCtx, true),
+                            child: const Text('Sí, Desbloquear'),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (confirm == true) {
+                      await provider.resetStudentAttendance(
+                        workshopId: workshop.id,
+                        sessionId: session.id,
+                        studentId: student.id,
+                      );
+                      if (context.mounted) {
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('🔓 Registro de ${student.fullName} desbloqueado con éxito.'),
+                            backgroundColor: AppTheme.accreditedColor,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                ),
+              ),
+            ],
             const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,

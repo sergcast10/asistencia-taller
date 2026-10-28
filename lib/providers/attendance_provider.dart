@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
@@ -296,6 +298,7 @@ class AttendanceProvider extends ChangeNotifier {
         record: record,
         workshopId: workshop.id,
       );
+      _syncRecordToSupabaseAsync(record, student, session.id);
 
       return AttendanceProcessResult(
         success: true,
@@ -323,6 +326,7 @@ class AttendanceProvider extends ChangeNotifier {
         record: record,
         workshopId: workshop.id,
       );
+      _syncRecordToSupabaseAsync(record, student, session.id);
 
       if (record.hasCheckIn) {
         return AttendanceProcessResult(
@@ -415,6 +419,163 @@ class AttendanceProvider extends ChangeNotifier {
       entriesCount: entriesCount,
       exitsCount: exitsCount,
     );
+  }
+
+  // --- CONTROL DE INVENTARIO Y REAPERTURA DOCENTE ---
+
+  /// Permite al docente reiniciar/desbloquear la sesión de un alumno
+  Future<void> resetStudentAttendance({
+    required String workshopId,
+    required String sessionId,
+    required String studentId,
+  }) async {
+    final workshop = _workshops.firstWhere((w) => w.id == workshopId);
+    final session = workshop.sessions.firstWhere((s) => s.id == sessionId);
+
+    // 1. Eliminar registro de asistencia local en memoria y StorageService
+    session.records.remove(studentId);
+    await _persist();
+
+    // 2. Eliminar en PowerSync SQLite local
+    if (PowerSyncService().isInitialized) {
+      try {
+        await PowerSyncService().db.execute(
+          'DELETE FROM attendance_records WHERE student_id = ? AND session_id = ?',
+          [studentId, sessionId],
+        );
+      } catch (e) {
+        debugPrint('Aviso eliminación SQLite: $e');
+      }
+    }
+
+    // 3. Eliminar en Supabase Cloud REST para liberar al alumno en la nube
+    if (!kIsWeb) {
+      try {
+        final client = HttpClient();
+        final uri = Uri.parse(
+          'https://qukqvrowgzdkqoccbfdb.supabase.co/rest/v1/attendance_records?session_id=eq.$sessionId&student_id=eq.$studentId',
+        );
+        final req = await client.deleteUrl(uri);
+        req.headers.set('apikey', 'sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN');
+        req.headers.set('Authorization', 'Bearer sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN');
+        final res = await req.close();
+        await res.drain();
+        client.close();
+      } catch (e) {
+        debugPrint('Aviso Supabase delete: $e');
+      }
+    }
+
+    notifyListeners();
+  }
+
+  /// Sincronizar registros del inventario en vivo desde Supabase Cloud
+  Future<int> syncRecordsFromSupabase({
+    required String workshopId,
+    required String sessionId,
+  }) async {
+    if (kIsWeb) return 0;
+    try {
+      final client = HttpClient();
+      final uri = Uri.parse(
+        'https://qukqvrowgzdkqoccbfdb.supabase.co/rest/v1/attendance_records?session_id=eq.$sessionId&select=*,students(*)',
+      );
+      final req = await client.getUrl(uri);
+      req.headers.set('apikey', 'sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN');
+      req.headers.set('Authorization', 'Bearer sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN');
+      final res = await req.close();
+      final responseBody = await res.transform(utf8.decoder).join();
+      client.close();
+
+      if (res.statusCode == 200) {
+        final List<dynamic> list = jsonDecode(responseBody);
+        final workshop = _workshops.firstWhere((w) => w.id == workshopId);
+        final session = workshop.sessions.firstWhere((s) => s.id == sessionId);
+
+        int updatedCount = 0;
+        for (var item in list) {
+          final studentData = item['students'];
+          String? sId = item['student_id'];
+          if (studentData != null) {
+            final enrollment = studentData['enrollment_number']?.toString().toUpperCase();
+            var existingStudent = workshop.enrolledStudents.where(
+              (s) => s.enrollmentNumber.toUpperCase() == enrollment || s.id == sId,
+            ).firstOrNull;
+
+            if (existingStudent == null && enrollment != null) {
+              existingStudent = Student(
+                id: sId ?? 'std_${_uuid.v4().substring(0, 8)}',
+                fullName: studentData['full_name'] ?? 'Alumno',
+                enrollmentNumber: enrollment,
+                email: studentData['email'] ?? '',
+              );
+              workshop.enrolledStudents.add(existingStudent);
+            }
+
+            if (existingStudent != null) {
+              sId = existingStudent.id;
+            }
+          }
+
+          if (sId != null) {
+            DateTime? checkIn;
+            DateTime? checkOut;
+            if (item['check_in_time'] != null) {
+              checkIn = DateTime.tryParse(item['check_in_time']);
+            }
+            if (item['check_out_time'] != null) {
+              checkOut = DateTime.tryParse(item['check_out_time']);
+            }
+
+            final rec = AttendanceRecord(
+              id: item['id'] ?? 'rec_${_uuid.v4().substring(0, 8)}',
+              studentId: sId,
+              sessionId: sessionId,
+              checkInTime: checkIn,
+              checkOutTime: checkOut,
+              isLocked: item['is_locked'] == true || item['is_locked'] == 1,
+            );
+            session.records[sId] = rec;
+            updatedCount++;
+          }
+        }
+
+        await _persist();
+        notifyListeners();
+        return updatedCount;
+      }
+    } catch (e) {
+      debugPrint('Error sincronizando con Supabase: $e');
+    }
+    return 0;
+  }
+
+  void _syncRecordToSupabaseAsync(AttendanceRecord record, Student student, String sessionId) {
+    if (kIsWeb) return;
+    try {
+      HttpClient().postUrl(Uri.parse('https://qukqvrowgzdkqoccbfdb.supabase.co/rest/v1/attendance_records?on_conflict=id'))
+        .then((req) {
+          req.headers.set('apikey', 'sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN');
+          req.headers.set('Authorization', 'Bearer sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN');
+          req.headers.set('Content-Type', 'application/json');
+          req.headers.set('Prefer', 'resolution=merge-duplicates');
+          final body = jsonEncode({
+            'id': record.id,
+            'student_id': student.id,
+            'session_id': sessionId,
+            'check_in_time': record.checkInTime?.toIso8601String(),
+            'check_out_time': record.checkOutTime?.toIso8601String(),
+            'is_locked': record.isLocked,
+            'status': record.status.name,
+          });
+          req.write(body);
+          return req.close();
+        }).then((res) {
+          res.drain();
+        }).catchError((err) {
+          debugPrint('Aviso sync Supabase: $err');
+        });
+    } catch (_) {}
   }
 
   Future<void> clearAllData() async {
