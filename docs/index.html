@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Registro de Asistencia - Taller</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #4F46E5;
+      --primary-hover: #4338CA;
+      --primary-light: #EEF2FF;
+      --success: #10B981;
+      --success-light: #ECFDF5;
+      --warning: #F59E0B;
+      --warning-light: #FFFBEB;
+      --slate-50: #F8FAFC;
+      --slate-100: #F1F5F9;
+      --slate-200: #E2E8F0;
+      --slate-600: #475569;
+      --slate-700: #334155;
+      --slate-900: #0F172A;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--slate-50);
+      color: var(--slate-900);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 440px;
+      margin: auto;
+    }
+
+    .header-card {
+      background: white;
+      border-radius: 20px;
+      padding: 24px;
+      border: 1px solid var(--slate-200);
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    .logo-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+      background: var(--primary-light);
+      color: var(--primary);
+      margin-bottom: 12px;
+    }
+
+    .logo-badge svg {
+      width: 28px;
+      height: 28px;
+    }
+
+    h1 {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--slate-900);
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      color: var(--slate-600);
+    }
+
+    .phase-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 12px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .phase-entry {
+      background: var(--primary-light);
+      color: var(--primary);
+    }
+
+    .phase-exit {
+      background: #FEF3C7;
+      color: #B45309;
+    }
+
+    .card {
+      background: white;
+      border-radius: 20px;
+      padding: 24px;
+      border: 1px solid var(--slate-200);
+      box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05);
+      margin-bottom: 16px;
+    }
+
+    .greeting-box {
+      background: var(--primary-light);
+      border: 1px solid #C7D2FE;
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .greeting-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--slate-900);
+      margin-bottom: 4px;
+    }
+
+    .greeting-subtitle {
+      font-size: 13px;
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+      text-align: left;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--slate-700);
+      margin-bottom: 6px;
+    }
+
+    input {
+      width: 100%;
+      padding: 14px 16px;
+      font-size: 15px;
+      border: 1.5px solid var(--slate-200);
+      border-radius: 12px;
+      outline: none;
+      transition: all 0.2s ease;
+      background: #FAFAFA;
+      color: var(--slate-900);
+    }
+
+    input:focus {
+      border-color: var(--primary);
+      background: white;
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 15px;
+      font-size: 15px;
+      font-weight: 800;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+    }
+
+    .btn-primary:active {
+      transform: scale(0.98);
+      background: var(--primary-hover);
+    }
+
+    .btn-secondary {
+      background: var(--slate-100);
+      color: var(--slate-700);
+      margin-top: 10px;
+      font-size: 13px;
+      padding: 10px;
+    }
+
+    .result-card {
+      border-radius: 20px;
+      padding: 24px;
+      text-align: center;
+      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08);
+      animation: fadeIn 0.3s ease;
+    }
+
+    .result-accredited {
+      background: white;
+      border: 2px solid var(--success);
+    }
+
+    .result-entry {
+      background: white;
+      border: 2px solid var(--primary);
+    }
+
+    .result-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+
+    .result-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--slate-900);
+      margin-bottom: 8px;
+    }
+
+    .result-desc {
+      font-size: 14px;
+      color: var(--slate-600);
+      line-height: 1.5;
+      margin-bottom: 20px;
+    }
+
+    .stamps-grid {
+      background: var(--slate-50);
+      border-radius: 14px;
+      padding: 14px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 18px;
+      text-align: left;
+    }
+
+    .stamp-item {
+      padding: 8px;
+    }
+
+    .stamp-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--slate-600);
+      margin-bottom: 4px;
+    }
+
+    .stamp-val {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--slate-900);
+    }
+
+    .stamp-sealed {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--success);
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .security-badge {
+      font-size: 11px;
+      color: var(--slate-600);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      margin-top: 16px;
+    }
+
+    .loading-spinner {
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-top: 3px solid white;
+      border-radius: 50%;
+      width: 18px;
+      height: 18px;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- CABECERA -->
+    <div class="header-card">
+      <div class="logo-badge">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+      </div>
+      <h1 id="workshopTitle">Asistencia de Taller</h1>
+      <div class="subtitle" id="sessionTitle">Cargando datos de la sesión...</div>
+      <div id="phaseBadgeContainer" class="hidden">
+        <span id="phaseBadge" class="phase-badge">Fase</span>
+      </div>
+    </div>
+
+    <!-- TARJETA PRINCIPAL: FORMULARIO INTELIGENTE -->
+    <div id="actionCard" class="card">
+      
+      <!-- CASO 1: ALUMNO YA REGISTRADO ANTERIORMENTE -->
+      <div id="savedStudentView" class="hidden">
+        <div class="greeting-box">
+          <div class="greeting-title" id="savedGreetingName">¡Hola!</div>
+          <div class="greeting-subtitle" id="savedGreetingControl">Matrícula: </div>
+        </div>
+
+        <p style="font-size: 13px; color: var(--slate-600); margin-bottom: 16px; text-align: center;">
+          Tu identidad ya está guardada en este celular. Solo confirma tu asistencia para el pase de hoy.
+        </p>
+
+        <button id="btnConfirmAttendance" class="btn btn-primary" onclick="submitAttendance(true)">
+          <span id="btnConfirmText">Confirmar Asistencia</span>
+        </button>
+
+        <button class="btn btn-secondary" onclick="switchStudent()">
+          ¿No eres tú? Cambiar de alumno
+        </button>
+      </div>
+
+      <!-- CASO 2: FORMULARIO (PRIMERA VEZ O CAMBIO DE ALUMNO) -->
+      <div id="newStudentForm">
+        <div class="form-group">
+          <label for="controlNumber">Número de Control / Matrícula</label>
+          <input 
+            type="text" 
+            id="controlNumber" 
+            placeholder="Ej. 21280001" 
+            autocomplete="off" 
+            autocapitalize="characters"
+            oninput="handleControlInput(this.value)"
+          >
+          <div id="controlHelper" style="font-size: 11px; color: var(--slate-600); margin-top: 4px;">
+            Ingresa tu matrícula para validar tu registro.
+          </div>
+        </div>
+
+        <!-- Campo de nombre: se muestra si no está previamente inscrito -->
+        <div id="nameGroup" class="form-group hidden">
+          <label for="fullName">Nombre Completo</label>
+          <input 
+            type="text" 
+            id="fullName" 
+            placeholder="Nombre(s) y Apellidos" 
+            autocomplete="name"
+          >
+          <div style="font-size: 11px; color: var(--primary); margin-top: 4px; font-weight: 600;">
+            ✨ Primera vez en este taller. Solo necesitas ingresar tu nombre una vez.
+          </div>
+        </div>
+
+        <button id="btnSubmitForm" class="btn btn-primary" onclick="submitAttendance(false)">
+          <span id="btnSubmitText">Registrar Mi Asistencia</span>
+        </button>
+      </div>
+
+      <div class="security-badge">
+        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+        </svg>
+        Registro Oficial Sellado e Inmutable
+      </div>
+    </div>
+
+    <!-- TARJETA DE RESULTADO / COMPROBANTE -->
+    <div id="resultCard" class="card result-card hidden">
+      <div id="resultIcon" class="result-icon">✅</div>
+      <div id="resultTitle" class="result-title">¡Asistencia Sellada!</div>
+      <div id="resultDesc" class="result-desc">Tu hora de asistencia ha sido registrada exitosamente.</div>
+
+      <div class="stamps-grid">
+        <div class="stamp-item">
+          <div class="stamp-label">🟢 Entrada</div>
+          <div id="stampCheckIn" class="stamp-val">--:--:--</div>
+          <div id="badgeCheckIn" class="stamp-sealed hidden">🔒 Sellado</div>
+        </div>
+        <div class="stamp-item">
+          <div class="stamp-label">🔴 Salida</div>
+          <div id="stampCheckOut" class="stamp-val">--:--:--</div>
+          <div id="badgeCheckOut" class="stamp-sealed hidden">🔒 Sellado</div>
+        </div>
+      </div>
+
+      <div style="font-size: 12px; color: var(--slate-600); margin-bottom: 16px;" id="resultStudentName">
+        Alumno: -
+      </div>
+
+      <button class="btn btn-secondary" onclick="location.reload()">
+        Volver a revisar
+      </button>
+    </div>
+
+  </div>
+
+  <script>
+    // Variables globales extraídas de la URL del QR
+    const urlParams = new URLSearchParams(window.location.search);
+    let token = urlParams.get('token') || '';
+    let sessionId = urlParams.get('session') || '';
+    let currentPhase = urlParams.get('phase') || 'entry';
+    let isStudentEnrolledInDb = false;
+
+    // Si viene en formato compacto ?qr=...
+    const qrParam = urlParams.get('qr');
+    if (qrParam) {
+      try {
+        const decoded = JSON.parse(decodeURIComponent(qrParam));
+        if (decoded.s) sessionId = decoded.s;
+        if (decoded.p) currentPhase = decoded.p;
+        if (decoded.sig && !token) token = `${decoded.p}_${decoded.t}_${decoded.sig}`;
+      } catch (e) {
+        console.warn('Lectura de parámetro qr alternativo:', e);
+      }
+    }
+
+    // Inicializar al cargar la página
+    window.addEventListener('DOMContentLoaded', async () => {
+      setupPhaseBadge(currentPhase);
+      await loadSessionMetadata();
+      checkSavedStudent();
+    });
+
+    function setupPhaseBadge(phase) {
+      const container = document.getElementById('phaseBadgeContainer');
+      const badge = document.getElementById('phaseBadge');
+      container.classList.remove('hidden');
+
+      if (phase === 'entry') {
+        badge.className = 'phase-badge phase-entry';
+        badge.innerHTML = '🟢 Pase de ENTRADA';
+        document.getElementById('btnConfirmText').textContent = '✅ Confirmar Mi ENTRADA';
+        document.getElementById('btnSubmitText').textContent = 'Registrar Mi ENTRADA';
+      } else if (phase === 'exit') {
+        badge.className = 'phase-badge phase-exit';
+        badge.innerHTML = '🔴 Pase de SALIDA';
+        document.getElementById('btnConfirmText').textContent = '🎓 Confirmar Mi SALIDA y Acreditar';
+        document.getElementById('btnSubmitText').textContent = 'Registrar Mi SALIDA';
+      }
+    }
+
+    async function loadSessionMetadata() {
+      try {
+        const res = await fetch('/api/active-session');
+        const data = await res.json();
+        if (data.active) {
+          document.getElementById('workshopTitle').textContent = data.workshop.name;
+          document.getElementById('sessionTitle').textContent = `${data.session.title} • ${data.workshop.instructorName}`;
+          if (data.session.currentPhase) {
+            currentPhase = data.session.currentPhase;
+            setupPhaseBadge(currentPhase);
+          }
+        }
+      } catch (e) {
+        console.error('Error cargando datos de sesión', e);
+      }
+    }
+
+    // Comprobar si este celular ya tiene un alumno guardado en localStorage
+    async function checkSavedStudent() {
+      const savedControl = localStorage.getItem('asistencia_control_number');
+      const savedName = localStorage.getItem('asistencia_full_name');
+
+      if (savedControl) {
+        // Consultar al servidor para verificar estado actual
+        try {
+          const res = await fetch(`/api/check-student?controlNumber=${encodeURIComponent(savedControl)}&sessionId=${encodeURIComponent(sessionId)}`);
+          const info = await res.json();
+
+          const studentName = info.exists ? info.student.fullName : (savedName || 'Alumno');
+          document.getElementById('savedGreetingName').textContent = `¡Hola, ${studentName}! 👋`;
+          document.getElementById('savedGreetingControl').textContent = `Matrícula: ${savedControl}`;
+
+          document.getElementById('savedStudentView').classList.remove('hidden');
+          document.getElementById('newStudentForm').classList.add('hidden');
+          return;
+        } catch (_) {}
+      }
+
+      // Si no hay datos guardados, mostrar formulario
+      document.getElementById('savedStudentView').classList.add('hidden');
+      document.getElementById('newStudentForm').classList.remove('hidden');
+    }
+
+    // Al teclear número de control: verificación en tiempo real
+    let searchTimeout;
+    async function handleControlInput(val) {
+      clearTimeout(searchTimeout);
+      const cleanVal = val.trim().toUpperCase();
+      if (cleanVal.length < 3) {
+        document.getElementById('nameGroup').classList.add('hidden');
+        return;
+      }
+
+      searchTimeout = setTimeout(async () => {
+        try {
+          const res = await fetch(`/api/check-student?controlNumber=${encodeURIComponent(cleanVal)}&sessionId=${encodeURIComponent(sessionId)}`);
+          const info = await res.json();
+          if (info.exists) {
+            // Ya existe en la lista: no pedir nombre
+            isStudentEnrolledInDb = true;
+            document.getElementById('nameGroup').classList.add('hidden');
+            document.getElementById('controlHelper').innerHTML = `✅ Alumno reconocido: <strong>${info.student.fullName}</strong>`;
+            document.getElementById('controlHelper').style.color = 'var(--success)';
+          } else {
+            // No existe: pedir nombre
+            isStudentEnrolledInDb = false;
+            document.getElementById('nameGroup').classList.remove('hidden');
+            document.getElementById('controlHelper').innerHTML = '⚠️ Matrícula no encontrada en lista previa. Ingresa tu nombre para registrarte.';
+            document.getElementById('controlHelper').style.color = 'var(--primary)';
+          }
+        } catch (_) {}
+      }, 400);
+    }
+
+    // Cambiar de alumno
+    function switchStudent() {
+      document.getElementById('savedStudentView').classList.add('hidden');
+      document.getElementById('newStudentForm').classList.remove('hidden');
+      document.getElementById('controlNumber').value = '';
+      document.getElementById('controlNumber').focus();
+    }
+
+    // Enviar registro de asistencia
+    async function submitAttendance(useSaved) {
+      let controlNumber = '';
+      let fullName = '';
+
+      if (useSaved) {
+        controlNumber = localStorage.getItem('asistencia_control_number');
+        fullName = localStorage.getItem('asistencia_full_name') || '';
+      } else {
+        controlNumber = document.getElementById('controlNumber').value.trim();
+        fullName = document.getElementById('fullName').value.trim();
+
+        if (!controlNumber) {
+          alert('Por favor ingresa tu Número de Control o Matrícula.');
+          document.getElementById('controlNumber').focus();
+          return;
+        }
+
+        if (!isStudentEnrolledInDb && !fullName) {
+          alert('Por favor ingresa tu Nombre Completo para registrarte en el taller.');
+          document.getElementById('fullName').focus();
+          return;
+        }
+      }
+
+      // Animación de carga
+      const btn = useSaved ? document.getElementById('btnConfirmAttendance') : document.getElementById('btnSubmitForm');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '<div class="loading-spinner"></div> Sellando asistencia...';
+      btn.disabled = true;
+
+      try {
+        const response = await fetch('/api/register-attendance', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            controlNumber,
+            fullName,
+            token,
+            sessionId
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          // Guardar en este celular para futuros escaneos automáticos
+          localStorage.setItem('asistencia_control_number', controlNumber);
+          if (result.student && result.student.fullName) {
+            localStorage.setItem('asistencia_full_name', result.student.fullName);
+          }
+
+          // Mostrar tarjeta de resultado
+          document.getElementById('actionCard').classList.add('hidden');
+          const resultCard = document.getElementById('resultCard');
+          resultCard.classList.remove('hidden');
+
+          if (result.status === 'accredited') {
+            resultCard.className = 'card result-card result-accredited';
+            document.getElementById('resultIcon').textContent = '🎓';
+            document.getElementById('resultTitle').textContent = '¡TALLER ACREDITADO! 🎉';
+          } else {
+            resultCard.className = 'card result-card result-entry';
+            document.getElementById('resultIcon').textContent = '✅';
+            document.getElementById('resultTitle').textContent = result.title || 'Asistencia Sellada';
+          }
+
+          document.getElementById('resultDesc').textContent = result.message;
+          document.getElementById('resultStudentName').textContent = `Alumno: ${result.student.fullName} (${controlNumber})`;
+
+          if (result.checkInTime) {
+            document.getElementById('stampCheckIn').textContent = result.checkInTime + ' hrs';
+            document.getElementById('badgeCheckIn').classList.remove('hidden');
+          }
+          if (result.checkOutTime) {
+            document.getElementById('stampCheckOut').textContent = result.checkOutTime + ' hrs';
+            document.getElementById('badgeCheckOut').classList.remove('hidden');
+          }
+        } else {
+          alert(result.message || 'Error al sellar asistencia.');
+          btn.innerHTML = originalText;
+          btn.disabled = false;
+        }
+      } catch (err) {
+        alert('Error de conexión con el servidor. Verifica tu señal.');
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>

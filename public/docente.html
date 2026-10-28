@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel del Docente - Asistencia y Acreditación con QR Dinámico</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    :root {
+      --primary: #4F46E5;
+      --primary-hover: #4338CA;
+      --primary-light: #EEF2FF;
+      --success: #10B981;
+      --success-light: #ECFDF5;
+      --warning: #F59E0B;
+      --warning-light: #FFFBEB;
+      --danger: #EF4444;
+      --slate-50: #F8FAFC;
+      --slate-100: #F1F5F9;
+      --slate-200: #E2E8F0;
+      --slate-600: #475569;
+      --slate-700: #334155;
+      --slate-900: #0F172A;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    body {
+      background-color: var(--slate-50);
+      color: var(--slate-900);
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* HEADER */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      background: white;
+      padding: 20px 24px;
+      border-radius: 16px;
+      border: 1px solid var(--slate-200);
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+      margin-bottom: 24px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 44px;
+      height: 44px;
+      background: var(--primary-light);
+      color: var(--primary);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .brand-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--slate-900);
+    }
+
+    .brand-subtitle {
+      font-size: 12px;
+      color: var(--slate-600);
+    }
+
+    .tunnel-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 30px;
+      font-size: 13px;
+      font-weight: 700;
+      background: var(--success-light);
+      color: #065F46;
+      border: 1px solid #A7F3D0;
+    }
+
+    .tunnel-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.15); opacity: 1; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+
+    /* GRID PRINCIPAL */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 960px) {
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: white;
+      border-radius: 20px;
+      padding: 24px;
+      border: 1px solid var(--slate-200);
+      box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+    }
+
+    /* SECCIÓN QR */
+    .qr-section {
+      text-align: center;
+    }
+
+    .qr-card-header {
+      margin-bottom: 16px;
+    }
+
+    .qr-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--slate-900);
+    }
+
+    .qr-subtitle {
+      font-size: 13px;
+      color: var(--slate-600);
+    }
+
+    .phase-selector {
+      display: flex;
+      background: var(--slate-100);
+      padding: 4px;
+      border-radius: 12px;
+      margin: 16px 0;
+      gap: 4px;
+    }
+
+    .phase-btn {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      background: transparent;
+      color: var(--slate-600);
+      transition: all 0.2s ease;
+    }
+
+    .phase-btn.active-entry {
+      background: var(--primary);
+      color: white;
+      box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3);
+    }
+
+    .phase-btn.active-exit {
+      background: var(--warning);
+      color: white;
+      box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3);
+    }
+
+    .qr-wrapper {
+      display: inline-block;
+      background: white;
+      padding: 16px;
+      border-radius: 20px;
+      border: 3px solid var(--primary-light);
+      box-shadow: 0 8px 24px rgba(79, 70, 229, 0.1);
+      margin: 12px 0;
+      position: relative;
+    }
+
+    #qrcode {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-width: 250px;
+      min-height: 250px;
+    }
+
+    #qrcode img {
+      margin: 0 auto;
+      border-radius: 8px;
+    }
+
+    .countdown-bar-container {
+      width: 100%;
+      height: 6px;
+      background: var(--slate-200);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-top: 12px;
+    }
+
+    .countdown-bar {
+      height: 100%;
+      background: var(--primary);
+      width: 100%;
+      transition: width 1s linear;
+    }
+
+    .qr-info-note {
+      font-size: 11px;
+      color: var(--slate-600);
+      margin-top: 8px;
+    }
+
+    .link-copy-box {
+      background: var(--slate-50);
+      border: 1px solid var(--slate-200);
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 12px;
+      color: var(--slate-700);
+      word-break: break-all;
+      margin-top: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .copy-btn {
+      background: var(--primary-light);
+      color: var(--primary);
+      border: none;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    /* ESTADÍSTICAS */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 768px) {
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .stat-card {
+      background: var(--slate-50);
+      border: 1px solid var(--slate-200);
+      border-radius: 16px;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .stat-val {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--slate-900);
+      margin-bottom: 4px;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--slate-600);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-accredited .stat-val {
+      color: var(--success);
+    }
+
+    /* TABLA DE ASISTENCIA EN TIEMPO REAL */
+    .table-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .table-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--slate-900);
+    }
+
+    .table-container {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    th {
+      background: var(--slate-50);
+      padding: 12px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--slate-600);
+      border-bottom: 1px solid var(--slate-200);
+    }
+
+    td {
+      padding: 14px;
+      font-size: 13px;
+      border-bottom: 1px solid var(--slate-200);
+      color: var(--slate-700);
+    }
+
+    tr:hover td {
+      background: #FAF5FF;
+    }
+
+    .badge-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .badge-accredited {
+      background: #D1FAE5;
+      color: #065F46;
+    }
+
+    .badge-entry {
+      background: #E0E7FF;
+      color: #3730A3;
+    }
+
+    .badge-pending {
+      background: var(--slate-100);
+      color: var(--slate-600);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- ENCABEZADO -->
+    <header>
+      <div class="brand">
+        <div class="brand-icon">
+          <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+          </svg>
+        </div>
+        <div>
+          <div class="brand-title" id="workshopName">Taller de Asistencia y Acreditación</div>
+          <div class="brand-subtitle" id="workshopInstructor">Docente: Cargando...</div>
+        </div>
+      </div>
+
+      <div class="tunnel-pill" id="tunnelPill">
+        <span class="tunnel-dot"></span>
+        <span id="tunnelText">Túnel HTTPS Activo</span>
+      </div>
+    </header>
+
+    <!-- GRID PRINCIPAL -->
+    <div class="dashboard-grid">
+      
+      <!-- COLUMNA IZQUIERDA: CÓDIGO QR DINÁMICO -->
+      <div class="card qr-section">
+        <div class="qr-card-header">
+          <div class="qr-title">Código QR Dinámico</div>
+          <div class="qr-subtitle">Los alumnos apuntan la cámara normal de su celular aquí</div>
+        </div>
+
+        <!-- SELECTOR DE FASE -->
+        <div class="phase-selector">
+          <button id="btnPhaseEntry" class="phase-btn active-entry" onclick="changePhase('entry')">
+            🟢 Fase ENTRADA
+          </button>
+          <button id="btnPhaseExit" class="phase-btn" onclick="changePhase('exit')">
+            🔴 Fase SALIDA
+          </button>
+        </div>
+
+        <!-- CONTENEDOR QR -->
+        <div class="qr-wrapper">
+          <div id="qrcode"></div>
+        </div>
+
+        <!-- BARRA DE CUENTA REGRESIVA (15 SEGUNDOS) -->
+        <div class="countdown-bar-container">
+          <div id="countdownBar" class="countdown-bar"></div>
+        </div>
+        <div class="qr-info-note">
+          🔄 Se regenera automáticamente cada 15 segundos para evitar capturas fraudulentas.
+        </div>
+
+        <!-- ENLACE DIRECTO PARA COPIAR -->
+        <div class="link-copy-box">
+          <span id="qrUrlDisplay" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Cargando enlace...</span>
+          <button class="copy-btn" onclick="copyLink()">Copiar Enlace</button>
+        </div>
+      </div>
+
+      <!-- COLUMNA DERECHA: MONITOREO EN TIEMPO REAL -->
+      <div class="card">
+        
+        <!-- ESTADÍSTICAS RÁPIDAS -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-val" id="statEnrolled">0</div>
+            <div class="stat-label">Inscritos</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val" id="statEntries">0</div>
+            <div class="stat-label">🟢 Entradas</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val" id="statExits">0</div>
+            <div class="stat-label">🔴 Salidas</div>
+          </div>
+          <div class="stat-card stat-accredited">
+            <div class="stat-val" id="statAccredited">0</div>
+            <div class="stat-label">🎓 Acreditados</div>
+          </div>
+        </div>
+
+        <!-- TABLA EN VIVO -->
+        <div class="table-header">
+          <div class="table-title">Asistencias en Tiempo Real</div>
+          <div style="font-size: 12px; color: var(--slate-600);">Actualización automática</div>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Alumno</th>
+                <th>Matrícula</th>
+                <th>🟢 Entrada (Inmutable)</th>
+                <th>🔴 Salida (Inmutable)</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody id="studentTableBody">
+              <tr>
+                <td colspan="5" style="text-align: center; color: var(--slate-600); padding: 24px;">
+                  Esperando registros de alumnos...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    let qrcodeInstance = null;
+    let currentToken = '';
+    let currentUrl = '';
+    let countdownInterval = null;
+    let countdownSeconds = 15;
+
+    window.addEventListener('DOMContentLoaded', () => {
+      fetchSessionData();
+      // Polling cada 2 segundos para actualizar en tiempo real las asistencias de los alumnos
+      setInterval(fetchSessionData, 2000);
+      startCountdown();
+    });
+
+    function startCountdown() {
+      countdownSeconds = 15;
+      if (countdownInterval) clearInterval(countdownInterval);
+
+      countdownInterval = setInterval(() => {
+        countdownSeconds--;
+        const percentage = (countdownSeconds / 15) * 100;
+        document.getElementById('countdownBar').style.width = percentage + '%';
+
+        if (countdownSeconds <= 0) {
+          countdownSeconds = 15;
+          fetchSessionData();
+        }
+      }, 1000);
+    }
+
+    async function fetchSessionData() {
+      try {
+        const res = await fetch('/api/active-session');
+        const data = await res.json();
+        if (!data.active) return;
+
+        // Título del taller y docente
+        document.getElementById('workshopName').textContent = data.workshop.name;
+        document.getElementById('workshopInstructor').textContent = `Docente: ${data.workshop.instructorName} • Código: ${data.workshop.code}`;
+
+        // Estado del túnel
+        if (data.tunnelUrl) {
+          document.getElementById('tunnelText').textContent = '🟢 Túnel HTTPS Activo (Acceso Global)';
+          document.getElementById('tunnelPill').style.background = 'var(--success-light)';
+          document.getElementById('tunnelPill').style.color = '#065F46';
+        } else {
+          document.getElementById('tunnelText').textContent = '⚠️ Modo Red Local (Sin Túnel)';
+          document.getElementById('tunnelPill').style.background = '#FFFBEB';
+          document.getElementById('tunnelPill').style.color = '#B45309';
+        }
+
+        // Botones de fase
+        const phase = data.session.currentPhase;
+        const btnEntry = document.getElementById('btnPhaseEntry');
+        const btnExit = document.getElementById('btnPhaseExit');
+
+        if (phase === 'entry') {
+          btnEntry.className = 'phase-btn active-entry';
+          btnExit.className = 'phase-btn';
+        } else if (phase === 'exit') {
+          btnEntry.className = 'phase-btn';
+          btnExit.className = 'phase-btn active-exit';
+        }
+
+        // Generar/Actualizar QR si cambió la URL o el Token
+        if (data.qrAttendanceUrl !== currentUrl) {
+          currentUrl = data.qrAttendanceUrl;
+          currentToken = data.dynamicToken;
+          document.getElementById('qrUrlDisplay').textContent = currentUrl;
+          renderQr(currentUrl);
+        }
+
+        // Actualizar estadísticas
+        document.getElementById('statEnrolled').textContent = data.stats.totalEnrolled;
+        document.getElementById('statEntries').textContent = data.stats.entryCount;
+        document.getElementById('statExits').textContent = data.stats.exitCount;
+        document.getElementById('statAccredited').textContent = data.stats.accreditedCount;
+
+        // Actualizar tabla de alumnos
+        renderTable(data.students);
+
+      } catch (e) {
+        console.error('Error actualizando sesión', e);
+      }
+    }
+
+    function renderQr(text) {
+      const container = document.getElementById('qrcode');
+      container.innerHTML = '';
+      if (typeof QRCode !== 'undefined') {
+        qrcodeInstance = new QRCode(container, {
+          text: text,
+          width: 250,
+          height: 250,
+          colorDark: '#0F172A',
+          colorLight: '#FFFFFF',
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      } else {
+        container.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(text)}" width="250" height="250" alt="QR" />`;
+      }
+    }
+
+    function renderTable(students) {
+      const tbody = document.getElementById('studentTableBody');
+      if (!students || students.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--slate-600); padding: 24px;">Esperando que los alumnos escaneen...</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = students.map(std => {
+        const rec = std.record;
+        const entryTime = rec && rec.checkInTime ? rec.checkInTime : '<span style="color: #94A3B8;">Sin Entrada</span>';
+        const exitTime = rec && rec.checkOutTime ? rec.checkOutTime : '<span style="color: #94A3B8;">Sin Salida</span>';
+
+        let badgeHtml = '<span class="badge-status badge-pending">Pendiente</span>';
+        if (rec) {
+          if (rec.status === 'accredited') {
+            badgeHtml = '<span class="badge-status badge-accredited">🎓 Acreditado (100%)</span>';
+          } else if (rec.checkInTime && !rec.checkOutTime) {
+            badgeHtml = '<span class="badge-status badge-entry">🟢 Entrada Sellada</span>';
+          } else if (rec.status === 'incompleteExitOnly') {
+            badgeHtml = '<span class="badge-status" style="background:#FEE2E2; color:#991B1B;">⚠️ Solo Salida</span>';
+          }
+        }
+
+        return `
+          <tr>
+            <td><strong>${escapeHtml(std.fullName)}</strong></td>
+            <td><code>${escapeHtml(std.enrollmentNumber)}</code></td>
+            <td>${entryTime}</td>
+            <td>${exitTime}</td>
+            <td>${badgeHtml}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    async function changePhase(phase) {
+      try {
+        await fetch('/api/set-phase', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phase })
+        });
+        fetchSessionData();
+        startCountdown();
+      } catch (e) {
+        console.error('Error cambiando fase', e);
+      }
+    }
+
+    function copyLink() {
+      if (currentUrl) {
+        navigator.clipboard.writeText(currentUrl);
+        alert('¡Enlace de asistencia copiado al portapapeles!');
+      }
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+  </script>
+</body>
+</html>
