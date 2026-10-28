@@ -105,11 +105,16 @@ class AttendanceProvider extends ChangeNotifier {
 
   // --- GESTIÓN DE TALLERES Y ALUMNOS ---
 
-  Future<void> addWorkshop({
+  Future<Workshop> addWorkshop({
     required String name,
     required String code,
     required String instructorName,
     required String description,
+    String? initialSessionTitle,
+    DateTime? initialSessionDate,
+    String? initialImpartedDaysLabel,
+    String? initialStartTimeLabel,
+    String? initialEndTimeLabel,
   }) async {
     final newWorkshop = Workshop(
       id: 'ws_${_uuid.v4().substring(0, 8)}',
@@ -123,6 +128,19 @@ class AttendanceProvider extends ChangeNotifier {
     _workshops.insert(0, newWorkshop);
     await _persist();
     _pushWorkshopToSupabaseAsync(newWorkshop);
+
+    if (initialSessionTitle != null && initialSessionTitle.trim().isNotEmpty) {
+      await createSession(
+        workshopId: newWorkshop.id,
+        title: initialSessionTitle.trim(),
+        date: initialSessionDate ?? DateTime.now(),
+        impartedDaysLabel: initialImpartedDaysLabel,
+        startTimeLabel: initialStartTimeLabel,
+        endTimeLabel: initialEndTimeLabel,
+      );
+    }
+
+    return newWorkshop;
   }
 
   Future<Student?> addStudentToWorkshop({
@@ -270,6 +288,7 @@ class AttendanceProvider extends ChangeNotifier {
     required String workshopId,
     required String title,
     required DateTime date,
+    String? impartedDaysLabel,
     String? startTimeLabel,
     String? endTimeLabel,
     int toleranceMinutes = 15,
@@ -283,6 +302,7 @@ class AttendanceProvider extends ChangeNotifier {
       workshopId: workshopId,
       title: title,
       date: date,
+      impartedDaysLabel: impartedDaysLabel,
       startTimeLabel: startTimeLabel,
       endTimeLabel: endTimeLabel,
       actualStartedAt: DateTime.now(),
@@ -300,12 +320,13 @@ class AttendanceProvider extends ChangeNotifier {
     return newSession;
   }
 
-  /// Permite al docente editar el día, la hora de inicio, la hora de término y la tolerancia de una sesión para dejar evidencia exacta
+  /// Permite al docente editar la(s) fecha(s) de los días que se impartirá la sesión, la hora de inicio, la hora de término y la tolerancia para dejar evidencia exacta
   Future<void> updateSessionSchedule({
     required String workshopId,
     required String sessionId,
     required String title,
     required DateTime date,
+    String? impartedDaysLabel,
     required String startTimeLabel,
     required String endTimeLabel,
     int? toleranceMinutes,
@@ -317,6 +338,11 @@ class AttendanceProvider extends ChangeNotifier {
 
     session.title = title.trim().isNotEmpty ? title.trim() : session.title;
     session.date = date;
+    if (impartedDaysLabel != null && impartedDaysLabel.trim().isNotEmpty) {
+      session.impartedDaysLabel = impartedDaysLabel.trim();
+    } else {
+      session.impartedDaysLabel = WorkshopSession.formatSingleDateWithDay(date);
+    }
     session.startTimeLabel = startTimeLabel.trim();
     session.endTimeLabel = endTimeLabel.trim();
     if (toleranceMinutes != null) {

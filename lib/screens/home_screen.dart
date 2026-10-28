@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models/session.dart';
 import '../providers/attendance_provider.dart';
 import '../utils/app_theme.dart';
 import 'teacher/workshop_detail_screen.dart';
@@ -393,75 +394,251 @@ class _HomeScreenState extends State<HomeScreen> {
     BuildContext context,
     AttendanceProvider provider,
   ) {
+    final now = DateTime.now();
+    final defaultStart =
+        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    final endDt = now.add(const Duration(hours: 2));
+    final defaultEnd =
+        '${endDt.hour.toString().padLeft(2, '0')}:${endDt.minute.toString().padLeft(2, '0')}';
+
     final nameCtrl = TextEditingController();
     final codeCtrl = TextEditingController();
     final instructorCtrl = TextEditingController();
     final descCtrl = TextEditingController();
+    final sessionTitleCtrl = TextEditingController(
+      text: 'Sesión 1: Práctica y Evaluación',
+    );
+    final startCtrl = TextEditingController(text: defaultStart);
+    final endCtrl = TextEditingController(text: defaultEnd);
+    final List<DateTime> selectedDates = [now];
+    final impartedDaysCtrl = TextEditingController(
+      text: WorkshopSession.formatSingleDateWithDay(now),
+    );
+
+    void syncDatesText() {
+      selectedDates.sort((a, b) => a.compareTo(b));
+      impartedDaysCtrl.text = selectedDates
+          .map((d) => WorkshopSession.formatSingleDateWithDay(d))
+          .join(' • ');
+    }
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Crear Nuevo Taller'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Nombre del Taller',
-                  hintText: 'Ej. Taller de Pavimentación',
-                ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Crear Nuevo Taller y Sesión Inicial'),
+          content: SizedBox(
+            width: 500,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: nameCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Nombre del Taller',
+                      hintText: 'Ej. Taller de Pavimentación',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: codeCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Código del Taller',
+                      hintText: 'Ej. PAV-2026',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: instructorCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Docente Responsable',
+                      hintText: 'Ej. Ing. Carlos Méndez',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: descCtrl,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Descripción',
+                      hintText: 'Objetivo y contenidos del taller...',
+                    ),
+                  ),
+                  const Divider(height: 24),
+                  const Text(
+                    '📅 Fechas de los Días en que se Impartirá la Sesión y Horario (Evidencia):',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: sessionTitleCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Título de la Sesión',
+                      prefixIcon: Icon(Icons.title_rounded),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: selectedDates.map((d) {
+                      return InputChip(
+                        avatar: const Icon(
+                          Icons.calendar_today_rounded,
+                          size: 13,
+                          color: AppTheme.primary,
+                        ),
+                        label: Text(
+                          WorkshopSession.formatSingleDateWithDay(d),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        onDeleted: selectedDates.length > 1
+                            ? () {
+                                setDialogState(() {
+                                  selectedDates.remove(d);
+                                  syncDatesText();
+                                });
+                              }
+                            : null,
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.add_circle_outline, size: 15),
+                        label: const Text(
+                          '➕ Agregar Fecha / Día',
+                          style: TextStyle(fontSize: 11),
+                        ),
+                        onPressed: () async {
+                          final picked = await showDatePicker(
+                            context: ctx,
+                            initialDate: selectedDates.last,
+                            firstDate: DateTime(2024),
+                            lastDate: DateTime(2030),
+                          );
+                          if (picked != null) {
+                            setDialogState(() {
+                              final exists = selectedDates.any(
+                                (d) =>
+                                    d.year == picked.year &&
+                                    d.month == picked.month &&
+                                    d.day == picked.day,
+                              );
+                              if (!exists) selectedDates.add(picked);
+                              syncDatesText();
+                            });
+                          }
+                        },
+                      ),
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.date_range_rounded, size: 15),
+                        label: const Text(
+                          '📆 Rango de Días',
+                          style: TextStyle(fontSize: 11),
+                        ),
+                        onPressed: () async {
+                          final range = await showDateRangePicker(
+                            context: ctx,
+                            firstDate: DateTime(2024),
+                            lastDate: DateTime(2030),
+                            initialDateRange: DateTimeRange(
+                              start: selectedDates.first,
+                              end: selectedDates.first.add(
+                                const Duration(days: 2),
+                              ),
+                            ),
+                          );
+                          if (range != null) {
+                            setDialogState(() {
+                              selectedDates.clear();
+                              var cur = range.start;
+                              int safety = 0;
+                              while (!cur.isAfter(range.end) && safety < 15) {
+                                selectedDates.add(cur);
+                                cur = cur.add(const Duration(days: 1));
+                                safety++;
+                              }
+                              syncDatesText();
+                            });
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: impartedDaysCtrl,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Evidencia de Fechas / Días que se impartirá',
+                      prefixIcon: Icon(Icons.event_note_rounded),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: startCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Hora de Inicio',
+                            prefixIcon: Icon(Icons.play_circle_outline),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: endCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Hora de Término',
+                            prefixIcon: Icon(Icons.stop_circle_outlined),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: codeCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Código del Taller',
-                  hintText: 'Ej. PAV-2026',
-                ),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: instructorCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Docente Responsable',
-                  hintText: 'Ej. Ing. Carlos Méndez',
-                ),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: descCtrl,
-                maxLines: 2,
-                decoration: const InputDecoration(
-                  labelText: 'Descripción',
-                  hintText: 'Objetivo y contenidos del taller...',
-                ),
-              ),
-            ],
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (nameCtrl.text.trim().isNotEmpty &&
+                    codeCtrl.text.trim().isNotEmpty) {
+                  provider.addWorkshop(
+                    name: nameCtrl.text.trim(),
+                    code: codeCtrl.text.trim(),
+                    instructorName: instructorCtrl.text.trim(),
+                    description: descCtrl.text.trim(),
+                    initialSessionTitle: sessionTitleCtrl.text.trim(),
+                    initialSessionDate: selectedDates.first,
+                    initialImpartedDaysLabel: impartedDaysCtrl.text.trim(),
+                    initialStartTimeLabel: startCtrl.text.trim(),
+                    initialEndTimeLabel: endCtrl.text.trim(),
+                  );
+                  Navigator.pop(ctx);
+                }
+              },
+              child: const Text('Guardar Taller y Sesión'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (nameCtrl.text.trim().isNotEmpty &&
-                  codeCtrl.text.trim().isNotEmpty) {
-                provider.addWorkshop(
-                  name: nameCtrl.text.trim(),
-                  code: codeCtrl.text.trim(),
-                  instructorName: instructorCtrl.text.trim(),
-                  description: descCtrl.text.trim(),
-                );
-                Navigator.pop(ctx);
-              }
-            },
-            child: const Text('Guardar Taller'),
-          ),
-        ],
       ),
     );
   }

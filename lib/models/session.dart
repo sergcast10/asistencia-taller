@@ -14,6 +14,7 @@ class WorkshopSession {
   final String workshopId;
   String title;
   DateTime date;
+  String impartedDaysLabel; // Evidencia de la(s) fecha(s) de los días en que se impartirá la sesión
   String startTimeLabel; // Hora programada/establecida de inicio (ej. "09:00")
   String endTimeLabel;   // Hora programada/establecida de término (ej. "11:00")
   DateTime? actualStartedAt; // Evidencia exacta de cuándo comenzó la sesión
@@ -30,6 +31,7 @@ class WorkshopSession {
     required this.workshopId,
     required this.title,
     required this.date,
+    String? impartedDaysLabel,
     String? startTimeLabel,
     String? endTimeLabel,
     this.actualStartedAt,
@@ -40,7 +42,10 @@ class WorkshopSession {
     this.toleranceMinutes = 15,
     this.registrationWindowMinutes = 45,
     Map<String, AttendanceRecord>? records,
-  }) : startTimeLabel = (startTimeLabel != null && startTimeLabel.trim().isNotEmpty)
+  }) : impartedDaysLabel = (impartedDaysLabel != null && impartedDaysLabel.trim().isNotEmpty)
+           ? impartedDaysLabel.trim()
+           : formatSingleDateWithDay(date),
+       startTimeLabel = (startTimeLabel != null && startTimeLabel.trim().isNotEmpty)
            ? startTimeLabel.trim()
            : _defaultStartFromDate(date),
        endTimeLabel = (endTimeLabel != null && endTimeLabel.trim().isNotEmpty)
@@ -58,7 +63,7 @@ class WorkshopSession {
     return '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
   }
 
-  static const List<String> _dayNames = [
+  static const List<String> dayNames = [
     'Lunes',
     'Martes',
     'Miércoles',
@@ -68,11 +73,18 @@ class WorkshopSession {
     'Domingo',
   ];
 
-  /// Nombre del día y fecha (ej. "Miércoles 28/10/2026")
-  String get formattedDateWithDay {
-    final l = date.toLocal();
-    final dayName = _dayNames[(l.weekday - 1).clamp(0, 6)];
+  static String formatSingleDateWithDay(DateTime dt) {
+    final l = dt.toLocal();
+    final dayName = dayNames[(l.weekday - 1).clamp(0, 6)];
     return '$dayName ${l.day.toString().padLeft(2, '0')}/${l.month.toString().padLeft(2, '0')}/${l.year}';
+  }
+
+  /// Devuelve las fechas de los días en que se impartirá la sesión (ej. "Miércoles 28/10/2026, Jueves 29/10/2026")
+  String get formattedDateWithDay {
+    if (impartedDaysLabel.trim().isNotEmpty) {
+      return impartedDaysLabel.trim();
+    }
+    return formatSingleDateWithDay(date);
   }
 
   /// Fecha corta DD/MM/YYYY
@@ -156,6 +168,7 @@ class WorkshopSession {
       'workshopId': workshopId,
       'title': title,
       'date': date.toIso8601String(),
+      'impartedDaysLabel': impartedDaysLabel,
       'startTimeLabel': startTimeLabel,
       'endTimeLabel': endTimeLabel,
       'actualStartedAt': actualStartedAt?.toIso8601String(),
@@ -183,6 +196,7 @@ class WorkshopSession {
       workshopId: map['workshopId'] ?? '',
       title: map['title'] ?? '',
       date: parsedDate,
+      impartedDaysLabel: map['impartedDaysLabel']?.toString(),
       startTimeLabel: map['startTimeLabel']?.toString(),
       endTimeLabel: map['endTimeLabel']?.toString(),
       actualStartedAt: map['actualStartedAt'] != null

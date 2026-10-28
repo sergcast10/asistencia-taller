@@ -1343,14 +1343,25 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
       text: '${existingSession?.toleranceMinutes ?? 15}',
     );
     DateTime selectedDate = existingSession?.date ?? now;
+    final List<DateTime> selectedDates = [selectedDate];
+    final impartedDaysCtrl = TextEditingController(
+      text:
+          existingSession?.impartedDaysLabel ??
+          WorkshopSession.formatSingleDateWithDay(selectedDate),
+    );
+
+    void syncImpartedDaysText() {
+      selectedDates.sort((a, b) => a.compareTo(b));
+      selectedDate = selectedDates.first;
+      impartedDaysCtrl.text = selectedDates
+          .map((d) => WorkshopSession.formatSingleDateWithDay(d))
+          .join(' • ');
+    }
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
-          final dateLabel =
-              '${selectedDate.day.toString().padLeft(2, '0')}/${selectedDate.month.toString().padLeft(2, '0')}/${selectedDate.year}';
-
           return AlertDialog(
             title: Row(
               children: [
@@ -1362,141 +1373,265 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                 Expanded(
                   child: Text(
                     existingSession != null
-                        ? 'Editar Día y Horario de Sesión'
-                        : 'Crear Nueva Sesión con Evidencia de Horario',
-                    style: const TextStyle(fontSize: 16),
+                        ? 'Editar Fechas de Impartición y Horario'
+                        : 'Crear Nueva Sesión (Fechas de Días y Horario)',
+                    style: const TextStyle(fontSize: 15),
                   ),
                 ),
               ],
             ),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryLight,
-                      borderRadius: BorderRadius.circular(10),
+            content: SizedBox(
+              width: 500,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryLight,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Text(
+                        'Agrega la fecha o las fechas de los días en que se impartirá esta sesión, junto con su hora de inicio y término, para que quede evidencia oficial.',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppTheme.slate800,
+                        ),
+                      ),
                     ),
-                    child: const Text(
-                      'Establece el día en que se realizará la sesión, la hora en que comienza y a qué hora termina para que quede evidencia oficial.',
-                      style: TextStyle(fontSize: 11, color: AppTheme.slate800),
+                    const SizedBox(height: 12),
+                    const Text(
+                      '1. Título o sección del taller:',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    '1. Título o sección del taller:',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
-                  ),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: titleController,
-                    decoration: const InputDecoration(
-                      prefixIcon: Icon(Icons.title_rounded),
-                      hintText: 'Ej. Sesión 1: Práctica y Evaluación',
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: titleController,
+                      decoration: const InputDecoration(
+                        prefixIcon: Icon(Icons.title_rounded),
+                        hintText: 'Ej. Sesión 1: Práctica y Evaluación',
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 14),
-                  const Text(
-                    '2. Día / Fecha en que se realizará la sesión:',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
-                  ),
-                  const SizedBox(height: 6),
-                  OutlinedButton.icon(
-                    icon: const Icon(Icons.calendar_month_rounded),
-                    label: Text('📅 Fecha seleccionada: $dateLabel (Cambiar)'),
-                    onPressed: () async {
-                      final picked = await showDatePicker(
-                        context: ctx,
-                        initialDate: selectedDate,
-                        firstDate: DateTime(2024),
-                        lastDate: DateTime(2030),
-                      );
-                      if (picked != null) {
-                        setDialogState(() {
-                          selectedDate = picked;
-                        });
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 14),
-                  const Text(
-                    '3. Evidencia de Hora de Inicio y Hora de Término:',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: startCtrl,
-                          decoration: InputDecoration(
-                            labelText: 'Hora de Inicio',
-                            hintText: '09:00',
-                            prefixIcon: const Icon(Icons.play_circle_outline),
-                            suffixIcon: IconButton(
-                              tooltip: 'Seleccionar en reloj',
-                              icon: const Icon(Icons.schedule_rounded, size: 18),
-                              onPressed: () async {
-                                final t = await showTimePicker(
-                                  context: ctx,
-                                  initialTime: TimeOfDay.now(),
-                                );
-                                if (t != null) {
+                    const SizedBox(height: 14),
+                    const Text(
+                      '2. 📅 Fecha(s) de los Días que se Impartirá esta Sesión (Evidencia):',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: selectedDates.map((d) {
+                        final label = WorkshopSession.formatSingleDateWithDay(
+                          d,
+                        );
+                        return InputChip(
+                          avatar: const Icon(
+                            Icons.calendar_today_rounded,
+                            size: 14,
+                            color: AppTheme.primary,
+                          ),
+                          label: Text(
+                            label,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          onDeleted: selectedDates.length > 1
+                              ? () {
                                   setDialogState(() {
-                                    startCtrl.text =
-                                        '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+                                    selectedDates.remove(d);
+                                    syncImpartedDaysText();
                                   });
                                 }
-                              },
+                              : null,
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: [
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.add_circle_outline, size: 16),
+                          label: const Text(
+                            '➕ Agregar Fecha / Día',
+                            style: TextStyle(fontSize: 11),
+                          ),
+                          onPressed: () async {
+                            final picked = await showDatePicker(
+                              context: ctx,
+                              initialDate: selectedDates.last,
+                              firstDate: DateTime(2024),
+                              lastDate: DateTime(2030),
+                            );
+                            if (picked != null) {
+                              setDialogState(() {
+                                final exists = selectedDates.any(
+                                  (d) =>
+                                      d.year == picked.year &&
+                                      d.month == picked.month &&
+                                      d.day == picked.day,
+                                );
+                                if (!exists) {
+                                  selectedDates.add(picked);
+                                }
+                                syncImpartedDaysText();
+                              });
+                            }
+                          },
+                        ),
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.date_range_rounded, size: 16),
+                          label: const Text(
+                            '📆 Rango de Días (Del ... Al ...)',
+                            style: TextStyle(fontSize: 11),
+                          ),
+                          onPressed: () async {
+                            final range = await showDateRangePicker(
+                              context: ctx,
+                              firstDate: DateTime(2024),
+                              lastDate: DateTime(2030),
+                              initialDateRange: DateTimeRange(
+                                start: selectedDates.first,
+                                end: selectedDates.last.isAfter(
+                                  selectedDates.first,
+                                )
+                                    ? selectedDates.last
+                                    : selectedDates.first.add(
+                                        const Duration(days: 2),
+                                      ),
+                              ),
+                            );
+                            if (range != null) {
+                              setDialogState(() {
+                                selectedDates.clear();
+                                var cur = range.start;
+                                int safety = 0;
+                                while (!cur.isAfter(range.end) && safety < 15) {
+                                  selectedDates.add(cur);
+                                  cur = cur.add(const Duration(days: 1));
+                                  safety++;
+                                }
+                                syncImpartedDaysText();
+                              });
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: impartedDaysCtrl,
+                      maxLines: 2,
+                      decoration: const InputDecoration(
+                        labelText:
+                            'Evidencia de Fechas / Días en que se impartirá',
+                        prefixIcon: Icon(Icons.event_note_rounded),
+                        hintText:
+                            'Ej. Miércoles 28/10/2026 • Jueves 29/10/2026',
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    const Text(
+                      '3. 🕒 Evidencia de Hora de Inicio y Hora de Término:',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: startCtrl,
+                            decoration: InputDecoration(
+                              labelText: 'Hora de Inicio',
+                              hintText: '09:00',
+                              prefixIcon: const Icon(Icons.play_circle_outline),
+                              suffixIcon: IconButton(
+                                tooltip: 'Seleccionar en reloj',
+                                icon: const Icon(
+                                  Icons.schedule_rounded,
+                                  size: 18,
+                                ),
+                                onPressed: () async {
+                                  final t = await showTimePicker(
+                                    context: ctx,
+                                    initialTime: TimeOfDay.now(),
+                                  );
+                                  if (t != null) {
+                                    setDialogState(() {
+                                      startCtrl.text =
+                                          '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+                                    });
+                                  }
+                                },
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: TextField(
-                          controller: endCtrl,
-                          decoration: InputDecoration(
-                            labelText: 'Hora de Término',
-                            hintText: '11:00',
-                            prefixIcon: const Icon(Icons.stop_circle_outlined),
-                            suffixIcon: IconButton(
-                              tooltip: 'Seleccionar en reloj',
-                              icon: const Icon(Icons.schedule_rounded, size: 18),
-                              onPressed: () async {
-                                final t = await showTimePicker(
-                                  context: ctx,
-                                  initialTime: TimeOfDay.fromDateTime(
-                                    DateTime.now().add(const Duration(hours: 2)),
-                                  ),
-                                );
-                                if (t != null) {
-                                  setDialogState(() {
-                                    endCtrl.text =
-                                        '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
-                                  });
-                                }
-                              },
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            controller: endCtrl,
+                            decoration: InputDecoration(
+                              labelText: 'Hora de Término',
+                              hintText: '11:00',
+                              prefixIcon: const Icon(
+                                Icons.stop_circle_outlined,
+                              ),
+                              suffixIcon: IconButton(
+                                tooltip: 'Seleccionar en reloj',
+                                icon: const Icon(
+                                  Icons.schedule_rounded,
+                                  size: 18,
+                                ),
+                                onPressed: () async {
+                                  final t = await showTimePicker(
+                                    context: ctx,
+                                    initialTime: TimeOfDay.fromDateTime(
+                                      DateTime.now().add(
+                                        const Duration(hours: 2),
+                                      ),
+                                    ),
+                                  );
+                                  if (t != null) {
+                                    setDialogState(() {
+                                      endCtrl.text =
+                                          '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+                                    });
+                                  }
+                                },
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: tolCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Tiempo de tolerancia puntual (minutos)',
-                      prefixIcon: Icon(Icons.timer_outlined),
-                      hintText: '15',
+                      ],
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: tolCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Tiempo de tolerancia puntual (minutos)',
+                        prefixIcon: Icon(Icons.timer_outlined),
+                        hintText: '15',
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
             actions: [
@@ -1508,8 +1643,8 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                 icon: const Icon(Icons.save_rounded, size: 18),
                 label: Text(
                   existingSession != null
-                      ? 'Guardar Día y Horario'
-                      : 'Crear Sesión con Horario',
+                      ? 'Guardar Fechas y Horario'
+                      : 'Crear Sesión con Fechas y Horario',
                 ),
                 onPressed: () {
                   final title = titleController.text.trim();
@@ -1521,6 +1656,9 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                       ? endCtrl.text.trim()
                       : defaultEnd;
                   final tol = int.tryParse(tolCtrl.text.trim()) ?? 15;
+                  final impartedText = impartedDaysCtrl.text.trim().isNotEmpty
+                      ? impartedDaysCtrl.text.trim()
+                      : WorkshopSession.formatSingleDateWithDay(selectedDate);
 
                   if (existingSession != null) {
                     provider.updateSessionSchedule(
@@ -1528,6 +1666,7 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                       sessionId: existingSession.id,
                       title: title,
                       date: selectedDate,
+                      impartedDaysLabel: impartedText,
                       startTimeLabel: startStr,
                       endTimeLabel: endStr,
                       toleranceMinutes: tol,
@@ -1537,6 +1676,7 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                       workshopId: workshop.id,
                       title: title,
                       date: selectedDate,
+                      impartedDaysLabel: impartedText,
                       startTimeLabel: startStr,
                       endTimeLabel: endStr,
                       toleranceMinutes: tol,
