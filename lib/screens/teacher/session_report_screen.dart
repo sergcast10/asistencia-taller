@@ -1,10 +1,12 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/workshop.dart';
 import '../../models/session.dart';
+import '../../models/student.dart';
 import '../../models/attendance_record.dart';
 import '../../providers/attendance_provider.dart';
 import '../../utils/app_theme.dart';
@@ -597,7 +599,8 @@ class _SessionReportScreenState extends State<SessionReportScreen> {
                                       ),
                                     ),
                                     IconButton(
-                                      tooltip: 'Copiar Evidencia para el Alumno',
+                                      tooltip:
+                                          'Copiar Evidencia para el Alumno',
                                       icon: const Icon(
                                         Icons.copy_rounded,
                                         size: 15,
@@ -610,17 +613,16 @@ class _SessionReportScreenState extends State<SessionReportScreen> {
                                                 'EVIDENCIA OFICIAL DE TALLER (${currentWorkshop.name}) - Alumno: ${student.fullName} (${student.enrollmentNumber}) -> ${record.notes}',
                                           ),
                                         );
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              '📋 Evidencia del alumno copiada al portapapeles.',
-                                            ),
-                                            backgroundColor:
-                                                AppTheme.accreditedColor,
-                                          ),
-                                        );
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  '📋 Evidencia del alumno copiada al portapapeles.',
+                                                ),
+                                                backgroundColor:
+                                                    AppTheme.accreditedColor,
+                                              ),
+                                            );
                                       },
                                     ),
                                   ],

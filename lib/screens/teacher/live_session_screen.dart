@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -762,11 +763,11 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                                           ),
                                         ),
                                         IconButton(
-                                          tooltip:
-                                              'Tomar Nota / Evidencia del Alumno',
+                                          tooltip: 'Tomar Nota / Evidencia del Alumno',
                                           icon: Icon(
                                             record?.hasNotes == true
-                                                ? Icons.assignment_turned_in_rounded
+                                                ? Icons
+                                                      .assignment_turned_in_rounded
                                                 : Icons.note_add_outlined,
                                             color: record?.hasNotes == true
                                                 ? const Color(0xFF7C3AED)
@@ -877,9 +878,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                       : Icons.check_circle_outline_rounded),
             color: !isActive
                 ? AppTheme.slate600
-                : (pastTol
-                      ? const Color(0xFFB45309)
-                      : const Color(0xFF059669)),
+                : (pastTol ? const Color(0xFFB45309) : const Color(0xFF059669)),
             size: 22,
           ),
           const SizedBox(width: 10),
@@ -912,9 +911,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                       : '⏳ Tiempo límite para cierre automático de registro: ${_formatCountdown(winSec)}',
                   style: TextStyle(
                     fontSize: 11,
-                    color: !isActive
-                        ? AppTheme.slate600
-                        : AppTheme.slate700,
+                    color: !isActive ? AppTheme.slate600 : AppTheme.slate700,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -1005,7 +1002,8 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                     controller: tolCtrl,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
-                      labelText: 'Minutos de tolerancia (Antes de marcar retraso)',
+                      labelText:
+                          'Minutos de tolerancia (Antes de marcar retraso)',
                       suffixText: 'minutos',
                       prefixIcon: Icon(Icons.access_time_rounded),
                     ),
@@ -1131,7 +1129,10 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
             ),
             title: const Row(
               children: [
-                Icon(Icons.assignment_turned_in_rounded, color: Color(0xFFD97706)),
+                Icon(
+                  Icons.assignment_turned_in_rounded,
+                  color: Color(0xFFD97706),
+                ),
                 SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -1223,9 +1224,9 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                     controller: noteCtrl,
                     maxLines: 3,
                     decoration: const InputDecoration(
-                      labelText: 'Descripción de la situación / Nota de Evidencia',
-                      hintText:
-                          'Escribe el detalle de la situación para respaldo del alumno...',
+                      labelText:
+                          'Descripción de la situación / Nota de Evidencia',
+                      hintText: 'Escribe el detalle de la situación para respaldo del alumno...',
                       prefixIcon: Icon(Icons.notes_rounded),
                     ),
                   ),
@@ -1458,8 +1459,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                     maxLines: 3,
                     decoration: const InputDecoration(
                       labelText: 'Situación reportada por el alumno',
-                      hintText:
-                          'Ej. Su celular se apagó al entrar; estuvo presente toda la sesión.',
+                      hintText: 'Ej. Su celular se apagó al entrar; estuvo presente toda la sesión.',
                       prefixIcon: Icon(Icons.edit_note_rounded),
                     ),
                   ),
@@ -1525,7 +1525,9 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                   if (text.isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Escribe o selecciona el motivo de la nota.'),
+                        content: Text(
+                          'Escribe o selecciona el motivo de la nota.',
+                        ),
                       ),
                     );
                     return;
@@ -1955,8 +1957,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                     );
                   }
 
-                  final activePhase =
-                      session.currentPhase == SessionPhase.exit
+                  final activePhase = session.currentPhase == SessionPhase.exit
                       ? SessionPhase.exit
                       : SessionPhase.entry;
 
