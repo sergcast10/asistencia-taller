@@ -164,6 +164,15 @@ class _SessionReportScreenState extends State<SessionReportScreen> {
                                     color: AppTheme.slate600,
                                   ),
                                 ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '📅 ${currentSession.formattedDateWithDay} • 🕒 Inicio: ${currentSession.startTimeLabel} hrs ➔ Término: ${currentSession.endTimeLabel} hrs',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF065F46),
+                                  ),
+                                ),
                               ],
                             ),
                           ),

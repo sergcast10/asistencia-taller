@@ -15,7 +15,9 @@ class CsvExporter {
     buffer.writeln('"Código:","${workshop.code}"');
     buffer.writeln('"Docente:","${workshop.instructorName}"');
     buffer.writeln('"Sesión:","${session.title}"');
-    buffer.writeln('"Fecha:","${session.date.year}-${session.date.month.toString().padLeft(2, '0')}-${session.date.day.toString().padLeft(2, '0')}"');
+    buffer.writeln('"Día y Fecha de Realización:","${session.formattedDateWithDay}"');
+    buffer.writeln('"Horario de la Sesión:","Comenzó: ${session.startTimeLabel} hrs • Terminó: ${session.endTimeLabel} hrs"');
+    buffer.writeln('"Evidencia de Ejecución:","${session.executionEvidenceSummary}"');
     buffer.writeln('"Tolerancia Configurada:","${session.toleranceMinutes} min • Ventana de Registro: ${session.registrationWindowMinutes} min"');
     buffer.writeln('"Seguridad:","Horas de Entrada y Salida selladas con inmutabilidad estricta contra edición"');
     buffer.writeln('');

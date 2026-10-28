@@ -12,8 +12,12 @@ enum SessionPhase {
 class WorkshopSession {
   final String id;
   final String workshopId;
-  final String title;
-  final DateTime date;
+  String title;
+  DateTime date;
+  String startTimeLabel; // Hora programada/establecida de inicio (ej. "09:00")
+  String endTimeLabel;   // Hora programada/establecida de término (ej. "11:00")
+  DateTime? actualStartedAt; // Evidencia exacta de cuándo comenzó la sesión
+  DateTime? actualEndedAt;   // Evidencia exacta de a qué hora terminó la sesión
   SessionPhase currentPhase;
   DateTime? phaseStartedAt;
   final String secretKey;
@@ -26,13 +30,75 @@ class WorkshopSession {
     required this.workshopId,
     required this.title,
     required this.date,
+    String? startTimeLabel,
+    String? endTimeLabel,
+    this.actualStartedAt,
+    this.actualEndedAt,
     this.currentPhase = SessionPhase.pending,
     this.phaseStartedAt,
     required this.secretKey,
     this.toleranceMinutes = 15,
     this.registrationWindowMinutes = 45,
     Map<String, AttendanceRecord>? records,
-  }) : records = records ?? {};
+  }) : startTimeLabel = (startTimeLabel != null && startTimeLabel.trim().isNotEmpty)
+           ? startTimeLabel.trim()
+           : _defaultStartFromDate(date),
+       endTimeLabel = (endTimeLabel != null && endTimeLabel.trim().isNotEmpty)
+           ? endTimeLabel.trim()
+           : _defaultEndFromDate(date),
+       records = records ?? {};
+
+  static String _defaultStartFromDate(DateTime d) {
+    final l = d.toLocal();
+    return '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
+  }
+
+  static String _defaultEndFromDate(DateTime d) {
+    final l = d.toLocal().add(const Duration(hours: 2));
+    return '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
+  }
+
+  static const List<String> _dayNames = [
+    'Lunes',
+    'Martes',
+    'Miércoles',
+    'Jueves',
+    'Viernes',
+    'Sábado',
+    'Domingo',
+  ];
+
+  /// Nombre del día y fecha (ej. "Miércoles 28/10/2026")
+  String get formattedDateWithDay {
+    final l = date.toLocal();
+    final dayName = _dayNames[(l.weekday - 1).clamp(0, 6)];
+    return '$dayName ${l.day.toString().padLeft(2, '0')}/${l.month.toString().padLeft(2, '0')}/${l.year}';
+  }
+
+  /// Fecha corta DD/MM/YYYY
+  String get formattedShortDate {
+    final l = date.toLocal();
+    return '${l.day.toString().padLeft(2, '0')}/${l.month.toString().padLeft(2, '0')}/${l.year}';
+  }
+
+  /// Horario de inicio y término (ej. "09:00 hrs a 11:00 hrs")
+  String get scheduleRangeLabel => '$startTimeLabel hrs a $endTimeLabel hrs';
+
+  /// Evidencia detallada de cuándo comenzó y a qué hora terminó
+  String get executionEvidenceSummary {
+    String fmtTime(DateTime dt) {
+      final l = dt.toLocal();
+      return '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}:${l.second.toString().padLeft(2, '0')}';
+    }
+
+    final startStr = actualStartedAt != null
+        ? '${fmtTime(actualStartedAt!)} hrs (Sellado)'
+        : '$startTimeLabel hrs (Programado)';
+    final endStr = actualEndedAt != null
+        ? '${fmtTime(actualEndedAt!)} hrs (Concluido)'
+        : '$endTimeLabel hrs (Término previsto)';
+    return 'Inicio: $startStr • Término: $endStr';
+  }
 
   /// Minutos transcurridos desde que el docente activó la fase actual
   int get elapsedMinutes {
@@ -78,7 +144,7 @@ class WorkshopSession {
       case SessionPhase.exit:
         return '🔵 Pase de Salida Activo';
       case SessionPhase.finished:
-        return 'Concluido';
+        return '🏁 Sesión Concluida';
     }
   }
 
@@ -90,6 +156,10 @@ class WorkshopSession {
       'workshopId': workshopId,
       'title': title,
       'date': date.toIso8601String(),
+      'startTimeLabel': startTimeLabel,
+      'endTimeLabel': endTimeLabel,
+      'actualStartedAt': actualStartedAt?.toIso8601String(),
+      'actualEndedAt': actualEndedAt?.toIso8601String(),
       'currentPhase': currentPhase.name,
       'phaseStartedAt': phaseStartedAt?.toIso8601String(),
       'secretKey': secretKey,
@@ -106,11 +176,21 @@ class WorkshopSession {
       parsedRecords[k] = AttendanceRecord.fromMap(Map<String, dynamic>.from(v));
     });
 
+    final parsedDate = map['date'] != null ? DateTime.parse(map['date']) : DateTime.now();
+
     return WorkshopSession(
       id: map['id'] ?? '',
       workshopId: map['workshopId'] ?? '',
       title: map['title'] ?? '',
-      date: map['date'] != null ? DateTime.parse(map['date']) : DateTime.now(),
+      date: parsedDate,
+      startTimeLabel: map['startTimeLabel']?.toString(),
+      endTimeLabel: map['endTimeLabel']?.toString(),
+      actualStartedAt: map['actualStartedAt'] != null
+          ? DateTime.tryParse(map['actualStartedAt'].toString())
+          : null,
+      actualEndedAt: map['actualEndedAt'] != null
+          ? DateTime.tryParse(map['actualEndedAt'].toString())
+          : null,
       currentPhase: SessionPhase.values.firstWhere(
         (e) => e.name == map['currentPhase'],
         orElse: () => SessionPhase.pending,

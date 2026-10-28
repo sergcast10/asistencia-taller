@@ -1019,6 +1019,15 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
+                  '📅 Día: ${session.formattedDateWithDay} • 🕒 Horario: ${session.startTimeLabel} hrs a ${session.endTimeLabel} hrs',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.slate900,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
                   !isActive
                       ? 'Configuración lista: ${session.toleranceMinutes} min de tolerancia puntual • ${session.registrationWindowMinutes} min de ventana total'
                       : (isEntry
@@ -1039,7 +1048,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                 const SizedBox(height: 2),
                 Text(
                   !isActive
-                      ? 'Al activar "1. Habilitar ENTRADA" iniciará la cuenta regresiva automáticamente.'
+                      ? session.executionEvidenceSummary
                       : '⏳ Tiempo límite para cierre automático de registro: ${_formatCountdown(winSec)}',
                   style: TextStyle(
                     fontSize: 11,
@@ -1071,18 +1080,24 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
     Workshop workshop,
     WorkshopSession session,
   ) {
+    final startCtrl = TextEditingController(text: session.startTimeLabel);
+    final endCtrl = TextEditingController(text: session.endTimeLabel);
     final tolCtrl = TextEditingController(
       text: session.toleranceMinutes.toString(),
     );
     final winCtrl = TextEditingController(
       text: session.registrationWindowMinutes.toString(),
     );
+    DateTime selectedDate = session.date;
     bool resetClock = true;
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) {
+          final dateLabel =
+              '${selectedDate.day.toString().padLeft(2, '0')}/${selectedDate.month.toString().padLeft(2, '0')}/${selectedDate.year}';
+
           return AlertDialog(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
@@ -1093,8 +1108,8 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                 SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Tiempo de Registro y Tolerancia',
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+                    'Día, Hora Inicio/Término y Tolerancia',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                   ),
                 ),
               ],
@@ -1105,8 +1120,84 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Configura cuántos minutos tienen de tolerancia para llegar puntual (ej. 15 min) y el tiempo total antes de que se cierre el registro:',
-                    style: TextStyle(fontSize: 13, color: AppTheme.slate600),
+                    'Configura el día de realización, la hora en que comenzó y a qué hora terminó la sesión, además de los minutos de tolerancia:',
+                    style: TextStyle(fontSize: 12, color: AppTheme.slate600),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.calendar_month_rounded, size: 18),
+                    label: Text('📅 Día de la sesión: $dateLabel (Cambiar)'),
+                    onPressed: () async {
+                      final picked = await showDatePicker(
+                        context: ctx,
+                        initialDate: selectedDate,
+                        firstDate: DateTime(2024),
+                        lastDate: DateTime(2030),
+                      );
+                      if (picked != null) {
+                        setDialogState(() {
+                          selectedDate = picked;
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: startCtrl,
+                          decoration: InputDecoration(
+                            labelText: 'Hora de Inicio',
+                            hintText: '09:00',
+                            prefixIcon: const Icon(Icons.play_circle_outline),
+                            suffixIcon: IconButton(
+                              icon: const Icon(Icons.schedule_rounded, size: 18),
+                              onPressed: () async {
+                                final t = await showTimePicker(
+                                  context: ctx,
+                                  initialTime: TimeOfDay.now(),
+                                );
+                                if (t != null) {
+                                  setDialogState(() {
+                                    startCtrl.text =
+                                        '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: endCtrl,
+                          decoration: InputDecoration(
+                            labelText: 'Hora de Término',
+                            hintText: '11:00',
+                            prefixIcon: const Icon(Icons.stop_circle_outlined),
+                            suffixIcon: IconButton(
+                              icon: const Icon(Icons.schedule_rounded, size: 18),
+                              onPressed: () async {
+                                final t = await showTimePicker(
+                                  context: ctx,
+                                  initialTime: TimeOfDay.fromDateTime(
+                                    DateTime.now().add(const Duration(hours: 2)),
+                                  ),
+                                );
+                                if (t != null) {
+                                  setDialogState(() {
+                                    endCtrl.text =
+                                        '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
                   const Text(
@@ -1198,10 +1289,23 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
               ),
               ElevatedButton.icon(
                 icon: const Icon(Icons.save_rounded, size: 18),
-                label: const Text('Guardar Tiempos'),
+                label: const Text('Guardar Horario y Tiempos'),
                 onPressed: () async {
                   final tol = int.tryParse(tolCtrl.text.trim()) ?? 15;
                   final win = int.tryParse(winCtrl.text.trim()) ?? 45;
+                  await provider.updateSessionSchedule(
+                    workshopId: workshop.id,
+                    sessionId: session.id,
+                    title: session.title,
+                    date: selectedDate,
+                    startTimeLabel: startCtrl.text.trim().isNotEmpty
+                        ? startCtrl.text.trim()
+                        : session.startTimeLabel,
+                    endTimeLabel: endCtrl.text.trim().isNotEmpty
+                        ? endCtrl.text.trim()
+                        : session.endTimeLabel,
+                    toleranceMinutes: tol,
+                  );
                   await provider.updateSessionTimings(
                     workshopId: workshop.id,
                     sessionId: session.id,
@@ -1214,7 +1318,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          '⏱️ Tolerancia fijada en $tol min y ventana de registro en ${win < tol ? tol + 15 : win} min.',
+                          '✅ Día ($dateLabel), horario (${startCtrl.text}-${endCtrl.text}) y tolerancia ($tol min) guardados.',
                         ),
                         backgroundColor: AppTheme.accreditedColor,
                       ),

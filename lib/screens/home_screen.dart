@@ -232,6 +232,40 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       const SizedBox(height: 14),
+                      if (activeSession != null) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AppTheme.slate50,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: AppTheme.slate200),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '📌 ${activeSession.title}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppTheme.slate900,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                '📅 Día: ${activeSession.formattedDateWithDay} • 🕒 Inicio: ${activeSession.startTimeLabel} hrs ➔ Término: ${activeSession.endTimeLabel} hrs',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF065F46),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                      ],
                       Wrap(
                         spacing: 8,
                         runSpacing: 6,

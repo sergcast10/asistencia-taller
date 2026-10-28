@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
@@ -52,7 +53,9 @@ class AttendanceProvider extends ChangeNotifier {
     // Cargar URL base web guardada o usar la de GitHub Pages por defecto
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getString('system_web_base_url') ?? '';
-    if (saved.isEmpty || saved.contains('mitaller.web.app') || saved.contains('supabase.co/storage')) {
+    if (saved.isEmpty ||
+        saved.contains('mitaller.web.app') ||
+        saved.contains('supabase.co/storage')) {
       _webBaseUrl = defaultPublicUrl;
       await prefs.setString('system_web_base_url', _webBaseUrl);
     } else {
@@ -139,7 +142,9 @@ class AttendanceProvider extends ChangeNotifier {
         final updated = Student(
           id: existing.id,
           enrollmentNumber: cleanEnrollment,
-          fullName: fullName.trim().isNotEmpty ? fullName.trim() : existing.fullName,
+          fullName: fullName.trim().isNotEmpty
+              ? fullName.trim()
+              : existing.fullName,
           email: email.trim().isNotEmpty ? email.trim() : existing.email,
         );
         _workshops[index].enrolledStudents[existingIdx] = updated;
@@ -235,7 +240,8 @@ class AttendanceProvider extends ChangeNotifier {
     if (sessionId != null && sessionId.isNotEmpty) {
       session = workshop.sessions.where((s) => s.id == sessionId).firstOrNull;
     }
-    session ??= workshop.sessions.where((s) => s.isQrActive).firstOrNull ??
+    session ??=
+        workshop.sessions.where((s) => s.isQrActive).firstOrNull ??
         workshop.sessions.firstOrNull;
 
     session ??= await createSession(
@@ -264,6 +270,8 @@ class AttendanceProvider extends ChangeNotifier {
     required String workshopId,
     required String title,
     required DateTime date,
+    String? startTimeLabel,
+    String? endTimeLabel,
     int toleranceMinutes = 15,
     int registrationWindowMinutes = 45,
   }) async {
@@ -275,6 +283,9 @@ class AttendanceProvider extends ChangeNotifier {
       workshopId: workshopId,
       title: title,
       date: date,
+      startTimeLabel: startTimeLabel,
+      endTimeLabel: endTimeLabel,
+      actualStartedAt: DateTime.now(),
       currentPhase: SessionPhase.pending,
       secretKey: 'KEY_${_uuid.v4().substring(0, 12)}',
       toleranceMinutes: toleranceMinutes,
@@ -289,6 +300,40 @@ class AttendanceProvider extends ChangeNotifier {
     return newSession;
   }
 
+  /// Permite al docente editar el día, la hora de inicio, la hora de término y la tolerancia de una sesión para dejar evidencia exacta
+  Future<void> updateSessionSchedule({
+    required String workshopId,
+    required String sessionId,
+    required String title,
+    required DateTime date,
+    required String startTimeLabel,
+    required String endTimeLabel,
+    int? toleranceMinutes,
+    bool markStartNow = false,
+    bool markEndNow = false,
+  }) async {
+    final workshop = _workshops.firstWhere((w) => w.id == workshopId);
+    final session = workshop.sessions.firstWhere((s) => s.id == sessionId);
+
+    session.title = title.trim().isNotEmpty ? title.trim() : session.title;
+    session.date = date;
+    session.startTimeLabel = startTimeLabel.trim();
+    session.endTimeLabel = endTimeLabel.trim();
+    if (toleranceMinutes != null) {
+      session.toleranceMinutes = toleranceMinutes;
+    }
+    if (markStartNow) {
+      session.actualStartedAt = DateTime.now();
+    }
+    if (markEndNow) {
+      session.actualEndedAt = DateTime.now();
+    }
+
+    await _persist();
+    _pushSessionToSupabaseAsync(workshop, session);
+    notifyListeners();
+  }
+
   // --- CONTROL DE FASES Y TIEMPOS DE SESIÓN (DOCENTE) ---
 
   Future<void> updateSessionPhase({
@@ -299,8 +344,16 @@ class AttendanceProvider extends ChangeNotifier {
     final workshop = _workshops.firstWhere((w) => w.id == workshopId);
     final session = workshop.sessions.firstWhere((s) => s.id == sessionId);
 
+    final now = DateTime.now();
     session.currentPhase = newPhase;
-    session.phaseStartedAt = DateTime.now();
+    session.phaseStartedAt = now;
+
+    // Registrar evidencia exacta de cuándo comenzó y a qué hora terminó
+    if (newPhase == SessionPhase.entry) {
+      session.actualStartedAt ??= now;
+    } else if (newPhase == SessionPhase.exit || newPhase == SessionPhase.finished) {
+      session.actualEndedAt = now;
+    }
 
     await _persist();
     _pushWorkshopToSupabaseAsync(workshop);
@@ -474,7 +527,13 @@ class AttendanceProvider extends ChangeNotifier {
         record: record,
         workshopId: workshop.id,
       );
-      _syncRecordToSupabaseAsync(record, student, session.id, workshop: workshop, session: session);
+      _syncRecordToSupabaseAsync(
+        record,
+        student,
+        session.id,
+        workshop: workshop,
+        session: session,
+      );
 
       final lateTag = record.isLate
           ? ' (⏱️ Registrado con retraso: +${record.lateMinutes} min respecto al inicio; tolerancia: ${session.toleranceMinutes} min)'
@@ -482,7 +541,9 @@ class AttendanceProvider extends ChangeNotifier {
 
       return AttendanceProcessResult(
         success: true,
-        title: record.isLate ? '🟠 Entrada con Retraso 🔒' : '🟢 Entrada Puntual Sellada 🔒',
+        title: record.isLate
+            ? '🟠 Entrada con Retraso 🔒'
+            : '🟢 Entrada Puntual Sellada 🔒',
         message:
             '¡Bienvenido(a), ${student.fullName}! Se registró tu entrada a las ${_formatTime(now)}$lateTag. Recuerda registrar tu salida al terminar para ACREDITAR.',
         status: record.status,
@@ -510,7 +571,9 @@ class AttendanceProvider extends ChangeNotifier {
       if (record.hasCheckOut) {
         return AttendanceProcessResult(
           success: true,
-          title: record.hasCheckIn ? '🎓 ¡Asistencia Ya ACREDITADA! 🔒' : 'Salida Ya Sellada 🔒',
+          title: record.hasCheckIn
+              ? '🎓 ¡Asistencia Ya ACREDITADA! 🔒'
+              : 'Salida Ya Sellada 🔒',
           message:
               'La hora de salida de ${student.fullName} ya fue sellada a las ${_formatTime(record.checkOutTime!)} y está BLOQUEADA permanentemente.',
           status: record.status,
@@ -524,7 +587,13 @@ class AttendanceProvider extends ChangeNotifier {
         record: record,
         workshopId: workshop.id,
       );
-      _syncRecordToSupabaseAsync(record, student, session.id, workshop: workshop, session: session);
+      _syncRecordToSupabaseAsync(
+        record,
+        student,
+        session.id,
+        workshop: workshop,
+        session: session,
+      );
 
       if (record.hasCheckIn) {
         return AttendanceProcessResult(
@@ -643,7 +712,9 @@ class AttendanceProvider extends ChangeNotifier {
   }) async {
     final workshop = _workshops.firstWhere((w) => w.id == workshopId);
     final session = workshop.sessions.firstWhere((s) => s.id == sessionId);
-    final student = workshop.enrolledStudents.firstWhere((s) => s.id == studentId);
+    final student = workshop.enrolledStudents.firstWhere(
+      (s) => s.id == studentId,
+    );
 
     final now = DateTime.now();
     var record = session.records[student.id];
@@ -656,10 +727,13 @@ class AttendanceProvider extends ChangeNotifier {
       session.records[student.id] = record;
     }
 
-    final folio = 'EV-${now.day.toString().padLeft(2, '0')}${now.month.toString().padLeft(2, '0')}-${now.millisecondsSinceEpoch.toString().substring(9)}';
-    final dateStr = '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year} ${_formatTime(now)}';
+    final folio =
+        'EV-${now.day.toString().padLeft(2, '0')}${now.month.toString().padLeft(2, '0')}-${now.millisecondsSinceEpoch.toString().substring(9)}';
+    final dateStr =
+        '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year} ${_formatTime(now)}';
     final cleanInput = noteText.trim();
-    record.notes = '[$folio • $dateStr • Docente: ${workshop.instructorName}] $cleanInput';
+    record.notes =
+        '[$folio • $dateStr • Docente: ${workshop.instructorName}] $cleanInput';
 
     if (markEntry && !record.hasCheckIn) {
       record.sealCheckIn(now);
@@ -670,8 +744,17 @@ class AttendanceProvider extends ChangeNotifier {
     }
 
     await _persist();
-    PowerSyncService().saveAttendanceRecord(record: record, workshopId: workshop.id);
-    _syncRecordToSupabaseAsync(record, student, session.id, workshop: workshop, session: session);
+    PowerSyncService().saveAttendanceRecord(
+      record: record,
+      workshopId: workshop.id,
+    );
+    _syncRecordToSupabaseAsync(
+      record,
+      student,
+      session.id,
+      workshop: workshop,
+      session: session,
+    );
     notifyListeners();
     return record;
   }
@@ -684,7 +767,9 @@ class AttendanceProvider extends ChangeNotifier {
   }) async {
     final workshop = _workshops.firstWhere((w) => w.id == workshopId);
     final session = workshop.sessions.firstWhere((s) => s.id == sessionId);
-    final student = workshop.enrolledStudents.firstWhere((s) => s.id == studentId);
+    final student = workshop.enrolledStudents.firstWhere(
+      (s) => s.id == studentId,
+    );
 
     final now = DateTime.now();
     var record = session.records[student.id];
@@ -701,8 +786,17 @@ class AttendanceProvider extends ChangeNotifier {
     if (!record.hasCheckOut) record.sealCheckOut(now);
 
     await _persist();
-    PowerSyncService().saveAttendanceRecord(record: record, workshopId: workshop.id);
-    _syncRecordToSupabaseAsync(record, student, session.id, workshop: workshop, session: session);
+    PowerSyncService().saveAttendanceRecord(
+      record: record,
+      workshopId: workshop.id,
+    );
+    _syncRecordToSupabaseAsync(
+      record,
+      student,
+      session.id,
+      workshop: workshop,
+      session: session,
+    );
     notifyListeners();
   }
 
@@ -721,8 +815,17 @@ class AttendanceProvider extends ChangeNotifier {
       if (rec != null && (rec.hasCheckIn || rec.hasCheckOut || rec.hasNotes)) {
         if (!rec.hasCheckIn) rec.sealCheckIn(now);
         if (!rec.hasCheckOut) rec.sealCheckOut(now);
-        PowerSyncService().saveAttendanceRecord(record: rec, workshopId: workshop.id);
-        _syncRecordToSupabaseAsync(rec, student, session.id, workshop: workshop, session: session);
+        PowerSyncService().saveAttendanceRecord(
+          record: rec,
+          workshopId: workshop.id,
+        );
+        _syncRecordToSupabaseAsync(
+          rec,
+          student,
+          session.id,
+          workshop: workshop,
+          session: session,
+        );
         count++;
       }
     }
@@ -767,8 +870,14 @@ class AttendanceProvider extends ChangeNotifier {
           'https://qukqvrowgzdkqoccbfdb.supabase.co/rest/v1/attendance_records?session_id=eq.$sessionId&student_id=eq.$studentId',
         );
         final req = await client.deleteUrl(uri);
-        req.headers.set('apikey', 'sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN');
-        req.headers.set('Authorization', 'Bearer sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN');
+        req.headers.set(
+          'apikey',
+          'sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN',
+        );
+        req.headers.set(
+          'Authorization',
+          'Bearer sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN',
+        );
         final res = await req.close();
         await res.drain();
         client.close();
@@ -807,8 +916,14 @@ class AttendanceProvider extends ChangeNotifier {
         'https://qukqvrowgzdkqoccbfdb.supabase.co/rest/v1/attendance_records?select=*,students(*)&order=created_at.asc',
       );
       final req = await client.getUrl(uri);
-      req.headers.set('apikey', 'sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN');
-      req.headers.set('Authorization', 'Bearer sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN');
+      req.headers.set(
+        'apikey',
+        'sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN',
+      );
+      req.headers.set(
+        'Authorization',
+        'Bearer sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN',
+      );
       final res = await req.close();
       final responseBody = await res.transform(utf8.decoder).join();
       client.close();
@@ -819,38 +934,57 @@ class AttendanceProvider extends ChangeNotifier {
 
         for (var item in list) {
           final recSessionId = item['session_id']?.toString() ?? '';
-          final createdAtStr = item['created_at']?.toString() ?? item['check_in_time']?.toString();
-          final createdAt = createdAtStr != null ? DateTime.tryParse(createdAtStr)?.toLocal() : null;
+          final createdAtStr =
+              item['created_at']?.toString() ??
+              item['check_in_time']?.toString();
+          final createdAt = createdAtStr != null
+              ? DateTime.tryParse(createdAtStr)?.toLocal()
+              : null;
 
           // Aceptar si pertenece exactamente a esta sesión, o si fue registrado el día de hoy
           final isExactSession = recSessionId == sessionId;
-          final isSameDayRecord = createdAt != null && _isSameCalendarDay(createdAt, session.date);
+          final isSameDayRecord =
+              createdAt != null && _isSameCalendarDay(createdAt, session.date);
 
           if (!isExactSession && !isSameDayRecord) continue;
 
           final studentData = item['students'];
           String? sId = item['student_id']?.toString();
-          Student? existingStudent;
 
           if (studentData != null) {
-            final enrollment = studentData['enrollment_number']?.toString().trim().toUpperCase();
-            existingStudent = workshop.enrolledStudents.where(
-              (s) =>
-                  (enrollment != null && s.enrollmentNumber.trim().toUpperCase() == enrollment) ||
-                  s.id == sId,
-            ).firstOrNull;
+            final enrollment = studentData['enrollment_number']
+                ?.toString()
+                .trim()
+                .toUpperCase();
+            var existingStudent = workshop.enrolledStudents
+                .where(
+                  (s) =>
+                      (enrollment != null &&
+                          s.enrollmentNumber.trim().toUpperCase() ==
+                              enrollment) ||
+                      s.id == sId,
+                )
+                .firstOrNull;
 
-            if (existingStudent == null && enrollment != null && enrollment.isNotEmpty) {
+            if (existingStudent == null &&
+                enrollment != null &&
+                enrollment.isNotEmpty) {
               existingStudent = Student(
                 id: sId ?? 'std_${_uuid.v4().substring(0, 8)}',
-                fullName: (studentData['full_name'] ?? 'Alumno').toString().trim(),
+                fullName: (studentData['full_name'] ?? 'Alumno')
+                    .toString()
+                    .trim(),
                 enrollmentNumber: enrollment,
-                email: (studentData['email'] ?? '$enrollment@alumno.edu').toString().trim(),
+                email: (studentData['email'] ?? '$enrollment@alumno.edu')
+                    .toString()
+                    .trim(),
               );
               workshop.enrolledStudents.add(existingStudent);
-            } else if (existingStudent != null && studentData['full_name'] != null) {
+            } else if (existingStudent != null &&
+                studentData['full_name'] != null) {
               final cloudName = studentData['full_name'].toString().trim();
-              if (cloudName.isNotEmpty && existingStudent.fullName == 'Alumno') {
+              if (cloudName.isNotEmpty &&
+                  existingStudent.fullName == 'Alumno') {
                 final idx = workshop.enrolledStudents.indexOf(existingStudent);
                 existingStudent = Student(
                   id: existingStudent.id,
@@ -871,15 +1005,20 @@ class AttendanceProvider extends ChangeNotifier {
             DateTime? checkIn;
             DateTime? checkOut;
             if (item['check_in_time'] != null) {
-              checkIn = DateTime.tryParse(item['check_in_time'].toString())?.toLocal();
+              checkIn = DateTime.tryParse(item['check_in_time'].toString())
+                  ?.toLocal();
             }
             if (item['check_out_time'] != null) {
-              checkOut = DateTime.tryParse(item['check_out_time'].toString())?.toLocal();
+              checkOut = DateTime.tryParse(item['check_out_time'].toString())
+                  ?.toLocal();
             }
 
             final prevRec = session.records[sId];
             final rec = AttendanceRecord(
-              id: item['id']?.toString() ?? prevRec?.id ?? 'rec_${_uuid.v4().substring(0, 8)}',
+              id:
+                  item['id']?.toString() ??
+                  prevRec?.id ??
+                  'rec_${_uuid.v4().substring(0, 8)}',
               studentId: sId,
               sessionId: sessionId,
               checkInTime: checkIn ?? prevRec?.checkInTime,
@@ -896,8 +1035,12 @@ class AttendanceProvider extends ChangeNotifier {
             );
 
             // Calcular si entró con retraso respecto al inicio del pase si aún no estaba calculado
-            if (!rec.isLate && rec.checkInTime != null && session.phaseStartedAt != null) {
-              final diffMins = rec.checkInTime!.difference(session.phaseStartedAt!).inMinutes;
+            if (!rec.isLate &&
+                rec.checkInTime != null &&
+                session.phaseStartedAt != null) {
+              final diffMins = rec.checkInTime!
+                  .difference(session.phaseStartedAt!)
+                  .inMinutes;
               if (diffMins > session.toleranceMinutes) {
                 rec.isLate = true;
                 rec.lateMinutes = diffMins;
@@ -909,13 +1052,16 @@ class AttendanceProvider extends ChangeNotifier {
 
             // Si al consolidar registros del día el alumno ya tiene Entrada + Salida (ACREDITADO) pero en Supabase decía incompleteExitOnly o pending, actualizar en la nube
             final rawCloudStatus = item['status']?.toString() ?? '';
+            final matchedStudent = workshop.enrolledStudents
+                .where((s) => s.id == sId)
+                .firstOrNull;
             if (rec.hasCheckIn &&
                 rec.hasCheckOut &&
                 !rawCloudStatus.startsWith('accredited') &&
-                existingStudent != null) {
+                matchedStudent != null) {
               _syncRecordToSupabaseAsync(
                 rec,
-                existingStudent,
+                matchedStudent,
                 sessionId,
                 workshop: workshop,
                 session: session,
@@ -938,19 +1084,31 @@ class AttendanceProvider extends ChangeNotifier {
     if (kIsWeb) return;
     try {
       HttpClient()
-          .postUrl(Uri.parse('https://qukqvrowgzdkqoccbfdb.supabase.co/rest/v1/workshops?on_conflict=id'))
+          .postUrl(
+            Uri.parse(
+              'https://qukqvrowgzdkqoccbfdb.supabase.co/rest/v1/workshops?on_conflict=id',
+            ),
+          )
           .then((req) {
-            req.headers.set('apikey', 'sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN');
-            req.headers.set('Authorization', 'Bearer sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN');
+            req.headers.set(
+              'apikey',
+              'sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN',
+            );
+            req.headers.set(
+              'Authorization',
+              'Bearer sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN',
+            );
             req.headers.set('Content-Type', 'application/json');
             req.headers.set('Prefer', 'resolution=merge-duplicates');
-            req.write(jsonEncode({
-              'id': workshop.id,
-              'name': workshop.name,
-              'code': workshop.code,
-              'instructor_name': workshop.instructorName,
-              'description': workshop.description,
-            }));
+            req.write(
+              jsonEncode({
+                'id': workshop.id,
+                'name': workshop.name,
+                'code': workshop.code,
+                'instructor_name': workshop.instructorName,
+                'description': workshop.description,
+              }),
+            );
             return req.close();
           })
           .then((res) => res.drain())
@@ -962,19 +1120,32 @@ class AttendanceProvider extends ChangeNotifier {
     if (kIsWeb) return;
     try {
       HttpClient()
-          .postUrl(Uri.parse('https://qukqvrowgzdkqoccbfdb.supabase.co/rest/v1/workshop_sessions?on_conflict=id'))
+          .postUrl(
+            Uri.parse(
+              'https://qukqvrowgzdkqoccbfdb.supabase.co/rest/v1/workshop_sessions?on_conflict=id',
+            ),
+          )
           .then((req) {
-            req.headers.set('apikey', 'sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN');
-            req.headers.set('Authorization', 'Bearer sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN');
+            req.headers.set(
+              'apikey',
+              'sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN',
+            );
+            req.headers.set(
+              'Authorization',
+              'Bearer sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN',
+            );
             req.headers.set('Content-Type', 'application/json');
             req.headers.set('Prefer', 'resolution=merge-duplicates');
-            req.write(jsonEncode({
-              'id': session.id,
-              'workshop_id': workshop.id,
-              'title': session.title,
-              'current_phase': session.currentPhase.name,
-              'is_active': session.isQrActive,
-            }));
+            req.write(
+              jsonEncode({
+                'id': session.id,
+                'workshop_id': workshop.id,
+                'title':
+                    '${session.title} (${session.formattedShortDate} • ${session.startTimeLabel}-${session.endTimeLabel})',
+                'current_phase': session.currentPhase.name,
+                'is_active': session.isQrActive,
+              }),
+            );
             return req.close();
           })
           .then((res) => res.drain())
@@ -986,19 +1157,31 @@ class AttendanceProvider extends ChangeNotifier {
     if (kIsWeb) return;
     try {
       HttpClient()
-          .postUrl(Uri.parse('https://qukqvrowgzdkqoccbfdb.supabase.co/rest/v1/students?on_conflict=id'))
+          .postUrl(
+            Uri.parse(
+              'https://qukqvrowgzdkqoccbfdb.supabase.co/rest/v1/students?on_conflict=id',
+            ),
+          )
           .then((req) {
-            req.headers.set('apikey', 'sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN');
-            req.headers.set('Authorization', 'Bearer sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN');
+            req.headers.set(
+              'apikey',
+              'sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN',
+            );
+            req.headers.set(
+              'Authorization',
+              'Bearer sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN',
+            );
             req.headers.set('Content-Type', 'application/json');
             req.headers.set('Prefer', 'resolution=merge-duplicates');
-            req.write(jsonEncode({
-              'id': student.id,
-              'workshop_id': workshopId,
-              'enrollment_number': student.enrollmentNumber.toUpperCase(),
-              'full_name': student.fullName,
-              'email': student.email,
-            }));
+            req.write(
+              jsonEncode({
+                'id': student.id,
+                'workshop_id': workshopId,
+                'enrollment_number': student.enrollmentNumber.toUpperCase(),
+                'full_name': student.fullName,
+                'email': student.email,
+              }),
+            );
             return req.close();
           })
           .then((res) => res.drain())
@@ -1025,10 +1208,18 @@ class AttendanceProvider extends ChangeNotifier {
 
       final client = HttpClient();
       final req = await client.postUrl(
-        Uri.parse('https://qukqvrowgzdkqoccbfdb.supabase.co/rest/v1/attendance_records?on_conflict=id'),
+        Uri.parse(
+          'https://qukqvrowgzdkqoccbfdb.supabase.co/rest/v1/attendance_records?on_conflict=id',
+        ),
       );
-      req.headers.set('apikey', 'sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN');
-      req.headers.set('Authorization', 'Bearer sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN');
+      req.headers.set(
+        'apikey',
+        'sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN',
+      );
+      req.headers.set(
+        'Authorization',
+        'Bearer sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN',
+      );
       req.headers.set('Content-Type', 'application/json');
       req.headers.set('Prefer', 'resolution=merge-duplicates');
       final body = jsonEncode({

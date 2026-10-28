@@ -247,12 +247,68 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  'Fecha: ${session.date.day}/${session.date.month}/${session.date.year} • Tolerancia: ${session.toleranceMinutes} min',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.slate600,
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.slate50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppTheme.slate200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.calendar_today_rounded,
+                            size: 14,
+                            color: AppTheme.primary,
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Día de realización: ${session.formattedDateWithDay}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: AppTheme.slate900,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.access_time_filled_rounded,
+                            size: 14,
+                            color: Color(0xFF059669),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Horario de Sesión: Comenzó ${session.startTimeLabel} hrs  ➔  Terminó ${session.endTimeLabel} hrs',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF065F46),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${session.executionEvidenceSummary} • Tolerancia: ${session.toleranceMinutes} min',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppTheme.slate600,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -284,10 +340,30 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                 ),
                 const Divider(height: 24),
                 Wrap(
-                  spacing: 10,
+                  spacing: 8,
                   runSpacing: 8,
                   alignment: WrapAlignment.end,
                   children: [
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.edit_calendar_rounded, size: 15),
+                      label: const Text('Editar Día / Hora'),
+                      onPressed: () => _showCreateSessionDialog(
+                        context,
+                        provider,
+                        workshop,
+                        existingSession: session,
+                      ),
+                    ),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.receipt_long_rounded, size: 15),
+                      label: const Text('Evidencia Sesión'),
+                      onPressed: () => _showSessionScheduleEvidenceDialog(
+                        context,
+                        workshop,
+                        session,
+                        stats,
+                      ),
+                    ),
                     OutlinedButton.icon(
                       icon: const Icon(Icons.bar_chart_rounded, size: 16),
                       label: const Text('Auditoría'),
@@ -1242,47 +1318,315 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
   void _showCreateSessionDialog(
     BuildContext context,
     AttendanceProvider provider,
-    Workshop workshop,
-  ) {
+    Workshop workshop, {
+    WorkshopSession? existingSession,
+  }) {
+    final now = DateTime.now();
+    final defaultStart =
+        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    final endDt = now.add(const Duration(hours: 2));
+    final defaultEnd =
+        '${endDt.hour.toString().padLeft(2, '0')}:${endDt.minute.toString().padLeft(2, '0')}';
+
     final titleController = TextEditingController(
-      text: 'Sesión ${workshop.sessions.length + 1}: Práctica y Evaluación',
+      text:
+          existingSession?.title ??
+          'Sesión ${workshop.sessions.length + 1}: Práctica y Evaluación',
     );
+    final startCtrl = TextEditingController(
+      text: existingSession?.startTimeLabel ?? defaultStart,
+    );
+    final endCtrl = TextEditingController(
+      text: existingSession?.endTimeLabel ?? defaultEnd,
+    );
+    final tolCtrl = TextEditingController(
+      text: '${existingSession?.toleranceMinutes ?? 15}',
+    );
+    DateTime selectedDate = existingSession?.date ?? now;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final dateLabel =
+              '${selectedDate.day.toString().padLeft(2, '0')}/${selectedDate.month.toString().padLeft(2, '0')}/${selectedDate.year}';
+
+          return AlertDialog(
+            title: Row(
+              children: [
+                const Icon(
+                  Icons.event_available_rounded,
+                  color: AppTheme.primary,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    existingSession != null
+                        ? 'Editar Día y Horario de Sesión'
+                        : 'Crear Nueva Sesión con Evidencia de Horario',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryLight,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Text(
+                      'Establece el día en que se realizará la sesión, la hora en que comienza y a qué hora termina para que quede evidencia oficial.',
+                      style: TextStyle(fontSize: 11, color: AppTheme.slate800),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    '1. Título o sección del taller:',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: titleController,
+                    decoration: const InputDecoration(
+                      prefixIcon: Icon(Icons.title_rounded),
+                      hintText: 'Ej. Sesión 1: Práctica y Evaluación',
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  const Text(
+                    '2. Día / Fecha en que se realizará la sesión:',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 6),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.calendar_month_rounded),
+                    label: Text('📅 Fecha seleccionada: $dateLabel (Cambiar)'),
+                    onPressed: () async {
+                      final picked = await showDatePicker(
+                        context: ctx,
+                        initialDate: selectedDate,
+                        firstDate: DateTime(2024),
+                        lastDate: DateTime(2030),
+                      );
+                      if (picked != null) {
+                        setDialogState(() {
+                          selectedDate = picked;
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 14),
+                  const Text(
+                    '3. Evidencia de Hora de Inicio y Hora de Término:',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: startCtrl,
+                          decoration: InputDecoration(
+                            labelText: 'Hora de Inicio',
+                            hintText: '09:00',
+                            prefixIcon: const Icon(Icons.play_circle_outline),
+                            suffixIcon: IconButton(
+                              tooltip: 'Seleccionar en reloj',
+                              icon: const Icon(Icons.schedule_rounded, size: 18),
+                              onPressed: () async {
+                                final t = await showTimePicker(
+                                  context: ctx,
+                                  initialTime: TimeOfDay.now(),
+                                );
+                                if (t != null) {
+                                  setDialogState(() {
+                                    startCtrl.text =
+                                        '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: endCtrl,
+                          decoration: InputDecoration(
+                            labelText: 'Hora de Término',
+                            hintText: '11:00',
+                            prefixIcon: const Icon(Icons.stop_circle_outlined),
+                            suffixIcon: IconButton(
+                              tooltip: 'Seleccionar en reloj',
+                              icon: const Icon(Icons.schedule_rounded, size: 18),
+                              onPressed: () async {
+                                final t = await showTimePicker(
+                                  context: ctx,
+                                  initialTime: TimeOfDay.fromDateTime(
+                                    DateTime.now().add(const Duration(hours: 2)),
+                                  ),
+                                );
+                                if (t != null) {
+                                  setDialogState(() {
+                                    endCtrl.text =
+                                        '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: tolCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Tiempo de tolerancia puntual (minutos)',
+                      prefixIcon: Icon(Icons.timer_outlined),
+                      hintText: '15',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.save_rounded, size: 18),
+                label: Text(
+                  existingSession != null
+                      ? 'Guardar Día y Horario'
+                      : 'Crear Sesión con Horario',
+                ),
+                onPressed: () {
+                  final title = titleController.text.trim();
+                  if (title.isEmpty) return;
+                  final startStr = startCtrl.text.trim().isNotEmpty
+                      ? startCtrl.text.trim()
+                      : defaultStart;
+                  final endStr = endCtrl.text.trim().isNotEmpty
+                      ? endCtrl.text.trim()
+                      : defaultEnd;
+                  final tol = int.tryParse(tolCtrl.text.trim()) ?? 15;
+
+                  if (existingSession != null) {
+                    provider.updateSessionSchedule(
+                      workshopId: workshop.id,
+                      sessionId: existingSession.id,
+                      title: title,
+                      date: selectedDate,
+                      startTimeLabel: startStr,
+                      endTimeLabel: endStr,
+                      toleranceMinutes: tol,
+                    );
+                  } else {
+                    provider.createSession(
+                      workshopId: workshop.id,
+                      title: title,
+                      date: selectedDate,
+                      startTimeLabel: startStr,
+                      endTimeLabel: endStr,
+                      toleranceMinutes: tol,
+                    );
+                  }
+                  Navigator.pop(ctx);
+                },
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _showSessionScheduleEvidenceDialog(
+    BuildContext context,
+    Workshop workshop,
+    WorkshopSession session,
+    SessionStatistics stats,
+  ) {
+    final text =
+        '=== ACTA Y EVIDENCIA OFICIAL DE SESIÓN DE TALLER ===\n'
+        'Taller: ${workshop.name} (${workshop.code})\n'
+        'Docente Responsable: ${workshop.instructorName}\n'
+        'Sesión / Sección: ${session.title}\n'
+        'Día de Realización: ${session.formattedDateWithDay}\n'
+        'Hora en que Comenzó: ${session.startTimeLabel} hrs\n'
+        'Hora en que Terminó: ${session.endTimeLabel} hrs\n'
+        'Sello del Sistema: ${session.executionEvidenceSummary}\n'
+        'Tolerancia de Puntualidad: ${session.toleranceMinutes} minutos\n'
+        '----------------------------------------------------\n'
+        'Alumnos Inscritos: ${stats.totalStudents}\n'
+        'Asistencias Registradas Hoy: ${stats.registeredTodayCount}\n'
+        'Alumnos Acreditados: ${stats.accredited}\n'
+        'Notas / Evidencias de Alumnos: ${stats.notesCount}\n'
+        '====================================================';
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Crear Nueva Sesión'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+        title: const Row(
           children: [
-            const Text('Título o tema de la sesión:'),
-            const SizedBox(height: 8),
-            TextField(
-              controller: titleController,
-              decoration: const InputDecoration(
-                hintText: 'Ej. Sesión 3: Pruebas de Calidad',
+            Icon(Icons.verified_rounded, color: AppTheme.primary),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Evidencia de Día y Horario de Sesión',
+                style: TextStyle(fontSize: 16),
               ),
             ),
           ],
         ),
+        content: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppTheme.slate50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppTheme.slate200),
+          ),
+          child: SelectableText(
+            text,
+            style: const TextStyle(
+              fontSize: 12,
+              fontFamily: 'Consolas',
+              color: AppTheme.slate900,
+              height: 1.4,
+            ),
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar'),
+            child: const Text('Cerrar'),
           ),
-          ElevatedButton(
+          ElevatedButton.icon(
+            icon: const Icon(Icons.copy_rounded, size: 16),
+            label: const Text('Copiar Acta de Evidencia'),
             onPressed: () {
-              if (titleController.text.trim().isNotEmpty) {
-                provider.createSession(
-                  workshopId: workshop.id,
-                  title: titleController.text.trim(),
-                  date: DateTime.now(),
-                );
-                Navigator.pop(ctx);
-              }
+              Clipboard.setData(ClipboardData(text: text));
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    '📋 Evidencia de día y horario de la sesión copiada al portapapeles.',
+                  ),
+                  backgroundColor: AppTheme.accreditedColor,
+                ),
+              );
             },
-            child: const Text('Crear Sesión'),
           ),
         ],
       ),
