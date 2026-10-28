@@ -196,227 +196,313 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
       );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.all(20),
-      itemCount: workshop.sessions.length,
-      separatorBuilder: (_, index) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final session = workshop.sessions[index];
-        final stats = provider.getSessionStats(workshop, session);
-
-        return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        session.title,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: AppTheme.slate900,
-                        ),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: session.isQrActive
-                            ? AppTheme.accreditedBg
-                            : AppTheme.slate100,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        session.phaseLabel,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: session.isQrActive
-                              ? AppTheme.accreditedColor
-                              : AppTheme.slate700,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    IconButton(
-                      tooltip: 'Eliminar esta sesión',
-                      visualDensity: VisualDensity.compact,
-                      icon: const Icon(
-                        Icons.delete_outline_rounded,
-                        size: 18,
-                        color: AppTheme.slate600,
-                      ),
-                      onPressed: () {
-                        provider.deleteSession(
-                          workshopId: workshop.id,
-                          sessionId: session.id,
-                        );
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppTheme.slate50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppTheme.slate200),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.calendar_today_rounded,
-                            size: 14,
-                            color: AppTheme.primary,
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              'Día de realización: ${session.formattedDateWithDay}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w800,
-                                color: AppTheme.slate900,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.access_time_filled_rounded,
-                            size: 14,
-                            color: Color(0xFF059669),
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              'Horario de Sesión: Comenzó ${session.startTimeLabel} hrs  ➔  Terminó ${session.endTimeLabel} hrs',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF065F46),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${session.executionEvidenceSummary} • Tolerancia: ${session.toleranceMinutes} min',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: AppTheme.slate600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 6,
-                  children: [
-                    _buildPill(
-                      'Registrados Hoy: ${stats.registeredTodayCount}',
-                      AppTheme.primary,
-                      AppTheme.primaryLight,
-                    ),
-                    _buildPill(
-                      'Acreditados: ${stats.accredited}',
-                      AppTheme.accreditedColor,
-                      AppTheme.accreditedBg,
-                    ),
-                    _buildPill(
-                      'En Sala: ${stats.incomplete}',
-                      AppTheme.incompleteColor,
-                      AppTheme.incompleteBg,
-                    ),
-                    _buildPill(
-                      'Evidencias: ${stats.notesCount}',
-                      const Color(0xFF6D28D9),
-                      const Color(0xFFF5F3FF),
-                    ),
-                  ],
-                ),
-                const Divider(height: 24),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  alignment: WrapAlignment.end,
-                  children: [
-                    OutlinedButton.icon(
-                      icon: const Icon(Icons.edit_calendar_rounded, size: 15),
-                      label: const Text('Editar Día / Hora'),
-                      onPressed: () => _showCreateSessionDialog(
-                        context,
-                        provider,
-                        workshop,
-                        existingSession: session,
-                      ),
-                    ),
-                    OutlinedButton.icon(
-                      icon: const Icon(Icons.receipt_long_rounded, size: 15),
-                      label: const Text('Evidencia Sesión'),
-                      onPressed: () => _showSessionScheduleEvidenceDialog(
-                        context,
-                        workshop,
-                        session,
-                        stats,
-                      ),
-                    ),
-                    OutlinedButton.icon(
-                      icon: const Icon(Icons.bar_chart_rounded, size: 16),
-                      label: const Text('Auditoría'),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => SessionReportScreen(
-                              workshop: workshop,
-                              session: session,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.qr_code_scanner_rounded, size: 16),
-                      label: const Text('Pase en Vivo (QR)'),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => LiveSessionScreen(
-                              workshop: workshop,
-                              session: session,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ],
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 90),
+      children: [
+        Container(
+          margin: const EdgeInsets.only(bottom: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppTheme.primaryLight,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: AppTheme.primary.withValues(alpha: 0.25),
             ),
           ),
-        );
-      },
+          child: Row(
+            children: [
+              const Icon(
+                Icons.edit_note_rounded,
+                color: AppTheme.primary,
+                size: 22,
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  '¿Quieres colocar el título y día de cada sesión (Sesión 1, 2, 3...)?',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.slate900,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.tune_rounded, size: 15),
+                label: const Text(
+                  'Preparar / Editar Títulos',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                ),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                onPressed: () => _showPrepareAllSessionsDialog(
+                  context,
+                  provider,
+                  workshop,
+                ),
+              ),
+            ],
+          ),
+        ),
+        ...List.generate(workshop.sessions.length, (index) {
+          final session = workshop.sessions[index];
+          final stats = provider.getSessionStats(workshop, session);
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(8),
+                            onTap: () => _showCreateSessionDialog(
+                              context,
+                              provider,
+                              workshop,
+                              existingSession: session,
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    session.title,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppTheme.slate900,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                const Icon(
+                                  Icons.edit_rounded,
+                                  size: 15,
+                                  color: AppTheme.primary,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: session.isQrActive
+                                ? AppTheme.accreditedBg
+                                : AppTheme.slate100,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            session.phaseLabel,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: session.isQrActive
+                                  ? AppTheme.accreditedColor
+                                  : AppTheme.slate700,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        IconButton(
+                          tooltip: 'Eliminar esta sesión',
+                          visualDensity: VisualDensity.compact,
+                          icon: const Icon(
+                            Icons.delete_outline_rounded,
+                            size: 18,
+                            color: AppTheme.slate600,
+                          ),
+                          onPressed: () {
+                            provider.deleteSession(
+                              workshopId: workshop.id,
+                              sessionId: session.id,
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.slate50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppTheme.slate200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.calendar_today_rounded,
+                                size: 14,
+                                color: AppTheme.primary,
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  'Día de realización: ${session.formattedDateWithDay}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppTheme.slate900,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.access_time_filled_rounded,
+                                size: 14,
+                                color: Color(0xFF059669),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  'Horario de Sesión: Comenzó ${session.startTimeLabel} hrs  ➔  Terminó ${session.endTimeLabel} hrs',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF065F46),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${session.executionEvidenceSummary} • Tolerancia: ${session.toleranceMinutes} min',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppTheme.slate600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: [
+                        _buildPill(
+                          'Registrados Hoy: ${stats.registeredTodayCount}',
+                          AppTheme.primary,
+                          AppTheme.primaryLight,
+                        ),
+                        _buildPill(
+                          'Acreditados: ${stats.accredited}',
+                          AppTheme.accreditedColor,
+                          AppTheme.accreditedBg,
+                        ),
+                        _buildPill(
+                          'En Sala: ${stats.incomplete}',
+                          AppTheme.incompleteColor,
+                          AppTheme.incompleteBg,
+                        ),
+                        _buildPill(
+                          'Evidencias: ${stats.notesCount}',
+                          const Color(0xFF6D28D9),
+                          const Color(0xFFF5F3FF),
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 24),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.end,
+                      children: [
+                        OutlinedButton.icon(
+                          icon: const Icon(
+                            Icons.edit_calendar_rounded,
+                            size: 15,
+                          ),
+                          label: const Text('Editar Título / Día / Hora'),
+                          onPressed: () => _showCreateSessionDialog(
+                            context,
+                            provider,
+                            workshop,
+                            existingSession: session,
+                          ),
+                        ),
+                        OutlinedButton.icon(
+                          icon: const Icon(
+                            Icons.receipt_long_rounded,
+                            size: 15,
+                          ),
+                          label: const Text('Evidencia Sesión'),
+                          onPressed: () => _showSessionScheduleEvidenceDialog(
+                            context,
+                            workshop,
+                            session,
+                            stats,
+                          ),
+                        ),
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.bar_chart_rounded, size: 16),
+                          label: const Text('Auditoría'),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => SessionReportScreen(
+                                  workshop: workshop,
+                                  session: session,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        ElevatedButton.icon(
+                          icon: const Icon(
+                            Icons.qr_code_scanner_rounded,
+                            size: 16,
+                          ),
+                          label: const Text('Pase en Vivo (QR)'),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => LiveSessionScreen(
+                                  workshop: workshop,
+                                  session: session,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }),
+      ],
     );
   }
 
@@ -1331,6 +1417,277 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
     );
   }
 
+  /// Permite al docente preparar y colocar el título, fecha y horario de CADA sesión existente (Sesión 1, Sesión 2, Sesión 3...) en una sola vista
+  void _showPrepareAllSessionsDialog(
+    BuildContext context,
+    AttendanceProvider provider,
+    Workshop workshop,
+  ) {
+    final now = DateTime.now();
+    final tomorrow = now.add(const Duration(days: 1));
+    final dayAfterTomorrow = now.add(const Duration(days: 2));
+
+    bool isSameDay(DateTime a, DateTime b) =>
+        a.year == b.year && a.month == b.month && a.day == b.day;
+
+    final List<WorkshopSession> sessionsRef = List.of(workshop.sessions);
+    final List<TextEditingController> titleCtrls = sessionsRef
+        .map((s) => TextEditingController(text: s.title))
+        .toList();
+    final List<DateTime> dates = sessionsRef.map((s) => s.date).toList();
+    final List<TextEditingController> startCtrls = sessionsRef
+        .map((s) => TextEditingController(text: s.startTimeLabel))
+        .toList();
+    final List<TextEditingController> endCtrls = sessionsRef
+        .map((s) => TextEditingController(text: s.endTimeLabel))
+        .toList();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.edit_note_rounded, color: AppTheme.primary),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Preparar Títulos, Días y Horarios de Cada Sesión',
+                  style: TextStyle(fontSize: 15),
+                ),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 520,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryLight,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Text(
+                      'Aquí puedes escribir el título personalizado de cada sesión (Sesión 1, Sesión 2, Sesión 3...), así como elegir su fecha individual y horario.',
+                      style: TextStyle(fontSize: 11, color: AppTheme.slate800),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ...List.generate(titleCtrls.length, (idx) {
+                    final d = dates[idx];
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.slate50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppTheme.slate200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primaryLight,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  'Sesión ${idx + 1}',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppTheme.primary,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  '📅 ${WorkshopSession.formatSingleDateWithDay(d)}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppTheme.slate900,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: titleCtrls[idx],
+                            decoration: InputDecoration(
+                              isDense: true,
+                              labelText:
+                                  'Título o Tema de la Sesión ${idx + 1}',
+                              hintText:
+                                  'Ej. Sesión ${idx + 1}: Introducción / Práctica...',
+                              prefixIcon: const Icon(
+                                Icons.title_rounded,
+                                size: 18,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: [
+                              ChoiceChip(
+                                label: const Text(
+                                  'Hoy',
+                                  style: TextStyle(fontSize: 11),
+                                ),
+                                selected: isSameDay(d, now),
+                                onSelected: (_) =>
+                                    setDialogState(() => dates[idx] = now),
+                              ),
+                              ChoiceChip(
+                                label: const Text(
+                                  'Mañana',
+                                  style: TextStyle(fontSize: 11),
+                                ),
+                                selected: isSameDay(d, tomorrow),
+                                onSelected: (_) =>
+                                    setDialogState(() => dates[idx] = tomorrow),
+                              ),
+                              ChoiceChip(
+                                label: const Text(
+                                  'Pasado Mañana',
+                                  style: TextStyle(fontSize: 11),
+                                ),
+                                selected: isSameDay(d, dayAfterTomorrow),
+                                onSelected: (_) => setDialogState(
+                                  () => dates[idx] = dayAfterTomorrow,
+                                ),
+                              ),
+                              OutlinedButton.icon(
+                                icon: const Icon(
+                                  Icons.edit_calendar_rounded,
+                                  size: 14,
+                                ),
+                                label: const Text(
+                                  'Cambiar Día',
+                                  style: TextStyle(fontSize: 11),
+                                ),
+                                onPressed: () async {
+                                  final picked = await showDatePicker(
+                                    context: ctx,
+                                    initialDate: d,
+                                    firstDate: DateTime(2024),
+                                    lastDate: DateTime(2030),
+                                  );
+                                  if (picked != null) {
+                                    setDialogState(() => dates[idx] = picked);
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: startCtrls[idx],
+                                  decoration: const InputDecoration(
+                                    isDense: true,
+                                    labelText: 'Hora Inicio',
+                                    prefixIcon: Icon(
+                                      Icons.play_circle_outline,
+                                      size: 17,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: TextField(
+                                  controller: endCtrls[idx],
+                                  decoration: const InputDecoration(
+                                    isDense: true,
+                                    labelText: 'Hora Término',
+                                    prefixIcon: Icon(
+                                      Icons.stop_circle_outlined,
+                                      size: 17,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.save_rounded, size: 18),
+              label: const Text('Guardar Todos los Títulos y Días'),
+              onPressed: () async {
+                for (int i = 0; i < sessionsRef.length; i++) {
+                  final s = sessionsRef[i];
+                  final newTitle = titleCtrls[i].text.trim().isNotEmpty
+                      ? titleCtrls[i].text.trim()
+                      : 'Sesión ${i + 1}';
+                  final newDate = dates[i];
+                  final newStart = startCtrls[i].text.trim().isNotEmpty
+                      ? startCtrls[i].text.trim()
+                      : s.startTimeLabel;
+                  final newEnd = endCtrls[i].text.trim().isNotEmpty
+                      ? endCtrls[i].text.trim()
+                      : s.endTimeLabel;
+
+                  await provider.updateSessionSchedule(
+                    workshopId: workshop.id,
+                    sessionId: s.id,
+                    title: newTitle,
+                    date: newDate,
+                    impartedDaysLabel: WorkshopSession.formatSingleDateWithDay(
+                      newDate,
+                    ),
+                    startTimeLabel: newStart,
+                    endTimeLabel: newEnd,
+                    toleranceMinutes: s.toleranceMinutes,
+                  );
+                }
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        '✅ Títulos, fechas y horarios de las sesiones actualizados.',
+                      ),
+                      backgroundColor: AppTheme.accreditedColor,
+                    ),
+                  );
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showCreateSessionDialog(
     BuildContext context,
     AttendanceProvider provider,
@@ -1348,11 +1705,18 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
         '${endDt.hour.toString().padLeft(2, '0')}:${endDt.minute.toString().padLeft(2, '0')}';
 
     final nextSessionNumber = workshop.sessions.length + 1;
-    final titleController = TextEditingController(
-      text:
-          existingSession?.title ??
-          'Sesión $nextSessionNumber: Práctica y Evaluación',
-    );
+
+    String suggestedTitleFor(int sessionNum) {
+      const topics = [
+        'Introducción y Teoría',
+        'Práctica Guiada',
+        'Desarrollo de Proyecto',
+        'Evaluación y Cierre',
+      ];
+      final t = topics[(sessionNum - 1) % topics.length];
+      return 'Sesión $sessionNum: $t';
+    }
+
     final startCtrl = TextEditingController(
       text: existingSession?.startTimeLabel ?? defaultStart,
     );
@@ -1363,9 +1727,14 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
       text: '${existingSession?.toleranceMinutes ?? 15}',
     );
 
-    // Por defecto, cada sesión tiene SU PROPIO DÍA único
+    // Cada sesión tiene SU PROPIO título editable y SU PROPIO día único
     DateTime selectedDate = existingSession?.date ?? now;
     final List<DateTime> sessionDates = [selectedDate];
+    final List<TextEditingController> sessionTitleCtrls = [
+      TextEditingController(
+        text: existingSession?.title ?? suggestedTitleFor(nextSessionNumber),
+      ),
+    ];
 
     bool isSameDay(DateTime a, DateTime b) =>
         a.year == b.year && a.month == b.month && a.day == b.day;
@@ -1385,8 +1754,8 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                 Expanded(
                   child: Text(
                     existingSession != null
-                        ? 'Editar Día y Horario de ${existingSession.title.split(":").first}'
-                        : 'Crear Sesión (Día de Impartición y Horario)',
+                        ? 'Editar Título, Día y Horario de Sesión'
+                        : 'Preparar Nueva(s) Sesión(es) (Título, Día y Horario)',
                     style: const TextStyle(fontSize: 15),
                   ),
                 ),
@@ -1407,8 +1776,8 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                       ),
                       child: Text(
                         existingSession != null
-                            ? 'Selecciona la fecha única en que se impartirá esta sesión y su horario de inicio y término.'
-                            : 'Cada sesión tiene su propia fecha individual (por ejemplo, Sesión 1 mañana y Sesión 2 mañana o pasado mañana). Si agregas más días abajo, se creará una sesión independiente por cada día.',
+                            ? 'Escribe el título personalizado de esta sesión y selecciona la fecha en que se impartirá.'
+                            : 'Puedes colocar el título personalizado y la fecha de cada sesión (por ejemplo, Sesión 1 con su tema y día, Sesión 2 con su propio tema y día).',
                         style: const TextStyle(
                           fontSize: 11,
                           color: AppTheme.slate800,
@@ -1416,26 +1785,10 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                       ),
                     ),
                     const SizedBox(height: 12),
-                    const Text(
-                      '1. Título o sección de la sesión:',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    TextField(
-                      controller: titleController,
-                      decoration: const InputDecoration(
-                        prefixIcon: Icon(Icons.title_rounded),
-                        hintText: 'Ej. Sesión 1: Práctica y Evaluación',
-                      ),
-                    ),
-                    const SizedBox(height: 14),
                     Text(
                       existingSession != null
-                          ? '2. 📅 Fecha del Día que se Impartirá esta Sesión:'
-                          : '2. 📅 Fecha del Día de cada Sesión (1 Sesión por Día):',
+                          ? '1. 📝 Título y Fecha del Día de esta Sesión:'
+                          : '1. 📝 Preparar Título y Fecha de cada Sesión (1 Sesión por Día):',
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
@@ -1450,13 +1803,14 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                         final d = existingSession != null
                             ? selectedDate
                             : sessionDates[idx];
+                        final sessionNum = nextSessionNumber + idx;
                         final sessionNumLabel = existingSession != null
-                            ? existingSession.title.split(':').first
-                            : 'Sesión ${nextSessionNumber + idx}';
+                            ? 'Sesión actual'
+                            : 'Sesión $sessionNum';
 
                         return Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.all(10),
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: AppTheme.slate50,
                             borderRadius: BorderRadius.circular(12),
@@ -1467,15 +1821,28 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                             children: [
                               Row(
                                 children: [
-                                  const Icon(
-                                    Icons.calendar_month_rounded,
-                                    size: 16,
-                                    color: AppTheme.primary,
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 3,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.primaryLight,
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      sessionNumLabel,
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppTheme.primary,
+                                      ),
+                                    ),
                                   ),
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
-                                      '$sessionNumLabel ➔ ${WorkshopSession.formatSingleDateWithDay(d)}',
+                                      '📅 ${WorkshopSession.formatSingleDateWithDay(d)}',
                                       style: const TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w800,
@@ -1496,13 +1863,30 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                                       onPressed: () {
                                         setDialogState(() {
                                           sessionDates.removeAt(idx);
+                                          sessionTitleCtrls.removeAt(idx);
                                           selectedDate = sessionDates.first;
                                         });
                                       },
                                     ),
                                 ],
                               ),
-                              const SizedBox(height: 6),
+                              const SizedBox(height: 8),
+                              TextField(
+                                controller: sessionTitleCtrls[idx],
+                                decoration: InputDecoration(
+                                  isDense: true,
+                                  labelText: existingSession != null
+                                      ? 'Título de esta Sesión'
+                                      : 'Título de la Sesión $sessionNum',
+                                  hintText:
+                                      'Ej. Sesión $sessionNum: Tema de este día',
+                                  prefixIcon: const Icon(
+                                    Icons.edit_note_rounded,
+                                    size: 18,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
                               Wrap(
                                 spacing: 6,
                                 runSpacing: 6,
@@ -1619,6 +2003,15 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                               if (picked != null) {
                                 setDialogState(() {
                                   sessionDates.add(picked);
+                                  sessionTitleCtrls.add(
+                                    TextEditingController(
+                                      text: suggestedTitleFor(
+                                        nextSessionNumber +
+                                            sessionDates.length -
+                                            1,
+                                      ),
+                                    ),
+                                  );
                                 });
                               }
                             },
@@ -1647,11 +2040,21 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                               if (range != null) {
                                 setDialogState(() {
                                   sessionDates.clear();
+                                  sessionTitleCtrls.clear();
                                   var cur = range.start;
                                   int safety = 0;
                                   while (!cur.isAfter(range.end) &&
                                       safety < 15) {
                                     sessionDates.add(cur);
+                                    sessionTitleCtrls.add(
+                                      TextEditingController(
+                                        text: suggestedTitleFor(
+                                          nextSessionNumber +
+                                              sessionDates.length -
+                                              1,
+                                        ),
+                                      ),
+                                    );
                                     cur = cur.add(const Duration(days: 1));
                                     safety++;
                                   }
@@ -1665,7 +2068,7 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                     ],
                     const SizedBox(height: 14),
                     const Text(
-                      '3. 🕒 Evidencia de Hora de Inicio y Hora de Término:',
+                      '2. 🕒 Evidencia de Hora de Inicio y Hora de Término:',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
@@ -1764,14 +2167,12 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                 icon: const Icon(Icons.save_rounded, size: 18),
                 label: Text(
                   existingSession != null
-                      ? 'Guardar Día y Horario'
+                      ? 'Guardar Título, Día y Horario'
                       : (sessionDates.length > 1
-                            ? 'Crear ${sessionDates.length} Sesiones (1 por Día)'
+                            ? 'Crear ${sessionDates.length} Sesiones Preparadas'
                             : 'Crear Sesión'),
                 ),
                 onPressed: () async {
-                  final rawTitle = titleController.text.trim();
-                  if (rawTitle.isEmpty) return;
                   final startStr = startCtrl.text.trim().isNotEmpty
                       ? startCtrl.text.trim()
                       : defaultStart;
@@ -1781,10 +2182,13 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                   final tol = int.tryParse(tolCtrl.text.trim()) ?? 15;
 
                   if (existingSession != null) {
+                    final customTitle = sessionTitleCtrls.first.text.trim();
                     await provider.updateSessionSchedule(
                       workshopId: workshop.id,
                       sessionId: existingSession.id,
-                      title: rawTitle,
+                      title: customTitle.isNotEmpty
+                          ? customTitle
+                          : existingSession.title,
                       date: selectedDate,
                       impartedDaysLabel: WorkshopSession.formatSingleDateWithDay(
                         selectedDate,
@@ -1794,19 +2198,14 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                       toleranceMinutes: tol,
                     );
                   } else {
-                    String baseTopic = rawTitle;
-                    final colonIdx = baseTopic.indexOf(':');
-                    if (colonIdx != -1 && colonIdx + 1 < baseTopic.length) {
-                      baseTopic = baseTopic.substring(colonIdx + 1).trim();
-                    }
-
                     for (int i = 0; i < sessionDates.length; i++) {
                       final d = sessionDates[i];
                       final singleDayStr =
                           WorkshopSession.formatSingleDateWithDay(d);
-                      final sessionTitle = sessionDates.length == 1
-                          ? rawTitle
-                          : 'Sesión ${nextSessionNumber + i}: $baseTopic';
+                      final customTitle = sessionTitleCtrls[i].text.trim();
+                      final sessionTitle = customTitle.isNotEmpty
+                          ? customTitle
+                          : suggestedTitleFor(nextSessionNumber + i);
                       await provider.createSession(
                         workshopId: workshop.id,
                         title: sessionTitle,

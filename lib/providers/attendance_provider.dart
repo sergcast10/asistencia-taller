@@ -189,6 +189,7 @@ class AttendanceProvider extends ChangeNotifier {
     String? initialSessionTitle,
     DateTime? initialSessionDate,
     List<DateTime>? initialSessionDates,
+    List<String>? initialSessionTitles,
     String? initialImpartedDaysLabel,
     String? initialStartTimeLabel,
     String? initialEndTimeLabel,
@@ -206,26 +207,37 @@ class AttendanceProvider extends ChangeNotifier {
     await _persist();
     _pushWorkshopToSupabaseAsync(newWorkshop);
 
-    final datesToCreate = (initialSessionDates != null && initialSessionDates.isNotEmpty)
+    final datesToCreate =
+        (initialSessionDates != null && initialSessionDates.isNotEmpty)
         ? initialSessionDates
         : <DateTime>[initialSessionDate ?? DateTime.now()];
 
-    if (initialSessionTitle != null && initialSessionTitle.trim().isNotEmpty) {
-      String baseTopic = initialSessionTitle.trim();
+    if (datesToCreate.isNotEmpty) {
+      String baseTopic = (initialSessionTitle ?? '').trim();
       final colonIdx = baseTopic.indexOf(':');
       if (colonIdx != -1 && colonIdx + 1 < baseTopic.length) {
         baseTopic = baseTopic.substring(colonIdx + 1).trim();
+      }
+      if (baseTopic.isEmpty) {
+        baseTopic = 'Práctica y Evaluación';
       }
 
       for (int i = 0; i < datesToCreate.length; i++) {
         final d = datesToCreate[i];
         final singleDateLabel = WorkshopSession.formatSingleDateWithDay(d);
-        final sessionTitle = datesToCreate.length == 1
-            ? initialSessionTitle.trim()
-            : 'Sesión ${i + 1}: $baseTopic';
+        final customTitle =
+            (initialSessionTitles != null &&
+                i < initialSessionTitles.length &&
+                initialSessionTitles[i].trim().isNotEmpty)
+            ? initialSessionTitles[i].trim()
+            : (datesToCreate.length == 1 &&
+                      initialSessionTitle != null &&
+                      initialSessionTitle.trim().isNotEmpty
+                  ? initialSessionTitle.trim()
+                  : 'Sesión ${i + 1}: $baseTopic');
         await createSession(
           workshopId: newWorkshop.id,
-          title: sessionTitle,
+          title: customTitle,
           date: d,
           impartedDaysLabel: singleDateLabel,
           startTimeLabel: initialStartTimeLabel,

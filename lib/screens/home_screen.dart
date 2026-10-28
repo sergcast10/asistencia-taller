@@ -405,18 +405,29 @@ class _HomeScreenState extends State<HomeScreen> {
     final codeCtrl = TextEditingController();
     final instructorCtrl = TextEditingController();
     final descCtrl = TextEditingController();
-    final sessionTitleCtrl = TextEditingController(
-      text: 'Sesión 1: Práctica y Evaluación',
-    );
     final startCtrl = TextEditingController(text: defaultStart);
     final endCtrl = TextEditingController(text: defaultEnd);
     final List<DateTime> selectedDates = [now];
+    final List<TextEditingController> sessionTitleCtrls = [
+      TextEditingController(text: 'Sesión 1: Introducción y Teoría'),
+    ];
+
+    String suggestedTitleFor(int sessionNumber) {
+      const suggestions = [
+        'Introducción y Teoría',
+        'Práctica Guiada',
+        'Desarrollo de Proyecto',
+        'Evaluación y Cierre',
+      ];
+      final topic = suggestions[(sessionNumber - 1) % suggestions.length];
+      return 'Sesión $sessionNumber: $topic';
+    }
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Crear Nuevo Taller y Sesiones'),
+          title: const Text('Crear Nuevo Taller y Preparar Sesiones'),
           content: SizedBox(
             width: 500,
             child: SingleChildScrollView(
@@ -458,80 +469,109 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const Divider(height: 24),
                   const Text(
-                    '📅 Sesiones a Programar (Cada día crea su propia Sesión individual):',
+                    '📅 Preparar Sesiones (Escribe el título y elige la fecha de cada sesión):',
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: sessionTitleCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Tema de la(s) Sesión(es)',
-                      prefixIcon: Icon(Icons.title_rounded),
-                    ),
                   ),
                   const SizedBox(height: 8),
                   ...List.generate(selectedDates.length, (idx) {
                     final d = selectedDates[idx];
+                    final titleCtrl = sessionTitleCtrls[idx];
                     return Container(
-                      margin: const EdgeInsets.only(bottom: 6),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
                         color: AppTheme.slate50,
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: AppTheme.slate200),
                       ),
-                      child: Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(
-                            Icons.calendar_today_rounded,
-                            size: 14,
-                            color: AppTheme.primary,
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primaryLight,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  'Sesión ${idx + 1}',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppTheme.primary,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  '📅 ${WorkshopSession.formatSingleDateWithDay(d)}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                              TextButton.icon(
+                                icon: const Icon(
+                                  Icons.edit_calendar_rounded,
+                                  size: 14,
+                                ),
+                                label: const Text(
+                                  'Cambiar Día',
+                                  style: TextStyle(fontSize: 11),
+                                ),
+                                onPressed: () async {
+                                  final picked = await showDatePicker(
+                                    context: ctx,
+                                    initialDate: d,
+                                    firstDate: DateTime(2024),
+                                    lastDate: DateTime(2030),
+                                  );
+                                  if (picked != null) {
+                                    setDialogState(() {
+                                      selectedDates[idx] = picked;
+                                    });
+                                  }
+                                },
+                              ),
+                              if (selectedDates.length > 1)
+                                IconButton(
+                                  tooltip: 'Quitar esta sesión',
+                                  visualDensity: VisualDensity.compact,
+                                  icon: const Icon(
+                                    Icons.close_rounded,
+                                    size: 16,
+                                    color: AppTheme.absentColor,
+                                  ),
+                                  onPressed: () {
+                                    setDialogState(() {
+                                      selectedDates.removeAt(idx);
+                                      sessionTitleCtrls.removeAt(idx);
+                                    });
+                                  },
+                                ),
+                            ],
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Sesión ${idx + 1}: ${WorkshopSession.formatSingleDateWithDay(d)}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: titleCtrl,
+                            decoration: InputDecoration(
+                              isDense: true,
+                              labelText: 'Título de la Sesión ${idx + 1}',
+                              hintText:
+                                  'Ej. Sesión ${idx + 1}: Tema específico de este día',
+                              prefixIcon: const Icon(
+                                Icons.edit_note_rounded,
+                                size: 18,
                               ),
                             ),
                           ),
-                          TextButton(
-                            onPressed: () async {
-                              final picked = await showDatePicker(
-                                context: ctx,
-                                initialDate: d,
-                                firstDate: DateTime(2024),
-                                lastDate: DateTime(2030),
-                              );
-                              if (picked != null) {
-                                setDialogState(() {
-                                  selectedDates[idx] = picked;
-                                });
-                              }
-                            },
-                            child: const Text(
-                              'Cambiar Día',
-                              style: TextStyle(fontSize: 11),
-                            ),
-                          ),
-                          if (selectedDates.length > 1)
-                            IconButton(
-                              icon: const Icon(
-                                Icons.close_rounded,
-                                size: 16,
-                                color: AppTheme.absentColor,
-                              ),
-                              onPressed: () {
-                                setDialogState(() {
-                                  selectedDates.removeAt(idx);
-                                });
-                              },
-                            ),
                         ],
                       ),
                     );
@@ -544,7 +584,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       OutlinedButton.icon(
                         icon: const Icon(Icons.add_circle_outline, size: 15),
                         label: Text(
-                          '➕ Agregar Sesión ${selectedDates.length + 1} (Elegir Día)',
+                          '➕ Agregar Sesión ${selectedDates.length + 1}',
                           style: const TextStyle(fontSize: 11),
                         ),
                         onPressed: () async {
@@ -559,6 +599,11 @@ class _HomeScreenState extends State<HomeScreen> {
                           if (picked != null) {
                             setDialogState(() {
                               selectedDates.add(picked);
+                              sessionTitleCtrls.add(
+                                TextEditingController(
+                                  text: suggestedTitleFor(selectedDates.length),
+                                ),
+                              );
                             });
                           }
                         },
@@ -566,7 +611,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       OutlinedButton.icon(
                         icon: const Icon(Icons.date_range_rounded, size: 15),
                         label: const Text(
-                          '📆 Rango de Días (1 Sesión por Día)',
+                          '📆 Rango de Días (Preparar 1 Sesión por Día)',
                           style: TextStyle(fontSize: 11),
                         ),
                         onPressed: () async {
@@ -584,10 +629,18 @@ class _HomeScreenState extends State<HomeScreen> {
                           if (range != null) {
                             setDialogState(() {
                               selectedDates.clear();
+                              sessionTitleCtrls.clear();
                               var cur = range.start;
                               int safety = 0;
                               while (!cur.isAfter(range.end) && safety < 15) {
                                 selectedDates.add(cur);
+                                sessionTitleCtrls.add(
+                                  TextEditingController(
+                                    text: suggestedTitleFor(
+                                      selectedDates.length,
+                                    ),
+                                  ),
+                                );
                                 cur = cur.add(const Duration(days: 1));
                                 safety++;
                               }
@@ -634,14 +687,19 @@ class _HomeScreenState extends State<HomeScreen> {
               onPressed: () {
                 if (nameCtrl.text.trim().isNotEmpty &&
                     codeCtrl.text.trim().isNotEmpty) {
+                  final titles = List.generate(selectedDates.length, (i) {
+                    final t = sessionTitleCtrls[i].text.trim();
+                    return t.isNotEmpty ? t : suggestedTitleFor(i + 1);
+                  });
                   provider.addWorkshop(
                     name: nameCtrl.text.trim(),
                     code: codeCtrl.text.trim(),
                     instructorName: instructorCtrl.text.trim(),
                     description: descCtrl.text.trim(),
-                    initialSessionTitle: sessionTitleCtrl.text.trim(),
+                    initialSessionTitle: titles.first,
                     initialSessionDate: selectedDates.first,
                     initialSessionDates: selectedDates,
+                    initialSessionTitles: titles,
                     initialStartTimeLabel: startCtrl.text.trim(),
                     initialEndTimeLabel: endCtrl.text.trim(),
                   );
