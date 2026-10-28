@@ -68,6 +68,20 @@ class AttendanceProvider extends ChangeNotifier {
     _workshops = await StorageService.loadWorkshops();
     _isLoading = false;
     notifyListeners();
+
+    // Sincronizar automáticamente desde Supabase al iniciar
+    syncAllActiveSessionsFromSupabase();
+  }
+
+  /// Sincroniza todas las sesiones del taller activo con Supabase
+  Future<void> syncAllActiveSessionsFromSupabase() async {
+    for (final w in _workshops) {
+      _pushWorkshopToSupabaseAsync(w);
+      for (final s in w.sessions) {
+        _pushSessionToSupabaseAsync(w, s);
+        await syncRecordsFromSupabase(workshopId: w.id, sessionId: s.id);
+      }
+    }
   }
 
   Future<void> setWebBaseUrl(String url) async {
@@ -105,6 +119,7 @@ class AttendanceProvider extends ChangeNotifier {
     );
     _workshops.insert(0, newWorkshop);
     await _persist();
+    _pushWorkshopToSupabaseAsync(newWorkshop);
   }
 
   Future<void> addStudentToWorkshop({
@@ -115,14 +130,21 @@ class AttendanceProvider extends ChangeNotifier {
   }) async {
     final index = _workshops.indexWhere((w) => w.id == workshopId);
     if (index != -1) {
+      final cleanEnrollment = enrollmentNumber.trim().toUpperCase();
+      final existing = _workshops[index].enrolledStudents.where(
+        (s) => s.enrollmentNumber.trim().toUpperCase() == cleanEnrollment,
+      ).firstOrNull;
+      if (existing != null) return;
+
       final newStudent = Student(
         id: 'std_${_uuid.v4().substring(0, 8)}',
-        enrollmentNumber: enrollmentNumber,
-        fullName: fullName,
-        email: email,
+        enrollmentNumber: cleanEnrollment,
+        fullName: fullName.trim(),
+        email: email.trim(),
       );
       _workshops[index].enrolledStudents.add(newStudent);
       await _persist();
+      _pushStudentToSupabaseAsync(newStudent, workshopId);
     }
   }
 
@@ -130,6 +152,8 @@ class AttendanceProvider extends ChangeNotifier {
     required String workshopId,
     required String title,
     required DateTime date,
+    int toleranceMinutes = 15,
+    int registrationWindowMinutes = 45,
   }) async {
     final index = _workshops.indexWhere((w) => w.id == workshopId);
     if (index == -1) return null;
@@ -141,15 +165,19 @@ class AttendanceProvider extends ChangeNotifier {
       date: date,
       currentPhase: SessionPhase.pending,
       secretKey: 'KEY_${_uuid.v4().substring(0, 12)}',
+      toleranceMinutes: toleranceMinutes,
+      registrationWindowMinutes: registrationWindowMinutes,
       records: {},
     );
 
     _workshops[index].sessions.insert(0, newSession);
     await _persist();
+    _pushWorkshopToSupabaseAsync(_workshops[index]);
+    _pushSessionToSupabaseAsync(_workshops[index], newSession);
     return newSession;
   }
 
-  // --- CONTROL DE FASES DE SESIÓN (DOCENTE) ---
+  // --- CONTROL DE FASES Y TIEMPOS DE SESIÓN (DOCENTE) ---
 
   Future<void> updateSessionPhase({
     required String workshopId,
@@ -163,6 +191,29 @@ class AttendanceProvider extends ChangeNotifier {
     session.phaseStartedAt = DateTime.now();
 
     await _persist();
+    _pushWorkshopToSupabaseAsync(workshop);
+    _pushSessionToSupabaseAsync(workshop, session);
+  }
+
+  /// Configurar el tiempo límite de registro y los minutos de tolerancia/retraso (ej. 15 min)
+  Future<void> updateSessionTimings({
+    required String workshopId,
+    required String sessionId,
+    required int toleranceMinutes,
+    required int registrationWindowMinutes,
+    bool resetClock = false,
+  }) async {
+    final workshop = _workshops.firstWhere((w) => w.id == workshopId);
+    final session = workshop.sessions.firstWhere((s) => s.id == sessionId);
+
+    session.toleranceMinutes = toleranceMinutes;
+    session.registrationWindowMinutes = registrationWindowMinutes;
+    if (resetClock || session.phaseStartedAt == null) {
+      session.phaseStartedAt = DateTime.now();
+    }
+
+    await _persist();
+    _pushSessionToSupabaseAsync(workshop, session);
   }
 
   // --- REGISTRO DE ASISTENCIA MEDIANTE ESCANEO QR ---
@@ -293,18 +344,35 @@ class AttendanceProvider extends ChangeNotifier {
       }
 
       record.sealCheckIn(now);
+
+      // Evaluar si el alumno se registró dentro de la tolerancia o con retraso
+      if (session.phaseStartedAt != null) {
+        final minsElapsed = now.difference(session.phaseStartedAt!).inMinutes;
+        if (minsElapsed > session.toleranceMinutes) {
+          record.isLate = true;
+          record.lateMinutes = minsElapsed;
+        } else {
+          record.isLate = false;
+          record.lateMinutes = 0;
+        }
+      }
+
       _persist();
       PowerSyncService().saveAttendanceRecord(
         record: record,
         workshopId: workshop.id,
       );
-      _syncRecordToSupabaseAsync(record, student, session.id);
+      _syncRecordToSupabaseAsync(record, student, session.id, workshop: workshop, session: session);
+
+      final lateTag = record.isLate
+          ? ' (⏱️ Registrado con retraso: +${record.lateMinutes} min respecto al inicio; tolerancia: ${session.toleranceMinutes} min)'
+          : ' (✅ Puntual dentro de los ${session.toleranceMinutes} min de tolerancia)';
 
       return AttendanceProcessResult(
         success: true,
-        title: '🟢 Entrada Sellada 🔒',
+        title: record.isLate ? '🟠 Entrada con Retraso 🔒' : '🟢 Entrada Puntual Sellada 🔒',
         message:
-            '¡Bienvenido(a), ${student.fullName}! Se registró tu entrada a las ${_formatTime(now)} (Hora oficial inmutable). Recuerda que para ACREDITAR debes registrar tu salida al terminar.',
+            '¡Bienvenido(a), ${student.fullName}! Se registró tu entrada a las ${_formatTime(now)}$lateTag. Recuerda registrar tu salida al terminar para ACREDITAR.',
         status: record.status,
         student: student,
       );
@@ -326,7 +394,7 @@ class AttendanceProvider extends ChangeNotifier {
         record: record,
         workshopId: workshop.id,
       );
-      _syncRecordToSupabaseAsync(record, student, session.id);
+      _syncRecordToSupabaseAsync(record, student, session.id, workshop: workshop, session: session);
 
       if (record.hasCheckIn) {
         return AttendanceProcessResult(
@@ -391,6 +459,9 @@ class AttendanceProvider extends ChangeNotifier {
     int pending = 0;
     int entriesCount = 0;
     int exitsCount = 0;
+    int lateCount = 0;
+    int notesCount = 0;
+    int registeredTodayCount = 0;
 
     for (var student in workshop.enrolledStudents) {
       final rec = session.records[student.id];
@@ -399,6 +470,11 @@ class AttendanceProvider extends ChangeNotifier {
       } else {
         if (rec.hasCheckIn) entriesCount++;
         if (rec.hasCheckOut) exitsCount++;
+        if (rec.isLate) lateCount++;
+        if (rec.hasNotes) notesCount++;
+        if (rec.hasCheckIn || rec.hasCheckOut || rec.hasNotes) {
+          registeredTodayCount++;
+        }
 
         if (rec.status == AttendanceStatus.accredited) {
           accredited++;
@@ -418,10 +494,115 @@ class AttendanceProvider extends ChangeNotifier {
       absent: pending,
       entriesCount: entriesCount,
       exitsCount: exitsCount,
+      lateCount: lateCount,
+      notesCount: notesCount,
+      registeredTodayCount: registeredTodayCount,
     );
   }
 
-  // --- CONTROL DE INVENTARIO Y REAPERTURA DOCENTE ---
+  // --- CONTROL DE INVENTARIO, NOTAS DE EVIDENCIA Y ACREDITACIÓN DOCENTE ---
+
+  /// Toma de nota / evidencia por el docente cuando un alumno tiene un problema o situación especial
+  Future<AttendanceRecord> saveStudentIncidentNote({
+    required String workshopId,
+    required String sessionId,
+    required String studentId,
+    required String noteText,
+    bool markEntry = true,
+    bool markAccredited = false,
+  }) async {
+    final workshop = _workshops.firstWhere((w) => w.id == workshopId);
+    final session = workshop.sessions.firstWhere((s) => s.id == sessionId);
+    final student = workshop.enrolledStudents.firstWhere((s) => s.id == studentId);
+
+    final now = DateTime.now();
+    var record = session.records[student.id];
+    if (record == null) {
+      record = AttendanceRecord(
+        id: 'rec_${_uuid.v4().substring(0, 8)}',
+        studentId: student.id,
+        sessionId: session.id,
+      );
+      session.records[student.id] = record;
+    }
+
+    final folio = 'EV-${now.day.toString().padLeft(2, '0')}${now.month.toString().padLeft(2, '0')}-${now.millisecondsSinceEpoch.toString().substring(9)}';
+    final dateStr = '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year} ${_formatTime(now)}';
+    final cleanInput = noteText.trim();
+    record.notes = '[$folio • $dateStr • Docente: ${workshop.instructorName}] $cleanInput';
+
+    if (markEntry && !record.hasCheckIn) {
+      record.sealCheckIn(now);
+    }
+    if (markAccredited) {
+      if (!record.hasCheckIn) record.sealCheckIn(now);
+      if (!record.hasCheckOut) record.sealCheckOut(now);
+    }
+
+    await _persist();
+    PowerSyncService().saveAttendanceRecord(record: record, workshopId: workshop.id);
+    _syncRecordToSupabaseAsync(record, student, session.id, workshop: workshop, session: session);
+    notifyListeners();
+    return record;
+  }
+
+  /// Acredita directamente a un alumno en la sesión actual (Entrada + Salida OK)
+  Future<void> accreditStudentDirectly({
+    required String workshopId,
+    required String sessionId,
+    required String studentId,
+  }) async {
+    final workshop = _workshops.firstWhere((w) => w.id == workshopId);
+    final session = workshop.sessions.firstWhere((s) => s.id == sessionId);
+    final student = workshop.enrolledStudents.firstWhere((s) => s.id == studentId);
+
+    final now = DateTime.now();
+    var record = session.records[student.id];
+    if (record == null) {
+      record = AttendanceRecord(
+        id: 'rec_${_uuid.v4().substring(0, 8)}',
+        studentId: student.id,
+        sessionId: session.id,
+      );
+      session.records[student.id] = record;
+    }
+
+    if (!record.hasCheckIn) record.sealCheckIn(now);
+    if (!record.hasCheckOut) record.sealCheckOut(now);
+
+    await _persist();
+    PowerSyncService().saveAttendanceRecord(record: record, workshopId: workshop.id);
+    _syncRecordToSupabaseAsync(record, student, session.id, workshop: workshop, session: session);
+    notifyListeners();
+  }
+
+  /// Acredita en bloque a todos los alumnos que registraron su asistencia hoy en esta sesión
+  Future<int> accreditAllRegisteredInSession({
+    required String workshopId,
+    required String sessionId,
+  }) async {
+    final workshop = _workshops.firstWhere((w) => w.id == workshopId);
+    final session = workshop.sessions.firstWhere((s) => s.id == sessionId);
+    final now = DateTime.now();
+    int count = 0;
+
+    for (final student in workshop.enrolledStudents) {
+      final rec = session.records[student.id];
+      if (rec != null && (rec.hasCheckIn || rec.hasCheckOut || rec.hasNotes)) {
+        if (!rec.hasCheckIn) rec.sealCheckIn(now);
+        if (!rec.hasCheckOut) rec.sealCheckOut(now);
+        PowerSyncService().saveAttendanceRecord(record: rec, workshopId: workshop.id);
+        _syncRecordToSupabaseAsync(rec, student, session.id, workshop: workshop, session: session);
+        count++;
+      }
+    }
+
+    if (count > 0) {
+      await _persist();
+      notifyListeners();
+    }
+    return count;
+  }
 
   /// Permite al docente reiniciar/desbloquear la sesión de un alumno
   Future<void> resetStudentAttendance({
@@ -469,16 +650,31 @@ class AttendanceProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Sincronizar registros del inventario en vivo desde Supabase Cloud
+  bool _isSameCalendarDay(DateTime a, DateTime b) {
+    final la = a.toLocal();
+    final lb = b.toLocal();
+    return la.year == lb.year && la.month == lb.month && la.day == lb.day;
+  }
+
+  /// Sincronizar registros del inventario en vivo desde Supabase Cloud (incluye alumnos registrados hoy)
   Future<int> syncRecordsFromSupabase({
     required String workshopId,
     required String sessionId,
   }) async {
     if (kIsWeb) return 0;
     try {
+      final wIdx = _workshops.indexWhere((w) => w.id == workshopId);
+      if (wIdx == -1) return 0;
+      final workshop = _workshops[wIdx];
+      final sIdx = workshop.sessions.indexWhere((s) => s.id == sessionId);
+      if (sIdx == -1) return 0;
+      final session = workshop.sessions[sIdx];
+
       final client = HttpClient();
+
+      // 1. Traer todos los registros de asistencia con los datos del estudiante
       final uri = Uri.parse(
-        'https://qukqvrowgzdkqoccbfdb.supabase.co/rest/v1/attendance_records?session_id=eq.$sessionId&select=*,students(*)',
+        'https://qukqvrowgzdkqoccbfdb.supabase.co/rest/v1/attendance_records?select=*,students(*)&order=created_at.asc',
       );
       final req = await client.getUrl(uri);
       req.headers.set('apikey', 'sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN');
@@ -489,27 +685,50 @@ class AttendanceProvider extends ChangeNotifier {
 
       if (res.statusCode == 200) {
         final List<dynamic> list = jsonDecode(responseBody);
-        final workshop = _workshops.firstWhere((w) => w.id == workshopId);
-        final session = workshop.sessions.firstWhere((s) => s.id == sessionId);
-
         int updatedCount = 0;
+
         for (var item in list) {
+          final recSessionId = item['session_id']?.toString() ?? '';
+          final createdAtStr = item['created_at']?.toString() ?? item['check_in_time']?.toString();
+          final createdAt = createdAtStr != null ? DateTime.tryParse(createdAtStr)?.toLocal() : null;
+
+          // Aceptar si pertenece exactamente a esta sesión, o si fue registrado el día de hoy
+          final isExactSession = recSessionId == sessionId;
+          final isSameDayRecord = createdAt != null && _isSameCalendarDay(createdAt, session.date);
+
+          if (!isExactSession && !isSameDayRecord) continue;
+
           final studentData = item['students'];
-          String? sId = item['student_id'];
+          String? sId = item['student_id']?.toString();
+
           if (studentData != null) {
-            final enrollment = studentData['enrollment_number']?.toString().toUpperCase();
+            final enrollment = studentData['enrollment_number']?.toString().trim().toUpperCase();
             var existingStudent = workshop.enrolledStudents.where(
-              (s) => s.enrollmentNumber.toUpperCase() == enrollment || s.id == sId,
+              (s) =>
+                  (enrollment != null && s.enrollmentNumber.trim().toUpperCase() == enrollment) ||
+                  s.id == sId,
             ).firstOrNull;
 
-            if (existingStudent == null && enrollment != null) {
+            if (existingStudent == null && enrollment != null && enrollment.isNotEmpty) {
               existingStudent = Student(
                 id: sId ?? 'std_${_uuid.v4().substring(0, 8)}',
-                fullName: studentData['full_name'] ?? 'Alumno',
+                fullName: (studentData['full_name'] ?? 'Alumno').toString().trim(),
                 enrollmentNumber: enrollment,
-                email: studentData['email'] ?? '',
+                email: (studentData['email'] ?? '$enrollment@alumno.edu').toString().trim(),
               );
               workshop.enrolledStudents.add(existingStudent);
+            } else if (existingStudent != null && studentData['full_name'] != null) {
+              final cloudName = studentData['full_name'].toString().trim();
+              if (cloudName.isNotEmpty && existingStudent.fullName == 'Alumno') {
+                final idx = workshop.enrolledStudents.indexOf(existingStudent);
+                existingStudent = Student(
+                  id: existingStudent.id,
+                  fullName: cloudName,
+                  enrollmentNumber: existingStudent.enrollmentNumber,
+                  email: existingStudent.email,
+                );
+                workshop.enrolledStudents[idx] = existingStudent;
+              }
             }
 
             if (existingStudent != null) {
@@ -521,20 +740,39 @@ class AttendanceProvider extends ChangeNotifier {
             DateTime? checkIn;
             DateTime? checkOut;
             if (item['check_in_time'] != null) {
-              checkIn = DateTime.tryParse(item['check_in_time']);
+              checkIn = DateTime.tryParse(item['check_in_time'].toString())?.toLocal();
             }
             if (item['check_out_time'] != null) {
-              checkOut = DateTime.tryParse(item['check_out_time']);
+              checkOut = DateTime.tryParse(item['check_out_time'].toString())?.toLocal();
             }
 
+            final prevRec = session.records[sId];
             final rec = AttendanceRecord(
-              id: item['id'] ?? 'rec_${_uuid.v4().substring(0, 8)}',
+              id: item['id']?.toString() ?? prevRec?.id ?? 'rec_${_uuid.v4().substring(0, 8)}',
               studentId: sId,
               sessionId: sessionId,
-              checkInTime: checkIn,
-              checkOutTime: checkOut,
+              checkInTime: checkIn ?? prevRec?.checkInTime,
+              checkOutTime: checkOut ?? prevRec?.checkOutTime,
               isLocked: item['is_locked'] == true || item['is_locked'] == 1,
+              notes: prevRec?.notes,
+              isLate: prevRec?.isLate ?? false,
+              lateMinutes: prevRec?.lateMinutes ?? 0,
             );
+
+            rec.applySupabaseStatus(
+              item['status']?.toString(),
+              explicitNotes: item['notes']?.toString(),
+            );
+
+            // Calcular si entró con retraso respecto al inicio del pase si aún no estaba calculado
+            if (!rec.isLate && rec.checkInTime != null && session.phaseStartedAt != null) {
+              final diffMins = rec.checkInTime!.difference(session.phaseStartedAt!).inMinutes;
+              if (diffMins > session.toleranceMinutes) {
+                rec.isLate = true;
+                rec.lateMinutes = diffMins;
+              }
+            }
+
             session.records[sId] = rec;
             updatedCount++;
           }
@@ -550,32 +788,119 @@ class AttendanceProvider extends ChangeNotifier {
     return 0;
   }
 
-  void _syncRecordToSupabaseAsync(AttendanceRecord record, Student student, String sessionId) {
+  void _pushWorkshopToSupabaseAsync(Workshop workshop) {
     if (kIsWeb) return;
     try {
-      HttpClient().postUrl(Uri.parse('https://qukqvrowgzdkqoccbfdb.supabase.co/rest/v1/attendance_records?on_conflict=id'))
-        .then((req) {
-          req.headers.set('apikey', 'sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN');
-          req.headers.set('Authorization', 'Bearer sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN');
-          req.headers.set('Content-Type', 'application/json');
-          req.headers.set('Prefer', 'resolution=merge-duplicates');
-          final body = jsonEncode({
-            'id': record.id,
-            'student_id': student.id,
-            'session_id': sessionId,
-            'check_in_time': record.checkInTime?.toIso8601String(),
-            'check_out_time': record.checkOutTime?.toIso8601String(),
-            'is_locked': record.isLocked,
-            'status': record.status.name,
-          });
-          req.write(body);
-          return req.close();
-        }).then((res) {
-          res.drain();
-        }).catchError((err) {
-          debugPrint('Aviso sync Supabase: $err');
-        });
+      HttpClient()
+          .postUrl(Uri.parse('https://qukqvrowgzdkqoccbfdb.supabase.co/rest/v1/workshops?on_conflict=id'))
+          .then((req) {
+            req.headers.set('apikey', 'sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN');
+            req.headers.set('Authorization', 'Bearer sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN');
+            req.headers.set('Content-Type', 'application/json');
+            req.headers.set('Prefer', 'resolution=merge-duplicates');
+            req.write(jsonEncode({
+              'id': workshop.id,
+              'name': workshop.name,
+              'code': workshop.code,
+              'instructor_name': workshop.instructorName,
+              'description': workshop.description,
+            }));
+            return req.close();
+          })
+          .then((res) => res.drain())
+          .catchError((_) {});
     } catch (_) {}
+  }
+
+  void _pushSessionToSupabaseAsync(Workshop workshop, WorkshopSession session) {
+    if (kIsWeb) return;
+    try {
+      HttpClient()
+          .postUrl(Uri.parse('https://qukqvrowgzdkqoccbfdb.supabase.co/rest/v1/workshop_sessions?on_conflict=id'))
+          .then((req) {
+            req.headers.set('apikey', 'sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN');
+            req.headers.set('Authorization', 'Bearer sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN');
+            req.headers.set('Content-Type', 'application/json');
+            req.headers.set('Prefer', 'resolution=merge-duplicates');
+            req.write(jsonEncode({
+              'id': session.id,
+              'workshop_id': workshop.id,
+              'title': session.title,
+              'current_phase': session.currentPhase.name,
+              'is_active': session.isQrActive,
+            }));
+            return req.close();
+          })
+          .then((res) => res.drain())
+          .catchError((_) {});
+    } catch (_) {}
+  }
+
+  void _pushStudentToSupabaseAsync(Student student, String workshopId) {
+    if (kIsWeb) return;
+    try {
+      HttpClient()
+          .postUrl(Uri.parse('https://qukqvrowgzdkqoccbfdb.supabase.co/rest/v1/students?on_conflict=id'))
+          .then((req) {
+            req.headers.set('apikey', 'sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN');
+            req.headers.set('Authorization', 'Bearer sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN');
+            req.headers.set('Content-Type', 'application/json');
+            req.headers.set('Prefer', 'resolution=merge-duplicates');
+            req.write(jsonEncode({
+              'id': student.id,
+              'workshop_id': workshopId,
+              'enrollment_number': student.enrollmentNumber.toUpperCase(),
+              'full_name': student.fullName,
+              'email': student.email,
+            }));
+            return req.close();
+          })
+          .then((res) => res.drain())
+          .catchError((_) {});
+    } catch (_) {}
+  }
+
+  Future<void> _syncRecordToSupabaseAsync(
+    AttendanceRecord record,
+    Student student,
+    String sessionId, {
+    Workshop? workshop,
+    WorkshopSession? session,
+  }) async {
+    if (kIsWeb) return;
+    try {
+      if (workshop != null) {
+        _pushWorkshopToSupabaseAsync(workshop);
+        if (session != null) {
+          _pushSessionToSupabaseAsync(workshop, session);
+        }
+      }
+      _pushStudentToSupabaseAsync(student, workshop?.id ?? '');
+
+      final client = HttpClient();
+      final req = await client.postUrl(
+        Uri.parse('https://qukqvrowgzdkqoccbfdb.supabase.co/rest/v1/attendance_records?on_conflict=id'),
+      );
+      req.headers.set('apikey', 'sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN');
+      req.headers.set('Authorization', 'Bearer sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN');
+      req.headers.set('Content-Type', 'application/json');
+      req.headers.set('Prefer', 'resolution=merge-duplicates');
+      final body = jsonEncode({
+        'id': record.id,
+        'student_id': student.id,
+        'session_id': sessionId,
+        'check_in_time': record.checkInTime?.toUtc().toIso8601String(),
+        'check_out_time': record.checkOutTime?.toUtc().toIso8601String(),
+        'is_locked': record.isLocked,
+        'status': record.encodeSupabaseStatus(),
+      });
+      req.write(body);
+      final res = await req.close();
+      await res.drain();
+      client.close();
+    } catch (err) {
+      debugPrint('Aviso sync Supabase: $err');
+    }
   }
 
   Future<void> clearAllData() async {
@@ -592,6 +917,9 @@ class SessionStatistics {
   final int absent;
   final int entriesCount;
   final int exitsCount;
+  final int lateCount;
+  final int notesCount;
+  final int registeredTodayCount;
 
   SessionStatistics({
     required this.totalStudents,
@@ -600,6 +928,9 @@ class SessionStatistics {
     required this.absent,
     required this.entriesCount,
     required this.exitsCount,
+    this.lateCount = 0,
+    this.notesCount = 0,
+    this.registeredTodayCount = 0,
   });
 
   double get accreditedPercentage =>

@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,16 +12,15 @@ import '../../utils/app_theme.dart';
 class StudentWebAttendanceScreen extends StatefulWidget {
   final String qrToken;
 
-  const StudentWebAttendanceScreen({
-    super.key,
-    required this.qrToken,
-  });
+  const StudentWebAttendanceScreen({super.key, required this.qrToken});
 
   @override
-  State<StudentWebAttendanceScreen> createState() => _StudentWebAttendanceScreenState();
+  State<StudentWebAttendanceScreen> createState() =>
+      _StudentWebAttendanceScreenState();
 }
 
-class _StudentWebAttendanceScreenState extends State<StudentWebAttendanceScreen> {
+class _StudentWebAttendanceScreenState
+    extends State<StudentWebAttendanceScreen> {
   bool _isLoading = true;
   bool _isAutoSubmitted = false;
 
@@ -107,7 +107,9 @@ class _StudentWebAttendanceScreenState extends State<StudentWebAttendanceScreen>
     final result = provider.processQrScan(
       qrRawContent: widget.qrToken,
       studentEnrollmentNumber: controlNumber.trim(),
-      studentFullName: fullName.trim().isNotEmpty ? fullName.trim() : 'Alumno $controlNumber',
+      studentFullName: fullName.trim().isNotEmpty
+          ? fullName.trim()
+          : 'Alumno $controlNumber',
       studentEmail: email?.trim(),
     );
 
@@ -164,7 +166,11 @@ class _StudentWebAttendanceScreenState extends State<StudentWebAttendanceScreen>
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Datos desvinculados de este celular. Ahora puedes registrar a otro alumno.')),
+        const SnackBar(
+          content: Text(
+            'Datos desvinculados de este celular. Ahora puedes registrar a otro alumno.',
+          ),
+        ),
       );
     }
   }
@@ -186,8 +192,8 @@ class _StudentWebAttendanceScreenState extends State<StudentWebAttendanceScreen>
             child: _isLoading
                 ? _buildLoadingCard()
                 : _attendanceResult != null
-                    ? _buildResultCard(_attendanceResult!)
-                    : _buildRegistrationFormCard(),
+                ? _buildResultCard(_attendanceResult!)
+                : _buildRegistrationFormCard(),
           ),
         ),
       ),
@@ -202,7 +208,7 @@ class _StudentWebAttendanceScreenState extends State<StudentWebAttendanceScreen>
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -215,7 +221,11 @@ class _StudentWebAttendanceScreenState extends State<StudentWebAttendanceScreen>
           const SizedBox(height: 20),
           const Text(
             'Validando código QR dinámico...',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.slate800),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.slate800,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
@@ -240,7 +250,7 @@ class _StudentWebAttendanceScreenState extends State<StudentWebAttendanceScreen>
         border: Border.all(color: AppTheme.slate200),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -258,12 +268,16 @@ class _StudentWebAttendanceScreenState extends State<StudentWebAttendanceScreen>
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: isEntry ? AppTheme.accreditedBg : AppTheme.primaryLight,
+                    color: isEntry
+                        ? AppTheme.accreditedBg
+                        : AppTheme.primaryLight,
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Icon(
                     isEntry ? Icons.login_rounded : Icons.logout_rounded,
-                    color: isEntry ? AppTheme.accreditedColor : AppTheme.primary,
+                    color: isEntry
+                        ? AppTheme.accreditedColor
+                        : AppTheme.primary,
                     size: 26,
                   ),
                 ),
@@ -277,12 +291,17 @@ class _StudentWebAttendanceScreenState extends State<StudentWebAttendanceScreen>
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
-                          color: isEntry ? AppTheme.accreditedColor : AppTheme.primary,
+                          color: isEntry
+                              ? AppTheme.accreditedColor
+                              : AppTheme.primary,
                         ),
                       ),
                       const Text(
                         'Registro de Asistencia Oficial',
-                        style: TextStyle(fontSize: 12, color: AppTheme.slate600),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.slate600,
+                        ),
                       ),
                     ],
                   ),
@@ -295,19 +314,29 @@ class _StudentWebAttendanceScreenState extends State<StudentWebAttendanceScreen>
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: AppTheme.primaryLight.withOpacity(0.5),
+                color: AppTheme.primaryLight.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppTheme.primary.withOpacity(0.2)),
+                border: Border.all(
+                  color: AppTheme.primary.withValues(alpha: 0.2),
+                ),
               ),
               child: const Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.phone_android_rounded, color: AppTheme.primary, size: 20),
+                  Icon(
+                    Icons.phone_android_rounded,
+                    color: AppTheme.primary,
+                    size: 20,
+                  ),
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       'Registro Único en este Celular:\nIngresa tus datos una sola vez. Tu celular los recordará para que en la salida o próximas clases tu asistencia se registre en 1 segundo de forma automática.',
-                      style: TextStyle(fontSize: 12, height: 1.35, color: AppTheme.slate800),
+                      style: TextStyle(
+                        fontSize: 12,
+                        height: 1.35,
+                        color: AppTheme.slate800,
+                      ),
                     ),
                   ),
                 ],
@@ -318,7 +347,11 @@ class _StudentWebAttendanceScreenState extends State<StudentWebAttendanceScreen>
             // Campo: Número de Control
             const Text(
               'Número de Control / Matrícula *',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.slate800),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.slate800,
+              ),
             ),
             const SizedBox(height: 6),
             TextFormField(
@@ -339,14 +372,21 @@ class _StudentWebAttendanceScreenState extends State<StudentWebAttendanceScreen>
             // Campo: Nombre Completo
             const Text(
               'Nombre Completo *',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.slate800),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.slate800,
+              ),
             ),
             const SizedBox(height: 6),
             TextFormField(
               controller: _fullNameController,
               decoration: const InputDecoration(
                 hintText: 'Ej. Juan Carlos Pérez Morales',
-                prefixIcon: Icon(Icons.person_rounded, color: AppTheme.slate600),
+                prefixIcon: Icon(
+                  Icons.person_rounded,
+                  color: AppTheme.slate600,
+                ),
               ),
               validator: (v) {
                 if (v == null || v.trim().isEmpty) {
@@ -360,7 +400,11 @@ class _StudentWebAttendanceScreenState extends State<StudentWebAttendanceScreen>
             // Campo: Correo Institucional
             const Text(
               'Correo Institucional (Opcional)',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.slate800),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.slate800,
+              ),
             ),
             const SizedBox(height: 6),
             TextFormField(
@@ -368,7 +412,10 @@ class _StudentWebAttendanceScreenState extends State<StudentWebAttendanceScreen>
               keyboardType: TextInputType.emailAddress,
               decoration: const InputDecoration(
                 hintText: 'Ej. alumno@itpav.edu.mx',
-                prefixIcon: Icon(Icons.alternate_email_rounded, color: AppTheme.slate600),
+                prefixIcon: Icon(
+                  Icons.alternate_email_rounded,
+                  color: AppTheme.slate600,
+                ),
               ),
             ),
             const SizedBox(height: 24),
@@ -384,7 +431,9 @@ class _StudentWebAttendanceScreenState extends State<StudentWebAttendanceScreen>
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: isEntry ? AppTheme.accreditedColor : AppTheme.primary,
+                  backgroundColor: isEntry
+                      ? AppTheme.accreditedColor
+                      : AppTheme.primary,
                 ),
                 onPressed: _handleFirstTimeSubmit,
               ),
@@ -407,10 +456,10 @@ class _StudentWebAttendanceScreenState extends State<StudentWebAttendanceScreen>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: cardColor.withOpacity(0.3), width: 2),
+        border: Border.all(color: cardColor.withValues(alpha: 0.3), width: 2),
         boxShadow: [
           BoxShadow(
-            color: cardColor.withOpacity(0.08),
+            color: cardColor.withValues(alpha: 0.08),
             blurRadius: 18,
             offset: const Offset(0, 4),
           ),
@@ -428,10 +477,14 @@ class _StudentWebAttendanceScreenState extends State<StudentWebAttendanceScreen>
             ),
             child: Icon(
               isSuccess
-                  ? (isAccredited ? Icons.verified_rounded : Icons.task_alt_rounded)
+                  ? (isAccredited
+                        ? Icons.verified_rounded
+                        : Icons.task_alt_rounded)
                   : Icons.warning_rounded,
               size: 54,
-              color: isSuccess ? AppTheme.accreditedColor : AppTheme.absentColor,
+              color: isSuccess
+                  ? AppTheme.accreditedColor
+                  : AppTheme.absentColor,
             ),
           ),
           const SizedBox(height: 20),
@@ -475,30 +528,54 @@ class _StudentWebAttendanceScreenState extends State<StudentWebAttendanceScreen>
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.phone_android_rounded, size: 20, color: AppTheme.primary),
+                      const Icon(
+                        Icons.phone_android_rounded,
+                        size: 20,
+                        color: AppTheme.primary,
+                      ),
                       const SizedBox(width: 8),
                       const Text(
                         'Celular Vinculado al Alumno',
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.slate600),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.slate600,
+                        ),
                       ),
                       const Spacer(),
-                      const Icon(Icons.lock_rounded, size: 14, color: AppTheme.slate600),
+                      const Icon(
+                        Icons.lock_rounded,
+                        size: 14,
+                        color: AppTheme.slate600,
+                      ),
                       const SizedBox(width: 4),
                       const Text(
                         'Sellado Inmutable',
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.slate600),
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.slate600,
+                        ),
                       ),
                     ],
                   ),
                   const Divider(height: 16),
                   Text(
                     result.student!.fullName,
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppTheme.slate900),
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.slate900,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     'No. Control: ${result.student!.enrollmentNumber}',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.slate700),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.slate700,
+                    ),
                   ),
                 ],
               ),
@@ -515,14 +592,21 @@ class _StudentWebAttendanceScreenState extends State<StudentWebAttendanceScreen>
             ),
             child: Row(
               children: [
-                const Icon(Icons.security_rounded, size: 18, color: AppTheme.primary),
+                const Icon(
+                  Icons.security_rounded,
+                  size: 18,
+                  color: AppTheme.primary,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     isSuccess
                         ? 'Tu asistencia quedó registrada en este teléfono y en la consola oficial del docente.'
                         : 'Si el código expiró, apunta de nuevo al proyector para escanear el QR actual.',
-                    style: const TextStyle(fontSize: 11, color: AppTheme.slate600),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppTheme.slate600,
+                    ),
                   ),
                 ),
               ],

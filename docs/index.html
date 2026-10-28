@@ -384,6 +384,21 @@
           </div>
         </div>
 
+        <!-- Campo opcional de nota / incidencia del alumno -->
+        <div class="form-group" style="margin-top: 10px;">
+          <label for="studentNote" style="font-size: 12px; color: var(--slate-600);">📝 ¿Algún inconveniente o nota para el docente? (Opcional)</label>
+          <input 
+            type="text" 
+            id="studentNote" 
+            placeholder="Ej. Falla de red, retardo justificado, batería baja..." 
+            style="padding: 11px 14px; font-size: 13px;"
+          >
+        </div>
+
+        <div id="toleranceInfoBox" style="background: #ECFDF5; border: 1px solid #A7F3D0; color: #065F46; border-radius: 10px; padding: 8px 12px; font-size: 11px; font-weight: 700; margin-bottom: 12px; text-align: center;">
+          ⏱️ Tiempo de tolerancia puntual del taller: 15 minutos
+        </div>
+
         <button id="btnSubmitForm" class="btn btn-primary" onclick="submitAttendance(false)">
           <span id="btnSubmitText">Registrar Mi Asistencia</span>
         </button>
@@ -416,8 +431,15 @@
         </div>
       </div>
 
-      <div style="font-size: 12px; color: var(--slate-600); margin-bottom: 16px;" id="resultStudentName">
+      <div style="font-size: 12px; color: var(--slate-600); margin-bottom: 12px;" id="resultStudentName">
         Alumno: -
+      </div>
+
+      <div id="evidenceCardBox" class="hidden" style="background: #F5F3FF; border: 1.5px solid #C4B5FD; border-radius: 12px; padding: 12px; margin-bottom: 16px; text-align: left;">
+        <div style="font-size: 11px; font-weight: 800; color: #6D28D9; margin-bottom: 4px;">
+          📋 COMPROBANTE DE EVIDENCIA / NOTA REGISTRADA:
+        </div>
+        <div id="evidenceCardText" style="font-size: 12px; font-weight: 600; color: #4C1D95; line-height: 1.4;"></div>
       </div>
 
       <button class="btn btn-secondary" onclick="location.reload()">
@@ -444,6 +466,9 @@
     let sessionId = urlParams.get('session') || '';
     let workshopId = urlParams.get('workshop') || '';
     let currentPhase = urlParams.get('phase') || 'entry';
+    let toleranceMinutes = parseInt(urlParams.get('tol') || '15', 10);
+    let registrationWindowMinutes = parseInt(urlParams.get('win') || '45', 10);
+    let phaseStartedAtMs = parseInt(urlParams.get('start') || '0', 10);
     let isStudentEnrolledInDb = false;
 
     // Si viene en formato compacto ?qr=...
@@ -454,6 +479,9 @@
         if (decoded.s) sessionId = decoded.s;
         if (decoded.w) workshopId = decoded.w;
         if (decoded.p) currentPhase = decoded.p;
+        if (decoded.tol) toleranceMinutes = parseInt(decoded.tol, 10) || 15;
+        if (decoded.win) registrationWindowMinutes = parseInt(decoded.win, 10) || 45;
+        if (decoded.start) phaseStartedAtMs = parseInt(decoded.start, 10) || 0;
         if (decoded.sig && !token) token = `${decoded.p}_${decoded.t}_${decoded.sig}`;
       } catch (e) {
         console.warn('Lectura de parámetro qr alternativo:', e);
@@ -470,9 +498,26 @@
     // Inicializar al cargar la página
     window.addEventListener('DOMContentLoaded', async () => {
       setupPhaseBadge(currentPhase);
+      updateToleranceBanner();
       await loadSessionMetadata();
       checkSavedStudent();
     });
+
+    function updateToleranceBanner() {
+      const box = document.getElementById('toleranceInfoBox');
+      if (!box) return;
+      if (phaseStartedAtMs > 0) {
+        const elapsedMins = Math.floor((Date.now() - phaseStartedAtMs) / 60000);
+        if (elapsedMins > toleranceMinutes) {
+          box.style.background = '#FEF3C7';
+          box.style.borderColor = '#F59E0B';
+          box.style.color = '#92400E';
+          box.innerHTML = `🟠 Tolerancia de ${toleranceMinutes} min superada (+${elapsedMins} min). Tu registro se marcará con retraso.`;
+          return;
+        }
+      }
+      box.innerHTML = `⏱️ Tolerancia puntual configurada por el docente: ${toleranceMinutes} minutos`;
+    }
 
     function setupPhaseBadge(phase) {
       const container = document.getElementById('phaseBadgeContainer');
@@ -764,40 +809,76 @@
             .maybeSingle();
 
           const nowIso = new Date().toISOString();
-          let newStatus = 'pending';
+          let baseStatus = 'pending';
           let checkInIso = existingRec ? existingRec.check_in_time : null;
           let checkOutIso = existingRec ? existingRec.check_out_time : null;
           let title = '';
           let message = '';
 
+          // Extraer nota o retardo previos si existían en status
+          let prevLateMins = 0;
+          let prevNote = '';
+          if (existingRec && existingRec.status) {
+            const parts = String(existingRec.status).split('||');
+            baseStatus = parts[0] || 'pending';
+            for (let i = 1; i < parts.length; i++) {
+              if (parts[i].startsWith('LATE:')) {
+                prevLateMins = parseInt(parts[i].substring(5), 10) || 0;
+              } else if (parts[i].startsWith('NOTE:')) {
+                prevNote = parts[i].substring(5);
+              }
+            }
+          }
+
+          const studentNoteInput = (document.getElementById('studentNote') ? document.getElementById('studentNote').value.trim() : '');
+          if (studentNoteInput) {
+            prevNote = prevNote ? `${prevNote} | Nota Alumno: ${studentNoteInput}` : `[Nota Alumno ${formatTime(nowIso)}] ${studentNoteInput}`;
+          }
+
           if (currentPhase === 'entry') {
             if (checkInIso) {
-              title = 'Entrada Ya Registrada';
-              message = `Tu entrada ya estaba sellada a las ${formatTime(checkInIso)} hrs. Recuerda escanear la salida al finalizar.`;
+              title = baseStatus === 'accredited' ? '🎓 ¡Taller Acreditado!' : 'Entrada Ya Registrada';
+              message = `Tu entrada ya estaba sellada a las ${formatTime(checkInIso)} hrs.`;
+              if (checkOutIso || baseStatus === 'accredited') baseStatus = 'accredited';
             } else {
               checkInIso = nowIso;
-              newStatus = checkOutIso ? 'accredited' : 'pending';
-              title = '🟢 Entrada Registrada';
-              message = `Entrada sellada a las ${formatTime(nowIso)} hrs. Recuerda escanear al concluir el taller para Acreditar.`;
+              baseStatus = checkOutIso ? 'accredited' : 'pending';
+              if (phaseStartedAtMs > 0) {
+                const elapsedM = Math.floor((Date.now() - phaseStartedAtMs) / 60000);
+                if (elapsedM > toleranceMinutes) {
+                  prevLateMins = elapsedM;
+                }
+              }
+              if (prevLateMins > 0) {
+                title = '🟠 Entrada con Retraso Registrada';
+                message = `Entrada sellada a las ${formatTime(nowIso)} hrs (+${prevLateMins} min respecto al inicio; tolerancia de ${toleranceMinutes} min).`;
+              } else {
+                title = '🟢 Entrada Puntual Registrada';
+                message = `Entrada sellada a las ${formatTime(nowIso)} hrs dentro de los ${toleranceMinutes} min de tolerancia. Recuerda escanear al concluir el taller para Acreditar.`;
+              }
             }
           } else if (currentPhase === 'exit') {
             if (checkOutIso) {
               title = checkInIso ? '¡Taller Ya Acreditado!' : 'Salida Ya Registrada';
               message = `Tu salida ya estaba sellada a las ${formatTime(checkOutIso)} hrs.`;
-              newStatus = checkInIso ? 'accredited' : 'incompleteExitOnly';
+              baseStatus = checkInIso ? 'accredited' : 'incompleteExitOnly';
             } else {
               checkOutIso = nowIso;
               if (checkInIso) {
-                newStatus = 'accredited';
+                baseStatus = 'accredited';
                 title = '¡TALLER ACREDITADO! 🎉';
                 message = 'Cumpliste con Entrada y Salida. Has obtenido la Acreditación oficial del taller.';
               } else {
-                newStatus = 'incompleteExitOnly';
+                baseStatus = 'incompleteExitOnly';
                 title = '⚠️ Salida Registrada Sin Entrada Previa';
                 message = 'Se registró tu salida, pero no tenías entrada sellada al inicio del taller.';
               }
             }
           }
+
+          let encodedStatus = baseStatus;
+          if (prevLateMins > 0) encodedStatus += `||LATE:${prevLateMins}`;
+          if (prevNote) encodedStatus += `||NOTE:${prevNote.replace(/\|\|/g, ' - ')}`;
 
           // 3. Guardar en attendance_records
           const recId = existingRec ? existingRec.id : ('rec_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6));
@@ -810,7 +891,7 @@
               check_in_time: checkInIso,
               check_out_time: checkOutIso,
               is_locked: true,
-              status: newStatus
+              status: encodedStatus
             });
 
           // Si falla por sesión foránea, crear sesión y reintentar
@@ -830,7 +911,7 @@
                   check_in_time: checkInIso,
                   check_out_time: checkOutIso,
                   is_locked: true,
-                  status: newStatus
+                  status: encodedStatus
                 });
               upsertErr = retryUpsert.error;
             } catch (_) {}
@@ -840,9 +921,10 @@
 
           result = {
             success: true,
-            status: newStatus,
+            status: baseStatus,
             title,
             message,
+            evidenceNote: prevNote,
             student: { fullName: student.full_name, enrollmentNumber: student.enrollment_number },
             checkInTime: formatTime(checkInIso),
             checkOutTime: formatTime(checkOutIso)
@@ -887,11 +969,16 @@
           document.getElementById('resultDesc').textContent = result.message;
           document.getElementById('resultStudentName').textContent = `Alumno: ${result.student.fullName} (${controlNumber})`;
 
-          if (result.checkInTime) {
+          if (result.evidenceNote) {
+            document.getElementById('evidenceCardText').textContent = result.evidenceNote;
+            document.getElementById('evidenceCardBox').classList.remove('hidden');
+          }
+
+          if (result.checkInTime && result.checkInTime !== '--:--:--') {
             document.getElementById('stampCheckIn').textContent = result.checkInTime + ' hrs';
             document.getElementById('badgeCheckIn').classList.remove('hidden');
           }
-          if (result.checkOutTime) {
+          if (result.checkOutTime && result.checkOutTime !== '--:--:--') {
             document.getElementById('stampCheckOut').textContent = result.checkOutTime + ' hrs';
             document.getElementById('badgeCheckOut').classList.remove('hidden');
           }

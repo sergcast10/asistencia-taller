@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../models/attendance_record.dart';
 import '../utils/app_theme.dart';
 
@@ -46,7 +47,7 @@ class StudentStatusBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: text.withOpacity(0.3), width: 1),
+        border: Border.all(color: text.withValues(alpha: 0.3), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

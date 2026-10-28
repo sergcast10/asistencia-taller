@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
@@ -22,7 +23,8 @@ class _StudentScannerScreenState extends State<StudentScannerScreen> {
   final MobileScannerController _scannerController = MobileScannerController();
   bool _isProcessing = false;
 
-  final TextEditingController _controlNumberController = TextEditingController();
+  final TextEditingController _controlNumberController =
+      TextEditingController();
   final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _manualQrController = TextEditingController();
 
@@ -38,10 +40,12 @@ class _StudentScannerScreenState extends State<StudentScannerScreen> {
   Future<void> _loadSavedStudentData() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _savedControlNumber = widget.initialStudent?.enrollmentNumber ??
+      _savedControlNumber =
+          widget.initialStudent?.enrollmentNumber ??
           prefs.getString('student_saved_control_number') ??
           '';
-      _savedFullName = widget.initialStudent?.fullName ??
+      _savedFullName =
+          widget.initialStudent?.fullName ??
           prefs.getString('student_saved_full_name') ??
           '';
 
@@ -146,12 +150,16 @@ class _StudentScannerScreenState extends State<StudentScannerScreen> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: isEntry ? AppTheme.accreditedBg : AppTheme.primaryLight,
+                      color: isEntry
+                          ? AppTheme.accreditedBg
+                          : AppTheme.primaryLight,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
                       isEntry ? Icons.login_rounded : Icons.logout_rounded,
-                      color: isEntry ? AppTheme.accreditedColor : AppTheme.primary,
+                      color: isEntry
+                          ? AppTheme.accreditedColor
+                          : AppTheme.primary,
                       size: 24,
                     ),
                   ),
@@ -162,14 +170,20 @@ class _StudentScannerScreenState extends State<StudentScannerScreen> {
                       children: [
                         const Text(
                           'Código QR Detectado',
-                          style: TextStyle(fontSize: 12, color: AppTheme.slate600, fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.slate600,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         Text(
                           detectedPhaseName,
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
-                            color: isEntry ? AppTheme.accreditedColor : AppTheme.primary,
+                            color: isEntry
+                                ? AppTheme.accreditedColor
+                                : AppTheme.primary,
                           ),
                         ),
                       ],
@@ -198,8 +212,12 @@ class _StudentScannerScreenState extends State<StudentScannerScreen> {
                 decoration: InputDecoration(
                   labelText: 'Número de Control / Matrícula *',
                   hintText: 'Ej. 21010482 o PAV-101',
-                  prefixIcon: const Icon(Icons.badge_rounded, color: AppTheme.primary),
-                  helperText: 'Se guardará en este celular para futuros escaneos.',
+                  prefixIcon: const Icon(
+                    Icons.badge_rounded,
+                    color: AppTheme.primary,
+                  ),
+                  helperText:
+                      'Se guardará en este celular para futuros escaneos.',
                 ),
               ),
               const SizedBox(height: 14),
@@ -210,7 +228,10 @@ class _StudentScannerScreenState extends State<StudentScannerScreen> {
                 decoration: const InputDecoration(
                   labelText: 'Nombre Completo (Opcional)',
                   hintText: 'Ej. Juan Carlos Pérez',
-                  prefixIcon: Icon(Icons.person_rounded, color: AppTheme.slate600),
+                  prefixIcon: Icon(
+                    Icons.person_rounded,
+                    color: AppTheme.slate600,
+                  ),
                 ),
               ),
               const SizedBox(height: 20),
@@ -226,7 +247,9 @@ class _StudentScannerScreenState extends State<StudentScannerScreen> {
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: isEntry ? AppTheme.accreditedColor : AppTheme.primary,
+                    backgroundColor: isEntry
+                        ? AppTheme.accreditedColor
+                        : AppTheme.primary,
                   ),
                   onPressed: () async {
                     final controlNumber = _controlNumberController.text.trim();
@@ -235,7 +258,9 @@ class _StudentScannerScreenState extends State<StudentScannerScreen> {
                     if (controlNumber.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Por favor escribe tu Número de Control.'),
+                          content: Text(
+                            'Por favor escribe tu Número de Control.',
+                          ),
                           backgroundColor: AppTheme.absentColor,
                         ),
                       );
@@ -258,7 +283,11 @@ class _StudentScannerScreenState extends State<StudentScannerScreen> {
     );
   }
 
-  void _processAttendance(String qrContent, String controlNumber, String fullName) {
+  void _processAttendance(
+    String qrContent,
+    String controlNumber,
+    String fullName,
+  ) {
     final provider = context.read<AttendanceProvider>();
     final result = provider.processQrScan(
       qrRawContent: qrContent,
@@ -279,14 +308,16 @@ class _StudentScannerScreenState extends State<StudentScannerScreen> {
           children: [
             Icon(
               result.success
-                  ? (result.status != null && result.status!.name == 'accredited'
-                      ? Icons.verified_rounded
-                      : Icons.check_circle_rounded)
+                  ? (result.status != null &&
+                            result.status!.name == 'accredited'
+                        ? Icons.verified_rounded
+                        : Icons.check_circle_rounded)
                   : Icons.warning_amber_rounded,
               color: result.success
-                  ? (result.status != null && result.status!.name == 'accredited'
-                      ? AppTheme.accreditedColor
-                      : AppTheme.primary)
+                  ? (result.status != null &&
+                            result.status!.name == 'accredited'
+                        ? AppTheme.accreditedColor
+                        : AppTheme.primary)
                   : AppTheme.absentColor,
               size: 28,
             ),
@@ -294,7 +325,10 @@ class _StudentScannerScreenState extends State<StudentScannerScreen> {
             Expanded(
               child: Text(
                 result.title,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
           ],
@@ -305,7 +339,11 @@ class _StudentScannerScreenState extends State<StudentScannerScreen> {
           children: [
             Text(
               result.message,
-              style: const TextStyle(fontSize: 14, height: 1.4, color: AppTheme.slate800),
+              style: const TextStyle(
+                fontSize: 14,
+                height: 1.4,
+                color: AppTheme.slate800,
+              ),
             ),
             const SizedBox(height: 16),
             Container(
@@ -316,7 +354,11 @@ class _StudentScannerScreenState extends State<StudentScannerScreen> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.phone_android_rounded, size: 20, color: AppTheme.primary),
+                  const Icon(
+                    Icons.phone_android_rounded,
+                    size: 20,
+                    color: AppTheme.primary,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
@@ -324,11 +366,17 @@ class _StudentScannerScreenState extends State<StudentScannerScreen> {
                       children: [
                         Text(
                           'No. Control: $controlNumber',
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                         const Text(
                           'Asistencia guardada y sellada 🔒',
-                          style: TextStyle(fontSize: 11, color: AppTheme.slate600),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppTheme.slate600,
+                          ),
                         ),
                       ],
                     ),
@@ -341,7 +389,9 @@ class _StudentScannerScreenState extends State<StudentScannerScreen> {
         actions: [
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: result.success ? AppTheme.primary : AppTheme.slate700,
+              backgroundColor: result.success
+                  ? AppTheme.primary
+                  : AppTheme.slate700,
             ),
             onPressed: () {
               Navigator.pop(ctx);
@@ -383,7 +433,11 @@ class _StudentScannerScreenState extends State<StudentScannerScreen> {
             color: AppTheme.primaryLight,
             child: Row(
               children: [
-                const Icon(Icons.badge_rounded, color: AppTheme.primary, size: 24),
+                const Icon(
+                  Icons.badge_rounded,
+                  color: AppTheme.primary,
+                  size: 24,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -393,13 +447,20 @@ class _StudentScannerScreenState extends State<StudentScannerScreen> {
                         _savedControlNumber.isNotEmpty
                             ? 'No. Control registrado: $_savedControlNumber'
                             : 'Escanea el QR para enviar tu asistencia',
-                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppTheme.slate900),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          color: AppTheme.slate900,
+                        ),
                       ),
                       Text(
                         _savedControlNumber.isNotEmpty
                             ? 'Asistencia automática activa en cada escaneo.'
                             : 'Tu asistencia quedará guardada en este celular y en el sistema del docente.',
-                        style: const TextStyle(fontSize: 11, color: AppTheme.slate600),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppTheme.slate600,
+                        ),
                       ),
                     ],
                   ),
@@ -407,7 +468,13 @@ class _StudentScannerScreenState extends State<StudentScannerScreen> {
                 if (_savedControlNumber.isNotEmpty)
                   TextButton(
                     onPressed: _clearSavedStudentData,
-                    child: const Text('Cambiar', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    child: const Text(
+                      'Cambiar',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
               ],
             ),
@@ -440,7 +507,7 @@ class _StudentScannerScreenState extends State<StudentScannerScreen> {
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.3),
+                        color: Colors.black.withValues(alpha: 0.3),
                         blurRadius: 10,
                       ),
                     ],
@@ -462,12 +529,19 @@ class _StudentScannerScreenState extends State<StudentScannerScreen> {
               children: [
                 const Row(
                   children: [
-                    Icon(Icons.info_outline_rounded, size: 18, color: AppTheme.primary),
+                    Icon(
+                      Icons.info_outline_rounded,
+                      size: 18,
+                      color: AppTheme.primary,
+                    ),
                     SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'Apunta al código QR dinámico proyectado por el docente. Al escanearlo podrás confirmar tu Número de Control.',
-                        style: TextStyle(fontSize: 12, color: AppTheme.slate700),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.slate700,
+                        ),
                       ),
                     ),
                   ],
@@ -509,7 +583,10 @@ class _StudentScannerScreenState extends State<StudentScannerScreen> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
           ElevatedButton(
             onPressed: () {
               final text = _manualQrController.text.trim();

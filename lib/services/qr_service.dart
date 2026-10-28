@@ -70,6 +70,9 @@ class QrService {
     required String secretKey,
     String? webBaseUrl,
     DateTime? now,
+    int? toleranceMinutes,
+    int? registrationWindowMinutes,
+    DateTime? phaseStartedAt,
   }) {
     final window = getCurrentWindow(now: now);
     final rawData = '$sessionId:${phase.name}:$window';
@@ -78,12 +81,15 @@ class QrService {
     final hmac = Hmac(sha256, utf8.encode(secretKey));
     final signature = hmac.convert(utf8.encode(rawData)).toString().substring(0, 12);
 
-    final payload = {
+    final payload = <String, dynamic>{
       's': sessionId,
       'w': workshopId,
       'p': phase.name,
       't': window,
       'sig': signature,
+      if (toleranceMinutes != null) 'tol': toleranceMinutes,
+      if (registrationWindowMinutes != null) 'win': registrationWindowMinutes,
+      if (phaseStartedAt != null) 'start': phaseStartedAt.millisecondsSinceEpoch,
     };
 
     final jsonStr = jsonEncode(payload);

@@ -1,8 +1,10 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+
 import '../models/session.dart';
 import '../providers/attendance_provider.dart';
 import '../services/qr_service.dart';
@@ -56,6 +58,9 @@ class _DynamicQrDisplayState extends State<DynamicQrDisplay> {
         phase: widget.session.currentPhase,
         secretKey: widget.session.secretKey,
         webBaseUrl: provider.webBaseUrl.isNotEmpty ? provider.webBaseUrl : null,
+        toleranceMinutes: widget.session.toleranceMinutes,
+        registrationWindowMinutes: widget.session.registrationWindowMinutes,
+        phaseStartedAt: widget.session.phaseStartedAt,
       );
     });
   }
@@ -94,10 +99,10 @@ class _DynamicQrDisplayState extends State<DynamicQrDisplay> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: phaseColor.withOpacity(0.3), width: 2),
+        border: Border.all(color: phaseColor.withValues(alpha: 0.3), width: 2),
         boxShadow: [
           BoxShadow(
-            color: phaseColor.withOpacity(0.08),
+            color: phaseColor.withValues(alpha: 0.08),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -112,7 +117,7 @@ class _DynamicQrDisplayState extends State<DynamicQrDisplay> {
             decoration: BoxDecoration(
               color: phaseBg,
               borderRadius: BorderRadius.circular(30),
-              border: Border.all(color: phaseColor.withOpacity(0.3)),
+              border: Border.all(color: phaseColor.withValues(alpha: 0.3)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -146,7 +151,7 @@ class _DynamicQrDisplayState extends State<DynamicQrDisplay> {
               border: Border.all(color: AppTheme.slate200),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
+                  color: Colors.black.withValues(alpha: 0.04),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -214,26 +219,45 @@ class _DynamicQrDisplayState extends State<DynamicQrDisplay> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.shield_outlined, size: 14, color: AppTheme.slate600),
+                      const Icon(
+                        Icons.shield_outlined,
+                        size: 14,
+                        color: AppTheme.slate600,
+                      ),
                       const SizedBox(width: 6),
                       const Text(
                         'Seguridad antifraude (15s)',
-                        style: TextStyle(fontSize: 11, color: AppTheme.slate600, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppTheme.slate600,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       InkWell(
                         onTap: () => _showWebUrlConfigDialog(context, provider),
                         borderRadius: BorderRadius.circular(6),
                         child: const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.settings_outlined, size: 14, color: AppTheme.primary),
+                              Icon(
+                                Icons.settings_outlined,
+                                size: 14,
+                                color: AppTheme.primary,
+                              ),
                               SizedBox(width: 4),
                               Text(
                                 'Configurar enlace',
-                                style: TextStyle(fontSize: 11, color: AppTheme.primary, fontWeight: FontWeight.w700),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppTheme.primary,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ],
                           ),
@@ -247,7 +271,10 @@ class _DynamicQrDisplayState extends State<DynamicQrDisplay> {
                       onTap: () => _showWebUrlConfigDialog(context, provider),
                       borderRadius: BorderRadius.circular(10),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFFEF3C7),
                           borderRadius: BorderRadius.circular(10),
@@ -255,15 +282,27 @@ class _DynamicQrDisplayState extends State<DynamicQrDisplay> {
                         ),
                         child: const Row(
                           children: [
-                            Icon(Icons.warning_amber_rounded, color: Color(0xFFB45309), size: 18),
+                            Icon(
+                              Icons.warning_amber_rounded,
+                              color: Color(0xFFB45309),
+                              size: 18,
+                            ),
                             SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 '⚠️ Falta enlace web. Toca aquí para ingresar la URL y que los celulares abran el formulario al escanear.',
-                                style: TextStyle(fontSize: 11, color: Color(0xFF92400E), fontWeight: FontWeight.w600),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF92400E),
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
-                            Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFFB45309), size: 12),
+                            Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              color: Color(0xFFB45309),
+                              size: 12,
+                            ),
                           ],
                         ),
                       ),
@@ -273,26 +312,44 @@ class _DynamicQrDisplayState extends State<DynamicQrDisplay> {
                       onTap: () => _showWebUrlConfigDialog(context, provider),
                       borderRadius: BorderRadius.circular(8),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFECFDF5),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFF10B981).withOpacity(0.4)),
+                          border: Border.all(
+                            color: const Color(0xFF10B981)
+                                .withValues(alpha: 0.4),
+                          ),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.check_circle_rounded, color: Color(0xFF059669), size: 14),
+                            const Icon(
+                              Icons.check_circle_rounded,
+                              color: Color(0xFF059669),
+                              size: 14,
+                            ),
                             const SizedBox(width: 6),
                             Flexible(
                               child: Text(
                                 'Redirige a: ${provider.webBaseUrl}',
-                                style: const TextStyle(fontSize: 11, color: Color(0xFF065F46), fontWeight: FontWeight.w600),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF065F46),
+                                  fontWeight: FontWeight.w600,
+                                ),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
                             const SizedBox(width: 6),
-                            const Icon(Icons.edit_rounded, color: Color(0xFF059669), size: 12),
+                            const Icon(
+                              Icons.edit_rounded,
+                              color: Color(0xFF059669),
+                              size: 12,
+                            ),
                           ],
                         ),
                       ),
@@ -306,7 +363,10 @@ class _DynamicQrDisplayState extends State<DynamicQrDisplay> {
     );
   }
 
-  void _showWebUrlConfigDialog(BuildContext context, AttendanceProvider provider) {
+  void _showWebUrlConfigDialog(
+    BuildContext context,
+    AttendanceProvider provider,
+  ) {
     final controller = TextEditingController(text: provider.webBaseUrl);
 
     showDialog(
@@ -332,14 +392,21 @@ class _DynamicQrDisplayState extends State<DynamicQrDisplay> {
               controller: controller,
               decoration: const InputDecoration(
                 labelText: 'URL Base del Sistema',
-                hintText: 'Pega aquí el enlace https://... del túnel o servidor',
+                hintText:
+                    'Pega aquí el enlace https://... del túnel o servidor',
                 prefixIcon: Icon(Icons.link_rounded),
               ),
             ),
             const SizedBox(height: 12),
             OutlinedButton.icon(
-              icon: const Icon(Icons.wifi_rounded, size: 16, color: AppTheme.primary),
-              label: const Text('Usar IP Local de tu PC (http://192.168.0.24:8080)'),
+              icon: const Icon(
+                Icons.wifi_rounded,
+                size: 16,
+                color: AppTheme.primary,
+              ),
+              label: const Text(
+                'Usar IP Local de tu PC (http://192.168.0.24:8080)',
+              ),
               onPressed: () {
                 controller.text = 'http://192.168.0.24:8080';
               },
@@ -362,13 +429,20 @@ class _DynamicQrDisplayState extends State<DynamicQrDisplay> {
               ),
               child: const Text(
                 '💡 ¿Por qué no abre "localhost"?\nEn tu celular, "localhost" apunta al propio celular (no a tu PC). Para que los celulares accedan por Wi-Fi, tu PC debe usar su IP local o un enlace en la nube (ej. Firebase Hosting, Vercel o ngrok).',
-                style: TextStyle(fontSize: 11, color: AppTheme.slate700, height: 1.3),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppTheme.slate700,
+                  height: 1.3,
+                ),
               ),
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
           ElevatedButton(
             onPressed: () async {
               await provider.setWebBaseUrl(controller.text.trim());

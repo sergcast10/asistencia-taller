@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
@@ -84,10 +85,15 @@ class _TeacherQrScannerScreenState extends State<TeacherQrScannerScreen> {
     );
 
     // 2. Buscar si el alumno ya está inscrito en este taller
-    Student? matchedStudent = currentWorkshop.enrolledStudents.cast<Student?>().firstWhere(
-      (s) => s != null && s.enrollmentNumber.trim().toUpperCase() == controlNumber.toUpperCase(),
-      orElse: () => null,
-    );
+    Student? matchedStudent = currentWorkshop.enrolledStudents
+        .cast<Student?>()
+        .firstWhere(
+          (s) =>
+              s != null &&
+              s.enrollmentNumber.trim().toUpperCase() ==
+                  controlNumber.toUpperCase(),
+          orElse: () => null,
+        );
 
     if (matchedStudent != null) {
       // Alumno ya registrado -> Sellar asistencia de inmediato
@@ -123,8 +129,10 @@ class _TeacherQrScannerScreenState extends State<TeacherQrScannerScreen> {
     try {
       if (raw.startsWith('{') && raw.endsWith('}')) {
         final map = jsonDecode(raw);
-        if (map['enrollmentNumber'] != null) return map['enrollmentNumber'].toString().trim();
-        if (map['controlNumber'] != null) return map['controlNumber'].toString().trim();
+        if (map['enrollmentNumber'] != null)
+          return map['enrollmentNumber'].toString().trim();
+        if (map['controlNumber'] != null)
+          return map['controlNumber'].toString().trim();
         if (map['control'] != null) return map['control'].toString().trim();
         if (map['id'] != null) return map['id'].toString().trim();
         if (map['matricula'] != null) return map['matricula'].toString().trim();
@@ -135,7 +143,8 @@ class _TeacherQrScannerScreenState extends State<TeacherQrScannerScreen> {
     try {
       if (raw.startsWith('http://') || raw.startsWith('https://')) {
         final uri = Uri.parse(raw);
-        final param = uri.queryParameters['control'] ??
+        final param =
+            uri.queryParameters['control'] ??
             uri.queryParameters['matricula'] ??
             uri.queryParameters['id'] ??
             uri.queryParameters['student'];
@@ -159,7 +168,10 @@ class _TeacherQrScannerScreenState extends State<TeacherQrScannerScreen> {
           children: [
             Icon(Icons.person_add_rounded, color: AppTheme.primary),
             SizedBox(width: 10),
-            Text('Alumno Nuevo', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+            Text(
+              'Alumno Nuevo',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+            ),
           ],
         ),
         content: Column(
@@ -174,7 +186,10 @@ class _TeacherQrScannerScreenState extends State<TeacherQrScannerScreen> {
               ),
               child: Text(
                 'Matrícula escaneada: $detectedControl',
-                style: const TextStyle(fontWeight: FontWeight.w800, color: AppTheme.primary),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.primary,
+                ),
               ),
             ),
             const SizedBox(height: 14),
@@ -219,7 +234,11 @@ class _TeacherQrScannerScreenState extends State<TeacherQrScannerScreen> {
               final student = provider.workshops
                   .firstWhere((w) => w.id == widget.workshop.id)
                   .enrolledStudents
-                  .firstWhere((s) => s.enrollmentNumber.trim().toUpperCase() == detectedControl.toUpperCase());
+                  .firstWhere(
+                    (s) =>
+                        s.enrollmentNumber.trim().toUpperCase() ==
+                        detectedControl.toUpperCase(),
+                  );
 
               final result = provider.registerDirectAttendance(
                 workshopId: widget.workshop.id,
@@ -276,7 +295,10 @@ class _TeacherQrScannerScreenState extends State<TeacherQrScannerScreen> {
               children: [
                 Text(
                   'Lector de Asistencia (Docente)',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 Text(
                   '${currentWorkshop.name} • ${isEntry ? "🟢 ENTRADA" : "🔴 SALIDA"}',
@@ -302,10 +324,7 @@ class _TeacherQrScannerScreenState extends State<TeacherQrScannerScreen> {
           body: Stack(
             children: [
               // CÁMARA ESCÁNER
-              MobileScanner(
-                controller: _controller,
-                onDetect: _onDetect,
-              ),
+              MobileScanner(controller: _controller, onDetect: _onDetect),
 
               // RECUADRO GUÍA DE ENFOQUE
               Center(
@@ -328,9 +347,12 @@ class _TeacherQrScannerScreenState extends State<TeacherQrScannerScreen> {
                 left: 20,
                 right: 20,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.7),
+                    color: Colors.black.withValues(alpha: 0.7),
                     borderRadius: BorderRadius.circular(30),
                   ),
                   child: Row(
@@ -338,13 +360,19 @@ class _TeacherQrScannerScreenState extends State<TeacherQrScannerScreen> {
                     children: [
                       Icon(
                         isEntry ? Icons.login_rounded : Icons.logout_rounded,
-                        color: isEntry ? AppTheme.accreditedColor : Colors.amber,
+                        color: isEntry
+                            ? AppTheme.accreditedColor
+                            : Colors.amber,
                         size: 18,
                       ),
                       const SizedBox(width: 8),
                       Text(
                         'Apunta al QR o Credencial del Alumno (${isEntry ? "Entrada" : "Salida"})',
-                        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ],
                   ),
@@ -364,7 +392,7 @@ class _TeacherQrScannerScreenState extends State<TeacherQrScannerScreen> {
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
+                          color: Colors.black.withValues(alpha: 0.3),
                           blurRadius: 20,
                           offset: const Offset(0, 4),
                         ),
@@ -375,7 +403,9 @@ class _TeacherQrScannerScreenState extends State<TeacherQrScannerScreen> {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: _latestResult!.status == AttendanceStatus.accredited
+                            color:
+                                _latestResult!.status ==
+                                    AttendanceStatus.accredited
                                 ? AppTheme.accreditedBg
                                 : AppTheme.primaryLight,
                             shape: BoxShape.circle,
@@ -384,7 +414,9 @@ class _TeacherQrScannerScreenState extends State<TeacherQrScannerScreen> {
                             _latestResult!.status == AttendanceStatus.accredited
                                 ? Icons.verified_rounded
                                 : Icons.check_circle_rounded,
-                            color: _latestResult!.status == AttendanceStatus.accredited
+                            color:
+                                _latestResult!.status ==
+                                    AttendanceStatus.accredited
                                 ? AppTheme.accreditedColor
                                 : AppTheme.primary,
                             size: 28,
@@ -398,16 +430,27 @@ class _TeacherQrScannerScreenState extends State<TeacherQrScannerScreen> {
                             children: [
                               Text(
                                 _latestResult!.title,
-                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppTheme.slate900),
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppTheme.slate900,
+                                ),
                               ),
                               const SizedBox(height: 2),
                               Text(
                                 _latestResult!.student?.fullName ?? 'Alumno',
-                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.slate800),
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppTheme.slate800,
+                                ),
                               ),
                               Text(
                                 'Mat: ${_latestResult!.student?.enrollmentNumber ?? ""} 🔒 Sellado',
-                                style: const TextStyle(fontSize: 12, color: AppTheme.slate600),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppTheme.slate600,
+                                ),
                               ),
                             ],
                           ),
@@ -423,10 +466,15 @@ class _TeacherQrScannerScreenState extends State<TeacherQrScannerScreen> {
                 left: 0,
                 right: 0,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 16,
+                  ),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.85),
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                    color: Colors.black.withValues(alpha: 0.85),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(24),
+                    ),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -434,28 +482,50 @@ class _TeacherQrScannerScreenState extends State<TeacherQrScannerScreen> {
                       // Contador en vivo
                       Row(
                         children: [
-                          const Icon(Icons.people_alt_rounded, color: Colors.white70, size: 20),
+                          const Icon(
+                            Icons.people_alt_rounded,
+                            color: Colors.white70,
+                            size: 20,
+                          ),
                           const SizedBox(width: 8),
                           Text(
                             'Sellados: $_scannedInThisSessionCount',
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 14,
+                            ),
                           ),
                         ],
                       ),
 
                       // Botón para alternar Fase (Entrada <-> Salida) sin salir de la cámara
                       ElevatedButton.icon(
-                        icon: Icon(isEntry ? Icons.arrow_forward_rounded : Icons.arrow_back_rounded, size: 16),
-                        label: Text(isEntry ? 'Cambiar a Salida' : 'Cambiar a Entrada'),
+                        icon: Icon(
+                          isEntry
+                              ? Icons.arrow_forward_rounded
+                              : Icons.arrow_back_rounded,
+                          size: 16,
+                        ),
+                        label: Text(
+                          isEntry ? 'Cambiar a Salida' : 'Cambiar a Entrada',
+                        ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: isEntry ? Colors.amber[800] : AppTheme.accreditedColor,
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          backgroundColor: isEntry
+                              ? Colors.amber[800]
+                              : AppTheme.accreditedColor,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
                         ),
                         onPressed: () {
                           provider.updateSessionPhase(
                             workshopId: currentWorkshop.id,
                             sessionId: currentSession.id,
-                            newPhase: isEntry ? SessionPhase.exit : SessionPhase.entry,
+                            newPhase: isEntry
+                                ? SessionPhase.exit
+                                : SessionPhase.entry,
                           );
                         },
                       ),

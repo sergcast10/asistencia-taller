@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../models/student.dart';
 import '../../models/attendance_record.dart';
 import '../../providers/attendance_provider.dart';
@@ -51,9 +52,7 @@ class _StudentPortalScreenState extends State<StudentPortalScreen> {
     return Consumer<AttendanceProvider>(
       builder: (context, provider, child) {
         return Scaffold(
-          appBar: AppBar(
-            title: const Text('Portal del Estudiante'),
-          ),
+          appBar: AppBar(title: const Text('Portal del Estudiante')),
           body: SingleChildScrollView(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -85,7 +84,10 @@ class _StudentPortalScreenState extends State<StudentPortalScreen> {
                             child: TextField(
                               controller: _enrollmentController,
                               decoration: const InputDecoration(
-                                prefixIcon: Icon(Icons.badge_rounded, color: AppTheme.primary),
+                                prefixIcon: Icon(
+                                  Icons.badge_rounded,
+                                  color: AppTheme.primary,
+                                ),
                                 hintText: 'Ej. 2026-PAV-001',
                               ),
                               onSubmitted: (_) => _lookupStudent(),
@@ -110,7 +112,9 @@ class _StudentPortalScreenState extends State<StudentPortalScreen> {
                     decoration: BoxDecoration(
                       color: AppTheme.primaryLight,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppTheme.primary.withOpacity(0.3)),
+                      border: Border.all(
+                        color: AppTheme.primary.withValues(alpha: 0.3),
+                      ),
                     ),
                     child: Row(
                       children: [
@@ -142,7 +146,10 @@ class _StudentPortalScreenState extends State<StudentPortalScreen> {
                               const SizedBox(height: 2),
                               Text(
                                 'Matrícula: ${_currentStudent!.enrollmentNumber} • ${_currentStudent!.email}',
-                                style: const TextStyle(fontSize: 12, color: AppTheme.slate600),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppTheme.slate600,
+                                ),
                               ),
                             ],
                           ),
@@ -160,17 +167,24 @@ class _StudentPortalScreenState extends State<StudentPortalScreen> {
                       icon: const Icon(Icons.qr_code_scanner_rounded, size: 24),
                       label: const Text(
                         'Escanear QR de Asistencia del Docente',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primary,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                       ),
                       onPressed: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => StudentScannerScreen(initialStudent: _currentStudent),
+                            builder: (_) => StudentScannerScreen(
+                              initialStudent: _currentStudent,
+                            ),
                           ),
                         );
                       },
@@ -200,12 +214,19 @@ class _StudentPortalScreenState extends State<StudentPortalScreen> {
                       padding: const EdgeInsets.all(40),
                       child: Column(
                         children: [
-                          const Icon(Icons.person_search_rounded, size: 56, color: AppTheme.slate600),
+                          const Icon(
+                            Icons.person_search_rounded,
+                            size: 56,
+                            color: AppTheme.slate600,
+                          ),
                           const SizedBox(height: 12),
                           const Text(
                             'Ingresa tu matrícula para consultar tus talleres y registrar asistencias.',
                             textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 14, color: AppTheme.slate700),
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: AppTheme.slate700,
+                            ),
                           ),
                         ],
                       ),
@@ -220,15 +241,26 @@ class _StudentPortalScreenState extends State<StudentPortalScreen> {
     );
   }
 
-  List<Widget> _buildEnrolledWorkshopsList(AttendanceProvider provider, Student student) {
-    final enrolledWorkshops = provider.workshops.where(
-      (w) => w.enrolledStudents.any((s) => s.id == student.id || s.enrollmentNumber == student.enrollmentNumber),
-    ).toList();
+  List<Widget> _buildEnrolledWorkshopsList(
+    AttendanceProvider provider,
+    Student student,
+  ) {
+    final enrolledWorkshops = provider.workshops
+        .where(
+          (w) => w.enrolledStudents.any(
+            (s) =>
+                s.id == student.id ||
+                s.enrollmentNumber == student.enrollmentNumber,
+          ),
+        )
+        .toList();
 
     if (enrolledWorkshops.isEmpty) {
       return [
         const Center(
-          child: Text('No te encuentras inscrito en ningún taller activo actualmente.'),
+          child: Text(
+            'No te encuentras inscrito en ningún taller activo actualmente.',
+          ),
         ),
       ];
     }
@@ -247,18 +279,29 @@ class _StudentPortalScreenState extends State<StudentPortalScreen> {
                   Expanded(
                     child: Text(
                       w.name,
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppTheme.slate900),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.slate900,
+                      ),
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppTheme.slate100,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       w.code,
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.slate700),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.slate700,
+                      ),
                     ),
                   ),
                 ],
@@ -272,7 +315,11 @@ class _StudentPortalScreenState extends State<StudentPortalScreen> {
 
               const Text(
                 'Sesiones:',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.slate800),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.slate800,
+                ),
               ),
               const SizedBox(height: 8),
 
@@ -296,12 +343,19 @@ class _StudentPortalScreenState extends State<StudentPortalScreen> {
                           children: [
                             Text(
                               s.title,
-                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.slate900),
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.slate900,
+                              ),
                             ),
                             const SizedBox(height: 2),
                             Text(
                               'Entrada: ${rec?.checkInTime != null ? _formatTime(rec!.checkInTime!) : "Pendiente"} | Salida: ${rec?.checkOutTime != null ? _formatTime(rec!.checkOutTime!) : "Pendiente"}',
-                              style: const TextStyle(fontSize: 11, color: AppTheme.slate600),
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppTheme.slate600,
+                              ),
                             ),
                           ],
                         ),
@@ -318,12 +372,19 @@ class _StudentPortalScreenState extends State<StudentPortalScreen> {
     }).toList();
   }
 
-  Widget _buildStudentPointsBanner(AttendanceProvider provider, Student student) {
+  Widget _buildStudentPointsBanner(
+    AttendanceProvider provider,
+    Student student,
+  ) {
     int accreditedPoints = 0;
     int totalSessions = 0;
 
     final enrolledWorkshops = provider.workshops.where(
-      (w) => w.enrolledStudents.any((s) => s.id == student.id || s.enrollmentNumber == student.enrollmentNumber),
+      (w) => w.enrolledStudents.any(
+        (s) =>
+            s.id == student.id ||
+            s.enrollmentNumber == student.enrollmentNumber,
+      ),
     );
 
     for (var w in enrolledWorkshops) {
@@ -336,7 +397,9 @@ class _StudentPortalScreenState extends State<StudentPortalScreen> {
       }
     }
 
-    final double ratio = totalSessions == 0 ? 0.0 : (accreditedPoints / totalSessions);
+    final double ratio = totalSessions == 0
+        ? 0.0
+        : (accreditedPoints / totalSessions);
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -353,23 +416,38 @@ class _StudentPortalScreenState extends State<StudentPortalScreen> {
             children: [
               const Row(
                 children: [
-                  Icon(Icons.stars_rounded, color: AppTheme.incompleteColor, size: 24),
+                  Icon(
+                    Icons.stars_rounded,
+                    color: AppTheme.incompleteColor,
+                    size: 24,
+                  ),
                   SizedBox(width: 8),
                   Text(
                     'Puntos de Acreditación',
-                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: AppTheme.slate900),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                      color: AppTheme.slate900,
+                    ),
                   ),
                 ],
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: AppTheme.accreditedBg,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   '$accreditedPoints / $totalSessions Pts',
-                  style: const TextStyle(fontWeight: FontWeight.w800, color: AppTheme.accreditedColor, fontSize: 13),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.accreditedColor,
+                    fontSize: 13,
+                  ),
                 ),
               ),
             ],
@@ -381,7 +459,9 @@ class _StudentPortalScreenState extends State<StudentPortalScreen> {
               value: ratio,
               minHeight: 8,
               backgroundColor: AppTheme.slate100,
-              valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.accreditedColor),
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                AppTheme.accreditedColor,
+              ),
             ),
           ),
           const SizedBox(height: 10),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../models/workshop.dart';
 import '../models/session.dart';
 import '../models/student.dart';
@@ -52,7 +53,9 @@ class _SimulatedScannerDialogState extends State<SimulatedScannerDialog> {
 
     // Generar el QR actual (o uno expirado si se activó la opción para probar el antifraude)
     final now = _simulateExpiredToken
-        ? DateTime.now().subtract(const Duration(seconds: 45)) // QR viejo de hace 45s
+        ? DateTime.now().subtract(
+            const Duration(seconds: 45),
+          ) // QR viejo de hace 45s
         : DateTime.now();
 
     final qrData = QrService.generateDynamicQrData(
@@ -92,7 +95,10 @@ class _SimulatedScannerDialogState extends State<SimulatedScannerDialog> {
                     color: AppTheme.primaryLight,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.qr_code_scanner_rounded, color: AppTheme.primary),
+                  child: const Icon(
+                    Icons.qr_code_scanner_rounded,
+                    color: AppTheme.primary,
+                  ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -128,7 +134,11 @@ class _SimulatedScannerDialogState extends State<SimulatedScannerDialog> {
             // Selector de Alumno
             const Text(
               'Selecciona al Estudiante:',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppTheme.slate800),
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+                color: AppTheme.slate800,
+              ),
             ),
             const SizedBox(height: 8),
             Container(
@@ -156,7 +166,9 @@ class _SimulatedScannerDialogState extends State<SimulatedScannerDialog> {
                     }
                     return DropdownMenuItem(
                       value: s,
-                      child: Text('${s.fullName} ($tag) - ${s.enrollmentNumber}'),
+                      child: Text(
+                        '${s.fullName} ($tag) - ${s.enrollmentNumber}',
+                      ),
                     );
                   }).toList(),
                   onChanged: (val) {
@@ -174,10 +186,14 @@ class _SimulatedScannerDialogState extends State<SimulatedScannerDialog> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: _simulateExpiredToken ? AppTheme.absentBg : AppTheme.slate100,
+                color: _simulateExpiredToken
+                    ? AppTheme.absentBg
+                    : AppTheme.slate100,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: _simulateExpiredToken ? AppTheme.absentColor.withOpacity(0.4) : AppTheme.slate200,
+                  color: _simulateExpiredToken
+                      ? AppTheme.absentColor.withValues(alpha: 0.4)
+                      : AppTheme.slate200,
                 ),
               ),
               child: Row(
@@ -197,7 +213,9 @@ class _SimulatedScannerDialogState extends State<SimulatedScannerDialog> {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: _simulateExpiredToken ? AppTheme.absentColor : AppTheme.slate700,
+                        color: _simulateExpiredToken
+                            ? AppTheme.absentColor
+                            : AppTheme.slate700,
                       ),
                     ),
                   ),
@@ -215,14 +233,14 @@ class _SimulatedScannerDialogState extends State<SimulatedScannerDialog> {
                   widget.session.currentPhase == SessionPhase.entry
                       ? 'Simular Escaneo de ENTRADA'
                       : widget.session.currentPhase == SessionPhase.exit
-                          ? 'Simular Escaneo de SALIDA'
-                          : 'Pase Inactivo (Activa Entrada o Salida)',
+                      ? 'Simular Escaneo de SALIDA'
+                      : 'Pase Inactivo (Activa Entrada o Salida)',
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: widget.session.isQrActive
                       ? (widget.session.currentPhase == SessionPhase.entry
-                          ? AppTheme.accreditedColor
-                          : AppTheme.primary)
+                            ? AppTheme.accreditedColor
+                            : AppTheme.primary)
                       : AppTheme.slate600,
                 ),
                 onPressed: widget.session.isQrActive ? _executeScan : null,
@@ -235,16 +253,18 @@ class _SimulatedScannerDialogState extends State<SimulatedScannerDialog> {
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: _lastResult!.success
-                      ? (_lastResult!.status != null && _lastResult!.status!.name == 'accredited'
-                          ? AppTheme.accreditedBg
-                          : AppTheme.primaryLight)
+                      ? (_lastResult!.status != null &&
+                                _lastResult!.status!.name == 'accredited'
+                            ? AppTheme.accreditedBg
+                            : AppTheme.primaryLight)
                       : AppTheme.absentBg,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: _lastResult!.success
-                        ? (_lastResult!.status != null && _lastResult!.status!.name == 'accredited'
-                            ? AppTheme.accreditedColor
-                            : AppTheme.primary)
+                        ? (_lastResult!.status != null &&
+                                  _lastResult!.status!.name == 'accredited'
+                              ? AppTheme.accreditedColor
+                              : AppTheme.primary)
                         : AppTheme.absentColor,
                   ),
                 ),
@@ -254,11 +274,15 @@ class _SimulatedScannerDialogState extends State<SimulatedScannerDialog> {
                     Row(
                       children: [
                         Icon(
-                          _lastResult!.success ? Icons.check_circle_rounded : Icons.error_rounded,
+                          _lastResult!.success
+                              ? Icons.check_circle_rounded
+                              : Icons.error_rounded,
                           color: _lastResult!.success
-                              ? (_lastResult!.status != null && _lastResult!.status!.name == 'accredited'
-                                  ? AppTheme.accreditedColor
-                                  : AppTheme.primary)
+                              ? (_lastResult!.status != null &&
+                                        _lastResult!.status!.name ==
+                                            'accredited'
+                                    ? AppTheme.accreditedColor
+                                    : AppTheme.primary)
                               : AppTheme.absentColor,
                           size: 20,
                         ),
@@ -269,9 +293,11 @@ class _SimulatedScannerDialogState extends State<SimulatedScannerDialog> {
                             fontWeight: FontWeight.w800,
                             fontSize: 14,
                             color: _lastResult!.success
-                                ? (_lastResult!.status != null && _lastResult!.status!.name == 'accredited'
-                                    ? AppTheme.accreditedColor
-                                    : AppTheme.primary)
+                                ? (_lastResult!.status != null &&
+                                          _lastResult!.status!.name ==
+                                              'accredited'
+                                      ? AppTheme.accreditedColor
+                                      : AppTheme.primary)
                                 : AppTheme.absentColor,
                           ),
                         ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../providers/attendance_provider.dart';
 import '../utils/app_theme.dart';
 import 'teacher/workshop_detail_screen.dart';
@@ -13,7 +14,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-
   @override
   Widget build(BuildContext context) {
     return Consumer<AttendanceProvider>(
@@ -28,7 +28,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: AppTheme.primaryLight,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.qr_code_scanner_rounded, color: AppTheme.primary, size: 22),
+                  child: const Icon(
+                    Icons.qr_code_scanner_rounded,
+                    color: AppTheme.primary,
+                    size: 22,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 const Column(
@@ -36,11 +40,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Text(
                       'Asistencia de Talleres',
-                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 18,
+                      ),
                     ),
                     Text(
                       'Acreditación Doble Check (Entrada y Salida)',
-                      style: TextStyle(fontSize: 11, color: AppTheme.slate600, fontWeight: FontWeight.normal),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppTheme.slate600,
+                        fontWeight: FontWeight.normal,
+                      ),
                     ),
                   ],
                 ),
@@ -50,7 +61,10 @@ class _HomeScreenState extends State<HomeScreen> {
               if (provider.workshops.isNotEmpty)
                 IconButton(
                   tooltip: 'Limpiar todos los datos',
-                  icon: const Icon(Icons.delete_sweep_rounded, color: AppTheme.slate600),
+                  icon: const Icon(
+                    Icons.delete_sweep_rounded,
+                    color: AppTheme.slate600,
+                  ),
                   onPressed: () => _confirmClearData(context, provider),
                 ),
               const SizedBox(width: 8),
@@ -111,7 +125,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: AppTheme.primaryLight,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.school_rounded, size: 40, color: AppTheme.primary),
+                  child: const Icon(
+                    Icons.school_rounded,
+                    size: 40,
+                    color: AppTheme.primary,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 const Text(
@@ -145,10 +163,16 @@ class _HomeScreenState extends State<HomeScreen> {
             separatorBuilder: (_, index) => const SizedBox(height: 14),
             itemBuilder: (context, index) {
               final workshop = provider.workshops[index];
-              final hasActiveSession = workshop.sessions.any((s) => s.isQrActive);
-              final activeSession = workshop.sessions.cast<dynamic>().firstWhere(
+              final hasActiveSession = workshop.sessions.any(
+                (s) => s.isQrActive,
+              );
+              final activeSession = workshop.sessions
+                  .cast<dynamic>()
+                  .firstWhere(
                     (s) => s.isQrActive,
-                    orElse: () => workshop.sessions.isNotEmpty ? workshop.sessions.first : null,
+                    orElse: () => workshop.sessions.isNotEmpty
+                        ? workshop.sessions.first
+                        : null,
                   );
 
               return Card(
@@ -171,7 +195,10 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: AppTheme.primaryLight,
                               borderRadius: BorderRadius.circular(8),
@@ -190,20 +217,33 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(height: 6),
                       Text(
                         'Docente a cargo: ${workshop.instructorName}',
-                        style: const TextStyle(fontSize: 13, color: AppTheme.slate700, fontWeight: FontWeight.w600),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppTheme.slate700,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         workshop.description,
-                        style: const TextStyle(fontSize: 12, color: AppTheme.slate600),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.slate600,
+                        ),
                       ),
                       const SizedBox(height: 14),
                       Wrap(
                         spacing: 8,
                         runSpacing: 6,
                         children: [
-                          _buildBadge(Icons.people_alt_rounded, '${workshop.enrolledStudents.length} Alumnos'),
-                          _buildBadge(Icons.event_note_rounded, '${workshop.sessions.length} Sesiones'),
+                          _buildBadge(
+                            Icons.people_alt_rounded,
+                            '${workshop.enrolledStudents.length} Alumnos',
+                          ),
+                          _buildBadge(
+                            Icons.event_note_rounded,
+                            '${workshop.sessions.length} Sesiones',
+                          ),
                           if (hasActiveSession) _buildActiveBadge(),
                         ],
                       ),
@@ -220,14 +260,19 @@ class _HomeScreenState extends State<HomeScreen> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) => WorkshopDetailScreen(workshopId: workshop.id),
+                                  builder: (_) => WorkshopDetailScreen(
+                                    workshopId: workshop.id,
+                                  ),
                                 ),
                               );
                             },
                           ),
                           if (activeSession != null)
                             ElevatedButton.icon(
-                              icon: const Icon(Icons.qr_code_scanner_rounded, size: 16),
+                              icon: const Icon(
+                                Icons.qr_code_scanner_rounded,
+                                size: 16,
+                              ),
                               label: const Text('Abrir Pase de Lista'),
                               onPressed: () {
                                 Navigator.push(
@@ -253,8 +298,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-
-
   Widget _buildBadge(IconData icon, String text) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -269,7 +312,11 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(width: 5),
           Text(
             text,
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.slate700),
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.slate700,
+            ),
           ),
         ],
       ),
@@ -282,23 +329,36 @@ class _HomeScreenState extends State<HomeScreen> {
       decoration: BoxDecoration(
         color: AppTheme.accreditedBg,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppTheme.accreditedColor.withOpacity(0.3)),
+        border: Border.all(
+          color: AppTheme.accreditedColor.withValues(alpha: 0.3),
+        ),
       ),
       child: const Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.wifi_tethering_rounded, size: 14, color: AppTheme.accreditedColor),
+          Icon(
+            Icons.wifi_tethering_rounded,
+            size: 14,
+            color: AppTheme.accreditedColor,
+          ),
           SizedBox(width: 5),
           Text(
             'Pase en Vivo Activo',
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.accreditedColor),
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.accreditedColor,
+            ),
           ),
         ],
       ),
     );
   }
 
-  void _showCreateWorkshopDialog(BuildContext context, AttendanceProvider provider) {
+  void _showCreateWorkshopDialog(
+    BuildContext context,
+    AttendanceProvider provider,
+  ) {
     final nameCtrl = TextEditingController();
     final codeCtrl = TextEditingController();
     final instructorCtrl = TextEditingController();
@@ -314,32 +374,48 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               TextField(
                 controller: nameCtrl,
-                decoration: const InputDecoration(labelText: 'Nombre del Taller', hintText: 'Ej. Taller de Pavimentación'),
+                decoration: const InputDecoration(
+                  labelText: 'Nombre del Taller',
+                  hintText: 'Ej. Taller de Pavimentación',
+                ),
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: codeCtrl,
-                decoration: const InputDecoration(labelText: 'Código del Taller', hintText: 'Ej. PAV-2026'),
+                decoration: const InputDecoration(
+                  labelText: 'Código del Taller',
+                  hintText: 'Ej. PAV-2026',
+                ),
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: instructorCtrl,
-                decoration: const InputDecoration(labelText: 'Docente Responsable', hintText: 'Ej. Ing. Carlos Méndez'),
+                decoration: const InputDecoration(
+                  labelText: 'Docente Responsable',
+                  hintText: 'Ej. Ing. Carlos Méndez',
+                ),
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: descCtrl,
                 maxLines: 2,
-                decoration: const InputDecoration(labelText: 'Descripción', hintText: 'Objetivo y contenidos del taller...'),
+                decoration: const InputDecoration(
+                  labelText: 'Descripción',
+                  hintText: 'Objetivo y contenidos del taller...',
+                ),
               ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
           ElevatedButton(
             onPressed: () {
-              if (nameCtrl.text.trim().isNotEmpty && codeCtrl.text.trim().isNotEmpty) {
+              if (nameCtrl.text.trim().isNotEmpty &&
+                  codeCtrl.text.trim().isNotEmpty) {
                 provider.addWorkshop(
                   name: nameCtrl.text.trim(),
                   code: codeCtrl.text.trim(),
@@ -372,14 +448,21 @@ class _HomeScreenState extends State<HomeScreen> {
           style: TextStyle(fontSize: 13),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.absentColor),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.absentColor,
+            ),
             onPressed: () {
               Navigator.pop(ctx);
               provider.clearAllData();
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Todos los datos han sido eliminados.')),
+                const SnackBar(
+                  content: Text('Todos los datos han sido eliminados.'),
+                ),
               );
             },
             child: const Text('Eliminar Todo'),
