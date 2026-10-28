@@ -591,11 +591,12 @@
 
         if (supabaseClient) {
           try {
-            const { data: std } = await supabaseClient
+            const { data: stdArr } = await supabaseClient
               .from('students')
               .select('full_name')
               .ilike('enrollment_number', savedControl)
-              .maybeSingle();
+              .limit(1);
+            const std = stdArr && stdArr.length > 0 ? stdArr[0] : null;
             if (std && std.full_name) {
               studentName = std.full_name;
               localStorage.setItem('asistencia_full_name', studentName);
@@ -630,12 +631,12 @@
 
         if (supabaseClient) {
           try {
-            const { data: std } = await supabaseClient
+            const { data: stdArr } = await supabaseClient
               .from('students')
               .select('full_name')
               .ilike('enrollment_number', cleanVal)
-              .maybeSingle();
-            foundStudent = std;
+              .limit(1);
+            foundStudent = stdArr && stdArr.length > 0 ? stdArr[0] : null;
           } catch (_) {}
         } else {
           try {
@@ -757,16 +758,18 @@
             } catch (_) {}
           }
 
-          // 1. Obtener o registrar estudiante
+          // 1. Obtener o registrar estudiante (soportando múltiples registros previos de la misma matrícula)
           let student = null;
-          const { data: existingStd } = await supabaseClient
+          let allStudentIds = [];
+          const { data: existingStdList } = await supabaseClient
             .from('students')
             .select('*')
             .ilike('enrollment_number', cleanCtrl)
-            .maybeSingle();
+            .order('created_at', { ascending: true });
 
-          if (existingStd) {
-            student = existingStd;
+          if (existingStdList && existingStdList.length > 0) {
+            student = existingStdList[0];
+            allStudentIds = existingStdList.map(s => s.id);
           } else {
             const newId = 'std_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
             let insertPayload = {
@@ -797,35 +800,69 @@
 
             if (stdErr) throw stdErr;
             student = createdStd;
+            allStudentIds = [student.id];
           }
 
-          // 2. Obtener registro de asistencia previo
+          // 2. Obtener registro de asistencia previo (tanto de la sesión actual como del día de hoy)
           const targetSessionId = sessionId || 'ses_001';
-          const { data: existingRec } = await supabaseClient
+          const { data: studentRecs } = await supabaseClient
             .from('attendance_records')
             .select('*')
-            .eq('student_id', student.id)
-            .eq('session_id', targetSessionId)
-            .maybeSingle();
+            .in('student_id', allStudentIds)
+            .order('created_at', { ascending: false });
 
-          const nowIso = new Date().toISOString();
+          const recsArray = studentRecs || [];
+          let existingRec = recsArray.find(r => r.session_id === targetSessionId) || null;
+
+          // Buscar también cualquier registro del mismo día de hoy (por si el docente recreó la sesión o reinstaló la app)
+          const nowDate = new Date();
+          const todayRecs = recsArray.filter(r => {
+            const refStr = r.check_in_time || r.created_at || r.check_out_time;
+            if (!refStr) return false;
+            const d = new Date(refStr);
+            const sameDay = d.getFullYear() === nowDate.getFullYear() &&
+                            d.getMonth() === nowDate.getMonth() &&
+                            d.getDate() === nowDate.getDate();
+            const recentHours = Math.abs(nowDate.getTime() - d.getTime()) < (18 * 3600 * 1000);
+            return sameDay || recentHours;
+          });
+
+          const nowIso = nowDate.toISOString();
           let baseStatus = 'pending';
           let checkInIso = existingRec ? existingRec.check_in_time : null;
           let checkOutIso = existingRec ? existingRec.check_out_time : null;
           let title = '';
           let message = '';
 
-          // Extraer nota o retardo previos si existían en status
+          // Si no tenía check_in_time en este ID de sesión pero ya había registrado su entrada hoy, heredarla automáticamente
+          if (!checkInIso) {
+            const recWithEntryToday = todayRecs.find(r => !!r.check_in_time);
+            if (recWithEntryToday) {
+              checkInIso = recWithEntryToday.check_in_time;
+              if (!existingRec) existingRec = recWithEntryToday;
+            }
+          }
+          if (!checkOutIso) {
+            const recWithExitToday = todayRecs.find(r => !!r.check_out_time);
+            if (recWithExitToday) {
+              checkOutIso = recWithExitToday.check_out_time;
+            }
+          }
+
+          // Extraer nota o retardo previos si existían en cualquiera de los registros de hoy
           let prevLateMins = 0;
           let prevNote = '';
-          if (existingRec && existingRec.status) {
-            const parts = String(existingRec.status).split('||');
-            baseStatus = parts[0] || 'pending';
-            for (let i = 1; i < parts.length; i++) {
-              if (parts[i].startsWith('LATE:')) {
-                prevLateMins = parseInt(parts[i].substring(5), 10) || 0;
-              } else if (parts[i].startsWith('NOTE:')) {
-                prevNote = parts[i].substring(5);
+          const statusSources = existingRec ? [existingRec, ...todayRecs] : todayRecs;
+          for (const src of statusSources) {
+            if (src && src.status) {
+              const parts = String(src.status).split('||');
+              if (parts[0] === 'accredited') baseStatus = 'accredited';
+              for (let i = 1; i < parts.length; i++) {
+                if (parts[i].startsWith('LATE:') && prevLateMins === 0) {
+                  prevLateMins = parseInt(parts[i].substring(5), 10) || 0;
+                } else if (parts[i].startsWith('NOTE:') && !prevNote) {
+                  prevNote = parts[i].substring(5);
+                }
               }
             }
           }

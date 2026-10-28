@@ -489,10 +489,28 @@ class AttendanceProvider extends ChangeNotifier {
         student: student,
       );
     } else if (phase == SessionPhase.exit) {
+      // Si en esta sesión aún no figuraba checkInTime pero el alumno ya registró su entrada hoy en otra sesión del taller, heredarla
+      if (!record.hasCheckIn) {
+        for (final otherSession in workshop.sessions) {
+          if (_isSameCalendarDay(otherSession.date, session.date)) {
+            final otherRec = otherSession.records[student.id];
+            if (otherRec != null && otherRec.hasCheckIn) {
+              record.checkInTime = otherRec.checkInTime;
+              record.isLate = otherRec.isLate;
+              record.lateMinutes = otherRec.lateMinutes;
+              if (record.notes == null && otherRec.hasNotes) {
+                record.notes = otherRec.notes;
+              }
+              break;
+            }
+          }
+        }
+      }
+
       if (record.hasCheckOut) {
         return AttendanceProcessResult(
           success: true,
-          title: 'Salida Ya Sellada 🔒',
+          title: record.hasCheckIn ? '🎓 ¡Asistencia Ya ACREDITADA! 🔒' : 'Salida Ya Sellada 🔒',
           message:
               'La hora de salida de ${student.fullName} ya fue sellada a las ${_formatTime(record.checkOutTime!)} y está BLOQUEADA permanentemente.',
           status: record.status,
@@ -887,6 +905,21 @@ class AttendanceProvider extends ChangeNotifier {
 
             session.records[sId] = rec;
             updatedCount++;
+
+            // Si al consolidar registros del día el alumno ya tiene Entrada + Salida (ACREDITADO) pero en Supabase decía incompleteExitOnly o pending, actualizar en la nube
+            final rawCloudStatus = item['status']?.toString() ?? '';
+            if (rec.hasCheckIn &&
+                rec.hasCheckOut &&
+                !rawCloudStatus.startsWith('accredited') &&
+                existingStudent != null) {
+              _syncRecordToSupabaseAsync(
+                rec,
+                existingStudent,
+                sessionId,
+                workshop: workshop,
+                session: session,
+              );
+            }
           }
         }
 
