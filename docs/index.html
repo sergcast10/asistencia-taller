@@ -660,6 +660,28 @@
           // --- REGISTRO DIRECTO EN SUPABASE (Sin PC requerida) ---
           const cleanCtrl = controlNumber.toUpperCase();
 
+          // Asegurar que el taller y la sesión existan en Supabase para evitar errores de clave foránea
+          if (workshopId) {
+            try {
+              await supabaseClient.from('workshops').upsert({
+                id: workshopId,
+                name: document.getElementById('workshopTitle').textContent || 'Taller Activo',
+                code: 'TAL-01',
+                instructor_name: 'Docente Responsable'
+              }, { onConflict: 'id' });
+            } catch (_) {}
+          }
+          if (sessionId) {
+            try {
+              await supabaseClient.from('workshop_sessions').upsert({
+                id: sessionId,
+                workshop_id: workshopId || null,
+                title: document.getElementById('sessionTitle').textContent || 'Sesión de Taller',
+                current_phase: currentPhase
+              }, { onConflict: 'id' });
+            } catch (_) {}
+          }
+
           // 1. Obtener o registrar estudiante
           let student = null;
           const { data: existingStd } = await supabaseClient
@@ -672,17 +694,31 @@
             student = existingStd;
           } else {
             const newId = 'std_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
-            const { data: createdStd, error: stdErr } = await supabaseClient
+            let insertPayload = {
+              id: newId,
+              workshop_id: workshopId || null,
+              enrollment_number: cleanCtrl,
+              full_name: fullName || 'Alumno',
+              email: `${cleanCtrl.toLowerCase()}@alumno.edu`
+            };
+
+            let { data: createdStd, error: stdErr } = await supabaseClient
               .from('students')
-              .insert({
-                id: newId,
-                workshop_id: workshopId || null,
-                enrollment_number: cleanCtrl,
-                full_name: fullName || 'Alumno',
-                email: `${cleanCtrl.toLowerCase()}@alumno.edu`
-              })
+              .insert(insertPayload)
               .select()
               .single();
+
+            // Si falla por restricción de clave foránea de workshop_id, reintentar con workshop_id nulo
+            if (stdErr && (stdErr.code === '23503' || (stdErr.message && stdErr.message.includes('foreign key')))) {
+              insertPayload.workshop_id = null;
+              const retry = await supabaseClient
+                .from('students')
+                .insert(insertPayload)
+                .select()
+                .single();
+              createdStd = retry.data;
+              stdErr = retry.error;
+            }
 
             if (stdErr) throw stdErr;
             student = createdStd;
@@ -735,7 +771,7 @@
 
           // 3. Guardar en attendance_records
           const recId = existingRec ? existingRec.id : ('rec_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6));
-          const { error: upsertErr } = await supabaseClient
+          let { error: upsertErr } = await supabaseClient
             .from('attendance_records')
             .upsert({
               id: recId,
@@ -746,6 +782,29 @@
               is_locked: true,
               status: newStatus
             });
+
+          // Si falla por sesión foránea, crear sesión y reintentar
+          if (upsertErr && (upsertErr.code === '23503' || (upsertErr.message && upsertErr.message.includes('foreign key')))) {
+            try {
+              await supabaseClient.from('workshop_sessions').upsert({
+                id: targetSessionId,
+                title: 'Sesión Activa',
+                current_phase: currentPhase
+              });
+              const retryUpsert = await supabaseClient
+                .from('attendance_records')
+                .upsert({
+                  id: recId,
+                  student_id: student.id,
+                  session_id: targetSessionId,
+                  check_in_time: checkInIso,
+                  check_out_time: checkOutIso,
+                  is_locked: true,
+                  status: newStatus
+                });
+              upsertErr = retryUpsert.error;
+            } catch (_) {}
+          }
 
           if (upsertErr) throw upsertErr;
 
