@@ -408,19 +408,19 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                       runSpacing: 6,
                       children: [
                         _buildPill(
-                          'Registrados Hoy: ${stats.registeredTodayCount}',
-                          AppTheme.primary,
-                          AppTheme.primaryLight,
-                        ),
-                        _buildPill(
-                          'Acreditados: ${stats.accredited}',
+                          '✅ Cumplieron: ${stats.accredited}',
                           AppTheme.accreditedColor,
                           AppTheme.accreditedBg,
                         ),
                         _buildPill(
-                          'En Sala: ${stats.incomplete}',
+                          '⚠️ Faltó Salida: ${stats.incomplete}',
                           AppTheme.incompleteColor,
                           AppTheme.incompleteBg,
+                        ),
+                        _buildPill(
+                          '❌ No Entraron: ${stats.absent}',
+                          AppTheme.absentColor,
+                          AppTheme.absentBg,
                         ),
                         _buildPill(
                           'Evidencias: ${stats.notesCount}',
@@ -462,8 +462,8 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                           ),
                         ),
                         OutlinedButton.icon(
-                          icon: const Icon(Icons.bar_chart_rounded, size: 16),
-                          label: const Text('Auditoría'),
+                          icon: const Icon(Icons.fact_check_rounded, size: 16),
+                          label: const Text('📋 Lista de Cierre / Asistidos'),
                           onPressed: () {
                             Navigator.push(
                               context,

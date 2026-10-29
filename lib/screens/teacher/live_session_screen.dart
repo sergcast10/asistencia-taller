@@ -341,15 +341,32 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                             },
                           ),
 
-                          // Botón 4: Concluir Sesión
-                          OutlinedButton.icon(
-                            icon: const Icon(Icons.done_all_rounded, size: 18),
-                            label: const Text('Finalizar Sesión'),
-                            onPressed: () {
-                              provider.updateSessionPhase(
+                          // Botón 4: Concluir Sesión y Mostrar Lista de Alumnos al Cierre
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.fact_check_rounded, size: 18),
+                            label: const Text(
+                              '4. Finalizar y Ver Lista de Cierre',
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor:
+                                  currentSession.currentPhase ==
+                                      SessionPhase.finished
+                                  ? const Color(0xFF0F766E)
+                                  : AppTheme.slate800,
+                              foregroundColor: Colors.white,
+                            ),
+                            onPressed: () async {
+                              await provider.updateSessionPhase(
                                 workshopId: currentWorkshop.id,
                                 sessionId: currentSession.id,
                                 newPhase: SessionPhase.finished,
+                              );
+                              if (!context.mounted) return;
+                              _showSessionClosingListDialog(
+                                context,
+                                provider,
+                                currentWorkshop,
+                                currentSession,
                               );
                             },
                           ),
@@ -378,7 +395,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                 ] else ...[
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(32),
+                    padding: const EdgeInsets.all(28),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
@@ -390,10 +407,13 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                           currentSession.currentPhase == SessionPhase.finished
                               ? Icons.task_alt_rounded
                               : Icons.qr_code_2_rounded,
-                          size: 56,
-                          color: AppTheme.slate600,
+                          size: 52,
+                          color: currentSession.currentPhase ==
+                                  SessionPhase.finished
+                              ? AppTheme.accreditedColor
+                              : AppTheme.slate600,
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 10),
                         Text(
                           currentSession.currentPhase == SessionPhase.finished
                               ? 'Sesión Concluida y Consolidada'
@@ -407,12 +427,29 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                         const SizedBox(height: 6),
                         Text(
                           currentSession.currentPhase == SessionPhase.finished
-                              ? 'Todos los registros han sido cerrados. Consulta la pantalla de Auditoría para ver o exportar el reporte.'
+                              ? 'Revisa la lista de cierre del día para ver quiénes cumplieron, a quiénes les faltó la salida y quiénes no entraron.'
                               : 'Presiona "1. Habilitar ENTRADA" al iniciar o "3. Habilitar SALIDA" al finalizar para proyectar el código QR.',
                           textAlign: TextAlign.center,
                           style: const TextStyle(
                             fontSize: 13,
                             color: AppTheme.slate600,
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.fact_check_rounded, size: 18),
+                          label: const Text(
+                            '📋 Ver Lista de Alumnos al Cierre (Cumplieron / Faltó Salida / No Entraron)',
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primary,
+                            foregroundColor: Colors.white,
+                          ),
+                          onPressed: () => _showSessionClosingListDialog(
+                            context,
+                            provider,
+                            currentWorkshop,
+                            currentSession,
                           ),
                         ),
                       ],
@@ -2654,6 +2691,357 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// Muestra la lista completa de alumnos al finalizar / cerrar la sesión del día,
+  /// clasificando quiénes CUMPLIERON (Entrada + Salida), a quiénes LES FALTÓ LA SALIDA y quiénes NO ENTRARON.
+  void _showSessionClosingListDialog(
+    BuildContext context,
+    AttendanceProvider provider,
+    Workshop workshop,
+    WorkshopSession session,
+  ) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Consumer<AttendanceProvider>(
+        builder: (ctx, prov, _) {
+          final currentW = prov.workshops.firstWhere(
+            (w) => w.id == workshop.id,
+            orElse: () => workshop,
+          );
+          final currentS = currentW.sessions.firstWhere(
+            (s) => s.id == session.id,
+            orElse: () => session,
+          );
+
+          final cumplieron = <Student>[];
+          final faltoSalida = <Student>[];
+          final noEntraron = <Student>[];
+
+          for (final st in currentW.enrolledStudents) {
+            final rec = currentS.records[st.id];
+            final status = rec?.status ?? AttendanceStatus.absent;
+            if (status == AttendanceStatus.accredited) {
+              cumplieron.add(st);
+            } else if (status == AttendanceStatus.incompleteEntryOnly ||
+                status == AttendanceStatus.incompleteExitOnly) {
+              faltoSalida.add(st);
+            } else {
+              noEntraron.add(st);
+            }
+          }
+
+          String fmtShort(DateTime? dt) {
+            if (dt == null) return '--:--';
+            final l = dt.toLocal();
+            return '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
+          }
+
+          Widget buildStudentRow(
+            Student s,
+            String badgeText,
+            Color badgeColor,
+            Color badgeBg, {
+            Widget? actionBtn,
+          }) {
+            final r = currentS.records[s.id];
+            return Container(
+              margin: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppTheme.slate200),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${s.fullName} (${s.enrollmentNumber})',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: AppTheme.slate900,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Entrada: ${fmtShort(r?.checkInTime)} • Salida: ${fmtShort(r?.checkOutTime)}',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppTheme.slate600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: badgeBg,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            badgeText,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: badgeColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (actionBtn != null) ...[
+                    const SizedBox(width: 8),
+                    actionBtn,
+                  ],
+                ],
+              ),
+            );
+          }
+
+          return AlertDialog(
+            title: Row(
+              children: [
+                const Icon(Icons.fact_check_rounded, color: AppTheme.primary),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Lista de Alumnos al Cierre: ${currentS.title}',
+                    style: const TextStyle(fontSize: 15),
+                  ),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 540,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryLight,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '📅 ${currentS.formattedDateWithDay} • 🕒 ${currentS.startTimeLabel} hrs ➔ ${currentS.endTimeLabel} hrs\n'
+                        'Total Padrón: ${currentW.enrolledStudents.length} • ✅ Cumplieron: ${cumplieron.length} • ⚠️ Faltó Salida: ${faltoSalida.length} • ❌ No Entraron: ${noEntraron.length}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.slate800,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // SECCIÓN 1: CUMPLIERON (ENTRADA Y SALIDA OK)
+                    Text(
+                      '✅ 1. CUMPLIERON AL CERRAR LA SESIÓN (${cumplieron.length}):',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.accreditedColor,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    if (cumplieron.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 10),
+                        child: Text(
+                          'Ningún alumno con entrada y salida completas todavía.',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppTheme.slate600,
+                          ),
+                        ),
+                      )
+                    else
+                      ...cumplieron.map(
+                        (s) => buildStudentRow(
+                          s,
+                          '✅ CUMPLIÓ (Entrada y Salida OK)',
+                          AppTheme.accreditedColor,
+                          AppTheme.accreditedBg,
+                        ),
+                      ),
+                    const SizedBox(height: 12),
+
+                    // SECCIÓN 2: LES FALTÓ LA SALIDA (SOLO ENTRADA)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '⚠️ 2. LES FALTÓ LA SALIDA (${faltoSalida.length}):',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: AppTheme.incompleteColor,
+                            ),
+                          ),
+                        ),
+                        if (faltoSalida.isNotEmpty)
+                          TextButton(
+                            onPressed: () {
+                              prov.accreditAllRegisteredInSession(
+                                workshopId: currentW.id,
+                                sessionId: currentS.id,
+                              );
+                            },
+                            child: const Text(
+                              '✅ Dar Salida a Todos',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    if (faltoSalida.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 10),
+                        child: Text(
+                          'Ningún alumno pendiente de salida.',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppTheme.slate600,
+                          ),
+                        ),
+                      )
+                    else
+                      ...faltoSalida.map(
+                        (s) => buildStudentRow(
+                          s,
+                          '⚠️ LE FALTÓ LA SALIDA (Solo registró Entrada)',
+                          AppTheme.incompleteColor,
+                          AppTheme.incompleteBg,
+                          actionBtn: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.accreditedColor,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            onPressed: () {
+                              prov.accreditStudentDirectly(
+                                workshopId: currentW.id,
+                                sessionId: currentS.id,
+                                studentId: s.id,
+                              );
+                            },
+                            child: const Text(
+                              'Dar Salida',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 12),
+
+                    // SECCIÓN 3: NO ENTRARON A LA SESIÓN (AUSENTES)
+                    Text(
+                      '❌ 3. NO ENTRARON A LA SESIÓN DE ESTE DÍA (${noEntraron.length}):',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.absentColor,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    if (noEntraron.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 10),
+                        child: Text(
+                          'Todos los alumnos del padrón registraron asistencia hoy.',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppTheme.slate600,
+                          ),
+                        ),
+                      )
+                    else
+                      ...noEntraron.map(
+                        (s) => buildStudentRow(
+                          s,
+                          '❌ NO ENTRÓ (Sin registro de Entrada ni Salida)',
+                          AppTheme.absentColor,
+                          AppTheme.absentBg,
+                          actionBtn: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 6,
+                              ),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            onPressed: () {
+                              prov.accreditStudentDirectly(
+                                workshopId: currentW.id,
+                                sessionId: currentS.id,
+                                studentId: s.id,
+                              );
+                            },
+                            child: const Text(
+                              'Dar Asistencia',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cerrar'),
+              ),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.bar_chart_rounded, size: 16),
+                label: const Text('Abrir Pantalla Completa de Cierre / CSV'),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => SessionReportScreen(
+                        workshop: currentW,
+                        session: currentS,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          );
+        },
       ),
     );
   }

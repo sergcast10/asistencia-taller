@@ -31,6 +31,7 @@ class SessionReportScreen extends StatefulWidget {
 class _SessionReportScreenState extends State<SessionReportScreen> {
   Timer? _syncTimer;
   bool _isSyncing = false;
+  String _selectedFilter = 'all'; // 'all', 'cumplieron', 'falto_salida', 'no_entraron'
 
   @override
   void initState() {
@@ -347,53 +348,172 @@ class _SessionReportScreenState extends State<SessionReportScreen> {
                   const SizedBox(height: 20),
                 ],
 
-                // Lista detallada de estudiantes
-                Wrap(
-                  alignment: WrapAlignment.spaceBetween,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 10,
-                  runSpacing: 8,
-                  children: [
-                    Text(
-                      'Padrón Oficial y Estatus (${currentWorkshop.enrolledStudents.length} Alumnos)',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: AppTheme.slate900,
+                // BANNER DE LISTA DE ALUMNOS AL FINALIZAR / CERRAR LA SESIÓN DEL DÍA
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppTheme.slate200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryLight,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.fact_check_rounded,
+                              color: AppTheme.primary,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Lista de Alumnos al Cierre de la Sesión de este Día',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppTheme.slate900,
+                                  ),
+                                ),
+                                SizedBox(height: 2),
+                                Text(
+                                  'Revisa quiénes cumplieron (Entrada + Salida), a quiénes les faltó registrar la salida y quiénes no entraron a la sesión.',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppTheme.slate600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    ElevatedButton.icon(
-                      icon: const Icon(
-                        Icons.phonelink_erase_rounded,
-                        size: 15,
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          ChoiceChip(
+                            label: Text(
+                              '📋 Todos (${currentWorkshop.enrolledStudents.length})',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            selected: _selectedFilter == 'all',
+                            onSelected: (_) =>
+                                setState(() => _selectedFilter = 'all'),
+                          ),
+                          ChoiceChip(
+                            label: Text(
+                              '✅ Cumplieron (${stats.accredited})',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            selectedColor: AppTheme.accreditedBg,
+                            selected: _selectedFilter == 'cumplieron',
+                            onSelected: (_) =>
+                                setState(() => _selectedFilter = 'cumplieron'),
+                          ),
+                          ChoiceChip(
+                            label: Text(
+                              '⚠️ Les Faltó Salida (${stats.incomplete})',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            selectedColor: AppTheme.incompleteBg,
+                            selected: _selectedFilter == 'falto_salida',
+                            onSelected: (_) => setState(
+                              () => _selectedFilter = 'falto_salida',
+                            ),
+                          ),
+                          ChoiceChip(
+                            label: Text(
+                              '❌ No Entraron (${stats.absent})',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            selectedColor: AppTheme.absentBg,
+                            selected: _selectedFilter == 'no_entraron',
+                            onSelected: (_) =>
+                                setState(() => _selectedFilter = 'no_entraron'),
+                          ),
+                        ],
                       ),
-                      label: const Text(
-                        '📵 Integrar / Sin Celular',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          ElevatedButton.icon(
+                            icon: const Icon(
+                              Icons.assignment_turned_in_rounded,
+                              size: 16,
+                            ),
+                            label: const Text(
+                              '📋 Ver Acta de Cierre (Cumplieron / Faltó Salida / No Entraron)',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            onPressed: () => _showClosingSummaryDialog(
+                              context,
+                              currentWorkshop,
+                              currentSession,
+                              stats,
+                            ),
+                          ),
+                          ElevatedButton.icon(
+                            icon: const Icon(
+                              Icons.phonelink_erase_rounded,
+                              size: 15,
+                            ),
+                            label: const Text(
+                              '📵 Integrar / Sin Celular',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF7C3AED),
+                              foregroundColor: Colors.white,
+                            ),
+                            onPressed: () => _showEditOrNoPhoneDialog(
+                              context,
+                              provider,
+                              currentWorkshop,
+                              currentSession,
+                              student: null,
+                              defaultNoPhoneMode: true,
+                            ),
+                          ),
+                        ],
                       ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF7C3AED),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                      ),
-                      onPressed: () => _showEditOrNoPhoneDialog(
-                        context,
-                        provider,
-                        currentWorkshop,
-                        currentSession,
-                        student: null,
-                        defaultNoPhoneMode: true,
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
 
                 if (currentWorkshop.enrolledStudents.isEmpty)
                   Container(
@@ -430,175 +550,308 @@ class _SessionReportScreenState extends State<SessionReportScreen> {
                     ),
                   )
                 else
-                  ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: currentWorkshop.enrolledStudents.length,
-                    separatorBuilder: (_, index) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) {
-                      final student = currentWorkshop.enrolledStudents[index];
-                      final record = currentSession.records[student.id];
-                      final status = record?.status ?? AttendanceStatus.absent;
+                  Builder(
+                    builder: (context) {
+                      final filteredStudents =
+                          currentWorkshop.enrolledStudents.where((student) {
+                            final st =
+                                currentSession.records[student.id]?.status ??
+                                AttendanceStatus.absent;
+                            if (_selectedFilter == 'cumplieron') {
+                              return st == AttendanceStatus.accredited;
+                            }
+                            if (_selectedFilter == 'falto_salida') {
+                              return st ==
+                                      AttendanceStatus.incompleteEntryOnly ||
+                                  st == AttendanceStatus.incompleteExitOnly;
+                            }
+                            if (_selectedFilter == 'no_entraron') {
+                              return st == AttendanceStatus.absent;
+                            }
+                            return true;
+                          }).toList();
 
-                      return Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: status == AttendanceStatus.accredited
-                                ? AppTheme.accreditedColor.withValues(
-                                    alpha: 0.4,
-                                  )
-                                : AppTheme.slate200,
+                      if (filteredStudents.isEmpty) {
+                        return Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: AppTheme.slate200),
                           ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
+                          child: const Center(
+                            child: Text(
+                              'No hay alumnos en esta categoría para esta sesión.',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.slate600,
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+
+                      return ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: filteredStudents.length,
+                        separatorBuilder: (_, index) =>
+                            const SizedBox(height: 10),
+                        itemBuilder: (context, index) {
+                          final student = filteredStudents[index];
+                          final record = currentSession.records[student.id];
+                          final status =
+                              record?.status ?? AttendanceStatus.absent;
+
+                          // Texto claro de diagnóstico al cerrar la sesión
+                          String closingDiagText;
+                          Color closingDiagColor;
+                          Color closingDiagBg;
+                          IconData closingDiagIcon;
+
+                          if (status == AttendanceStatus.accredited) {
+                            closingDiagText =
+                                '✅ CUMPLIÓ AL CERRAR LA SESIÓN (Entrada y Salida completas)';
+                            closingDiagColor = AppTheme.accreditedColor;
+                            closingDiagBg = AppTheme.accreditedBg;
+                            closingDiagIcon = Icons.check_circle_rounded;
+                          } else if (status ==
+                              AttendanceStatus.incompleteEntryOnly) {
+                            closingDiagText =
+                                '⚠️ LE FALTÓ LA SALIDA AL CERRAR LA SESIÓN (Solo registró Entrada)';
+                            closingDiagColor = AppTheme.incompleteColor;
+                            closingDiagBg = AppTheme.incompleteBg;
+                            closingDiagIcon = Icons.warning_amber_rounded;
+                          } else if (status ==
+                              AttendanceStatus.incompleteExitOnly) {
+                            closingDiagText =
+                                '⚠️ LE FALTÓ LA ENTRADA (Solo registró Salida)';
+                            closingDiagColor = AppTheme.incompleteColor;
+                            closingDiagBg = AppTheme.incompleteBg;
+                            closingDiagIcon = Icons.warning_amber_rounded;
+                          } else {
+                            closingDiagText =
+                                '❌ NO ENTRÓ A LA SESIÓN DE ESTE DÍA (Sin Entrada ni Salida)';
+                            closingDiagColor = AppTheme.absentColor;
+                            closingDiagBg = AppTheme.absentBg;
+                            closingDiagIcon = Icons.cancel_rounded;
+                          }
+
+                          return Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: status == AttendanceStatus.accredited
+                                    ? AppTheme.accreditedColor.withValues(
+                                        alpha: 0.4,
+                                      )
+                                    : AppTheme.slate200,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                CircleAvatar(
-                                  radius: 20,
-                                  backgroundColor:
-                                      status == AttendanceStatus.accredited
-                                      ? AppTheme.accreditedBg
-                                      : AppTheme.slate100,
-                                  child: Text(
-                                    student.fullName.isNotEmpty
-                                        ? student.fullName[0].toUpperCase()
-                                        : '?',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                      color:
-                                          status == AttendanceStatus.accredited
-                                          ? AppTheme.accreditedColor
-                                          : AppTheme.slate800,
-                                    ),
+                                // Cinta superior con diagnóstico claro de cierre
+                                Container(
+                                  width: double.infinity,
+                                  margin: const EdgeInsets.only(bottom: 10),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
                                   ),
-                                ),
-                                const SizedBox(width: 14),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                  decoration: BoxDecoration(
+                                    color: closingDiagBg,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
                                     children: [
-                                      Row(
-                                        children: [
-                                          Flexible(
-                                            child: Text(
-                                              student.fullName,
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.w800,
-                                                fontSize: 14,
-                                                color: AppTheme.slate900,
-                                              ),
-                                            ),
-                                          ),
-                                          if (record?.hasCheckIn == true) ...[
-                                            const SizedBox(width: 8),
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 7,
-                                                    vertical: 2,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                color: record!.isLate
-                                                    ? const Color(0xFFFEF3C7)
-                                                    : const Color(0xFFECFDF5),
-                                                borderRadius:
-                                                    BorderRadius.circular(10),
-                                              ),
-                                              child: Text(
-                                                record.isLate
-                                                    ? '⏱️ Retraso +${record.lateMinutes}m'
-                                                    : '🟢 Puntual',
-                                                style: TextStyle(
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.w800,
-                                                  color: record.isLate
-                                                      ? const Color(0xFFB45309)
-                                                      : const Color(0xFF059669),
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ],
+                                      Icon(
+                                        closingDiagIcon,
+                                        size: 16,
+                                        color: closingDiagColor,
                                       ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        'Matrícula: ${student.enrollmentNumber} • ${student.email}',
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: AppTheme.slate600,
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          closingDiagText,
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w800,
+                                            color: closingDiagColor,
+                                          ),
                                         ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Wrap(
-                                        spacing: 14,
-                                        runSpacing: 4,
-                                        children: [
-                                          _buildTimeTag(
-                                            'Entrada:',
-                                            record?.checkInTime,
-                                            Icons.login_rounded,
-                                            AppTheme.accreditedColor,
-                                          ),
-                                          _buildTimeTag(
-                                            'Salida:',
-                                            record?.checkOutTime,
-                                            Icons.logout_rounded,
-                                            AppTheme.primary,
-                                          ),
-                                          if (record?.isLocked == true)
-                                            const Text(
-                                              '🔒 Sellado',
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                color: AppTheme.slate600,
-                                              ),
-                                            ),
-                                        ],
                                       ),
                                     ],
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                Row(
                                   children: [
-                                    StudentStatusBadge(status: status),
-                                    if (status != AttendanceStatus.accredited)
-                                      TextButton(
-                                        style: TextButton.styleFrom(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 2,
-                                          ),
-                                          minimumSize: Size.zero,
-                                          tapTargetSize:
-                                              MaterialTapTargetSize.shrinkWrap,
-                                        ),
-                                        onPressed: () {
-                                          provider.accreditStudentDirectly(
-                                            workshopId: currentWorkshop.id,
-                                            sessionId: currentSession.id,
-                                            studentId: student.id,
-                                          );
-                                        },
-                                        child: const Text(
-                                          '🎓 Acreditar',
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w800,
-                                          ),
+                                    CircleAvatar(
+                                      radius: 20,
+                                      backgroundColor:
+                                          status == AttendanceStatus.accredited
+                                          ? AppTheme.accreditedBg
+                                          : AppTheme.slate100,
+                                      child: Text(
+                                        student.fullName.isNotEmpty
+                                            ? student.fullName[0].toUpperCase()
+                                            : '?',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                          color:
+                                              status ==
+                                                  AttendanceStatus.accredited
+                                              ? AppTheme.accreditedColor
+                                              : AppTheme.slate800,
                                         ),
                                       ),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Flexible(
+                                                child: Text(
+                                                  student.fullName,
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.w800,
+                                                    fontSize: 14,
+                                                    color: AppTheme.slate900,
+                                                  ),
+                                                ),
+                                              ),
+                                              if (record?.hasCheckIn ==
+                                                  true) ...[
+                                                const SizedBox(width: 8),
+                                                Container(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 7,
+                                                        vertical: 2,
+                                                      ),
+                                                  decoration: BoxDecoration(
+                                                    color: record!.isLate
+                                                        ? const Color(
+                                                            0xFFFEF3C7,
+                                                          )
+                                                        : const Color(
+                                                            0xFFECFDF5,
+                                                          ),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          10,
+                                                        ),
+                                                  ),
+                                                  child: Text(
+                                                    record.isLate
+                                                        ? '⏱️ Retraso +${record.lateMinutes}m'
+                                                        : '🟢 Puntual',
+                                                    style: TextStyle(
+                                                      fontSize: 10,
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                      color: record.isLate
+                                                          ? const Color(
+                                                              0xFFB45309,
+                                                            )
+                                                          : const Color(
+                                                              0xFF059669,
+                                                            ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            'Matrícula: ${student.enrollmentNumber} • ${student.email}',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              color: AppTheme.slate600,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Wrap(
+                                            spacing: 14,
+                                            runSpacing: 4,
+                                            children: [
+                                              _buildTimeTag(
+                                                'Entrada:',
+                                                record?.checkInTime,
+                                                Icons.login_rounded,
+                                                AppTheme.accreditedColor,
+                                              ),
+                                              _buildTimeTag(
+                                                'Salida:',
+                                                record?.checkOutTime,
+                                                Icons.logout_rounded,
+                                                AppTheme.primary,
+                                              ),
+                                              if (record?.isLocked == true)
+                                                const Text(
+                                                  '🔒 Sellado',
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    color: AppTheme.slate600,
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
+                                      children: [
+                                        StudentStatusBadge(status: status),
+                                        if (status !=
+                                            AttendanceStatus.accredited)
+                                          TextButton(
+                                            style: TextButton.styleFrom(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 2,
+                                                  ),
+                                              minimumSize: Size.zero,
+                                              tapTargetSize:
+                                                  MaterialTapTargetSize
+                                                      .shrinkWrap,
+                                            ),
+                                            onPressed: () {
+                                              provider.accreditStudentDirectly(
+                                                workshopId: currentWorkshop.id,
+                                                sessionId: currentSession.id,
+                                                studentId: student.id,
+                                              );
+                                            },
+                                            child: Text(
+                                              status ==
+                                                      AttendanceStatus
+                                                          .incompleteEntryOnly
+                                                  ? '✅ Dar Salida'
+                                                  : '🎓 Acreditar',
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
                                   ],
                                 ),
-                              ],
-                            ),
                             if (record?.hasNotes == true) ...[
                               const SizedBox(height: 10),
                               Container(
@@ -765,12 +1018,167 @@ class _SessionReportScreenState extends State<SessionReportScreen> {
                         ),
                       );
                     },
+                  );
+                    },
                   ),
               ],
             ),
           ),
         );
       },
+    );
+  }
+
+  void _showClosingSummaryDialog(
+    BuildContext context,
+    Workshop workshop,
+    WorkshopSession session,
+    SessionStatistics stats,
+  ) {
+    final cumplieron = <Student>[];
+    final faltoSalida = <Student>[];
+    final noEntraron = <Student>[];
+
+    for (final s in workshop.enrolledStudents) {
+      final rec = session.records[s.id];
+      final st = rec?.status ?? AttendanceStatus.absent;
+      if (st == AttendanceStatus.accredited) {
+        cumplieron.add(s);
+      } else if (st == AttendanceStatus.incompleteEntryOnly ||
+          st == AttendanceStatus.incompleteExitOnly) {
+        faltoSalida.add(s);
+      } else {
+        noEntraron.add(s);
+      }
+    }
+
+    String fmtTime(DateTime? dt) {
+      if (dt == null) return '--:--';
+      final l = dt.toLocal();
+      return '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}:${l.second.toString().padLeft(2, '0')}';
+    }
+
+    final sb = StringBuffer();
+    sb.writeln('=== LISTA DE ALUMNOS AL CIERRE DE LA SESIÓN DEL DÍA ===');
+    sb.writeln('Taller: ${workshop.name} (${workshop.code})');
+    sb.writeln('Sesión: ${session.title}');
+    sb.writeln('Día de Realización: ${session.formattedDateWithDay}');
+    sb.writeln(
+      'Horario: Comenzó ${session.startTimeLabel} hrs ➔ Terminó ${session.endTimeLabel} hrs',
+    );
+    sb.writeln('-------------------------------------------------------');
+    sb.writeln(
+      '✅ CUMPLIERON AL CERRAR LA SESIÓN (${cumplieron.length} alumnos):',
+    );
+    if (cumplieron.isEmpty) {
+      sb.writeln('   (Ningún alumno en esta categoría)');
+    } else {
+      for (final s in cumplieron) {
+        final r = session.records[s.id];
+        sb.writeln(
+          '   • ${s.fullName} (${s.enrollmentNumber}) — Entrada: ${fmtTime(r?.checkInTime)} | Salida: ${fmtTime(r?.checkOutTime)} [CUMPLIÓ]',
+        );
+      }
+    }
+    sb.writeln('');
+    sb.writeln(
+      '⚠️ LES FALTÓ LA SALIDA AL CERRAR LA SESIÓN (${faltoSalida.length} alumnos):',
+    );
+    if (faltoSalida.isEmpty) {
+      sb.writeln('   (Ningún alumno con salida pendiente)');
+    } else {
+      for (final s in faltoSalida) {
+        final r = session.records[s.id];
+        sb.writeln(
+          '   • ${s.fullName} (${s.enrollmentNumber}) — Entrada: ${fmtTime(r?.checkInTime)} | Salida: FALTÓ SALIDA',
+        );
+      }
+    }
+    sb.writeln('');
+    sb.writeln(
+      '❌ NO ENTRARON A LA SESIÓN DE ESTE DÍA (${noEntraron.length} alumnos):',
+    );
+    if (noEntraron.isEmpty) {
+      sb.writeln('   (Todos los alumnos inscritos entraron hoy)');
+    } else {
+      for (final s in noEntraron) {
+        sb.writeln(
+          '   • ${s.fullName} (${s.enrollmentNumber}) — SIN ENTRADA NI SALIDA [NO ENTRÓ]',
+        );
+      }
+    }
+    sb.writeln('=======================================================');
+
+    final fullText = sb.toString();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.fact_check_rounded, color: AppTheme.primary),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Lista de Alumnos al Cierre de la Sesión',
+                style: TextStyle(fontSize: 16),
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 540,
+          child: SingleChildScrollView(
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppTheme.slate50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.slate200),
+              ),
+              child: SelectableText(
+                fullText,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontFamily: 'Consolas',
+                  color: AppTheme.slate900,
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cerrar'),
+          ),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.download_rounded, size: 16),
+            label: const Text('Exportar Excel / CSV'),
+            onPressed: () {
+              Navigator.pop(ctx);
+              _exportCsv(context, workshop, session);
+            },
+          ),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.copy_rounded, size: 16),
+            label: const Text('Copiar Lista de Cierre'),
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: fullText));
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    '📋 Lista de cierre de sesión copiada al portapapeles.',
+                  ),
+                  backgroundColor: AppTheme.accreditedColor,
+                ),
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 

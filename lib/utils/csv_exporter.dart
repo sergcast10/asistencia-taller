@@ -42,8 +42,8 @@ class CsvExporter {
 
       final noteStr = (record?.notes ?? 'SIN OBSERVACIONES').replaceAll('"', "'");
 
-      String statusStr = 'INASISTENCIA';
-      String condicionStr = 'NO CUMPLE ASISTENCIA';
+      String statusStr = 'NO ENTRÓ (AUSENTE)';
+      String condicionStr = 'NO ENTRÓ A LA SESIÓN DE ESTE DÍA (SIN ENTRADA NI SALIDA)';
       String lockStr = 'NO SELLADO';
 
       if (record != null) {
@@ -52,14 +52,14 @@ class CsvExporter {
         }
 
         if (record.status == AttendanceStatus.accredited) {
-          statusStr = 'ACREDITADO';
-          condicionStr = 'CUMPLE CON ENTRADA Y SALIDA';
+          statusStr = 'CUMPLIÓ (ACREDITADO)';
+          condicionStr = 'CUMPLIÓ AL CERRAR LA SESIÓN (ENTRADA Y SALIDA OK)';
         } else if (record.status == AttendanceStatus.incompleteEntryOnly) {
-          statusStr = 'ASISTENCIA REGISTRADA (EN SALA)';
-          condicionStr = 'ENTRADA REGISTRADA (PENDIENTE SALIDA)';
+          statusStr = 'LE FALTÓ LA SALIDA';
+          condicionStr = 'LE FALTÓ LA SALIDA AL CERRAR LA SESIÓN (SOLO ENTRADA)';
         } else if (record.status == AttendanceStatus.incompleteExitOnly) {
           statusStr = 'INCOMPLETO';
-          condicionStr = 'SOLO REGISTRÓ SALIDA (FALTA ENTRADA)';
+          condicionStr = 'SOLO REGISTRÓ SALIDA (LE FALTÓ ENTRADA)';
         }
       }
 
