@@ -11,6 +11,8 @@ import '../../models/attendance_record.dart';
 import '../../providers/attendance_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/csv_exporter.dart';
+import '../../utils/pdf_exporter.dart';
+import '../../widgets/session_evidence_dialog.dart';
 import '../../widgets/stat_card.dart';
 import '../../widgets/student_status_badge.dart';
 
@@ -101,6 +103,18 @@ class _SessionReportScreenState extends State<SessionReportScreen> {
                   color: AppTheme.accreditedColor,
                 ),
                 onPressed: () => _syncFromCloud(silent: false),
+              ),
+              IconButton(
+                tooltip: 'Descargar / Enviar PDF de Evidencia',
+                icon: const Icon(
+                  Icons.picture_as_pdf_rounded,
+                  color: Color(0xFFDC2626),
+                ),
+                onPressed: () => PdfExporter.downloadOrShareSessionPdf(
+                  context: context,
+                  workshop: currentWorkshop,
+                  session: currentSession,
+                ),
               ),
               IconButton(
                 tooltip: 'Exportar Reporte CSV',
@@ -470,7 +484,7 @@ class _SessionReportScreenState extends State<SessionReportScreen> {
                               size: 16,
                             ),
                             label: const Text(
-                              '📋 Ver Acta de Cierre (Cumplieron / Faltó Salida / No Entraron)',
+                              '📋 Ver Lista de Evidencia y Cierre',
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
@@ -481,6 +495,28 @@ class _SessionReportScreenState extends State<SessionReportScreen> {
                               currentWorkshop,
                               currentSession,
                               stats,
+                            ),
+                          ),
+                          ElevatedButton.icon(
+                            icon: const Icon(
+                              Icons.picture_as_pdf_rounded,
+                              size: 16,
+                            ),
+                            label: const Text(
+                              '📄 Descargar / Enviar PDF de Evidencia',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFDC2626),
+                              foregroundColor: Colors.white,
+                            ),
+                            onPressed: () => PdfExporter.downloadOrShareSessionPdf(
+                              context: context,
+                              workshop: currentWorkshop,
+                              session: currentSession,
                             ),
                           ),
                           ElevatedButton.icon(
@@ -1035,150 +1071,10 @@ class _SessionReportScreenState extends State<SessionReportScreen> {
     WorkshopSession session,
     SessionStatistics stats,
   ) {
-    final cumplieron = <Student>[];
-    final faltoSalida = <Student>[];
-    final noEntraron = <Student>[];
-
-    for (final s in workshop.enrolledStudents) {
-      final rec = session.records[s.id];
-      final st = rec?.status ?? AttendanceStatus.absent;
-      if (st == AttendanceStatus.accredited) {
-        cumplieron.add(s);
-      } else if (st == AttendanceStatus.incompleteEntryOnly ||
-          st == AttendanceStatus.incompleteExitOnly) {
-        faltoSalida.add(s);
-      } else {
-        noEntraron.add(s);
-      }
-    }
-
-    String fmtTime(DateTime? dt) {
-      if (dt == null) return '--:--';
-      final l = dt.toLocal();
-      return '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}:${l.second.toString().padLeft(2, '0')}';
-    }
-
-    final sb = StringBuffer();
-    sb.writeln('=== LISTA DE ALUMNOS AL CIERRE DE LA SESIÓN DEL DÍA ===');
-    sb.writeln('Taller: ${workshop.name} (${workshop.code})');
-    sb.writeln('Sesión: ${session.title}');
-    sb.writeln('Día de Realización: ${session.formattedDateWithDay}');
-    sb.writeln(
-      'Horario: Comenzó ${session.startTimeLabel} hrs ➔ Terminó ${session.endTimeLabel} hrs',
-    );
-    sb.writeln('-------------------------------------------------------');
-    sb.writeln(
-      '✅ CUMPLIERON AL CERRAR LA SESIÓN (${cumplieron.length} alumnos):',
-    );
-    if (cumplieron.isEmpty) {
-      sb.writeln('   (Ningún alumno en esta categoría)');
-    } else {
-      for (final s in cumplieron) {
-        final r = session.records[s.id];
-        sb.writeln(
-          '   • ${s.fullName} (${s.enrollmentNumber}) — Entrada: ${fmtTime(r?.checkInTime)} | Salida: ${fmtTime(r?.checkOutTime)} [CUMPLIÓ]',
-        );
-      }
-    }
-    sb.writeln('');
-    sb.writeln(
-      '⚠️ LES FALTÓ LA SALIDA AL CERRAR LA SESIÓN (${faltoSalida.length} alumnos):',
-    );
-    if (faltoSalida.isEmpty) {
-      sb.writeln('   (Ningún alumno con salida pendiente)');
-    } else {
-      for (final s in faltoSalida) {
-        final r = session.records[s.id];
-        sb.writeln(
-          '   • ${s.fullName} (${s.enrollmentNumber}) — Entrada: ${fmtTime(r?.checkInTime)} | Salida: FALTÓ SALIDA',
-        );
-      }
-    }
-    sb.writeln('');
-    sb.writeln(
-      '❌ NO ENTRARON A LA SESIÓN DE ESTE DÍA (${noEntraron.length} alumnos):',
-    );
-    if (noEntraron.isEmpty) {
-      sb.writeln('   (Todos los alumnos inscritos entraron hoy)');
-    } else {
-      for (final s in noEntraron) {
-        sb.writeln(
-          '   • ${s.fullName} (${s.enrollmentNumber}) — SIN ENTRADA NI SALIDA [NO ENTRÓ]',
-        );
-      }
-    }
-    sb.writeln('=======================================================');
-
-    final fullText = sb.toString();
-
-    showDialog(
+    SessionEvidenceDialog.showSessionEvidence(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.fact_check_rounded, color: AppTheme.primary),
-            SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Lista de Alumnos al Cierre de la Sesión',
-                style: TextStyle(fontSize: 16),
-              ),
-            ),
-          ],
-        ),
-        content: SizedBox(
-          width: 540,
-          child: SingleChildScrollView(
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppTheme.slate50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppTheme.slate200),
-              ),
-              child: SelectableText(
-                fullText,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontFamily: 'Consolas',
-                  color: AppTheme.slate900,
-                  height: 1.4,
-                ),
-              ),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cerrar'),
-          ),
-          OutlinedButton.icon(
-            icon: const Icon(Icons.download_rounded, size: 16),
-            label: const Text('Exportar Excel / CSV'),
-            onPressed: () {
-              Navigator.pop(ctx);
-              _exportCsv(context, workshop, session);
-            },
-          ),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.copy_rounded, size: 16),
-            label: const Text('Copiar Lista de Cierre'),
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: fullText));
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    '📋 Lista de cierre de sesión copiada al portapapeles.',
-                  ),
-                  backgroundColor: AppTheme.accreditedColor,
-                ),
-              );
-            },
-          ),
-        ],
-      ),
+      workshop: workshop,
+      session: session,
     );
   }
 

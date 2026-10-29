@@ -10,6 +10,7 @@ import '../../models/student.dart';
 import '../../models/attendance_record.dart';
 import '../../providers/attendance_provider.dart';
 import '../../utils/app_theme.dart';
+import '../../utils/pdf_exporter.dart';
 import '../../widgets/dynamic_qr_display.dart';
 import '../../widgets/simulated_scanner_dialog.dart';
 import '../../widgets/student_status_badge.dart';
@@ -3024,8 +3025,23 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                 child: const Text('Cerrar'),
               ),
               ElevatedButton.icon(
+                icon: const Icon(Icons.picture_as_pdf_rounded, size: 16),
+                label: const Text('Descargar PDF de Evidencia'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFDC2626),
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () {
+                  PdfExporter.downloadOrShareSessionPdf(
+                    context: context,
+                    workshop: currentW,
+                    session: currentS,
+                  );
+                },
+              ),
+              OutlinedButton.icon(
                 icon: const Icon(Icons.bar_chart_rounded, size: 16),
-                label: const Text('Abrir Pantalla Completa de Cierre / CSV'),
+                label: const Text('Ver Pantalla Completa'),
                 onPressed: () {
                   Navigator.pop(ctx);
                   Navigator.push(

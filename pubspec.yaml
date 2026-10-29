@@ -43,6 +43,8 @@ dependencies:
   mobile_scanner: ^7.4.2
   powersync: ^1.18.0
   path_provider: ^2.1.6
+  pdf: ^3.13.1
+  printing: ^5.15.1
 
 dev_dependencies:
   flutter_test:

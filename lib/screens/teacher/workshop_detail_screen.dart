@@ -7,6 +7,8 @@ import '../../models/student.dart';
 import '../../models/attendance_record.dart';
 import '../../providers/attendance_provider.dart';
 import '../../utils/app_theme.dart';
+import '../../utils/pdf_exporter.dart';
+import '../../widgets/session_evidence_dialog.dart';
 import '../../widgets/student_status_badge.dart';
 import 'live_session_screen.dart';
 import 'session_report_screen.dart';
@@ -453,12 +455,25 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                             Icons.receipt_long_rounded,
                             size: 15,
                           ),
-                          label: const Text('Evidencia Sesión'),
+                          label: const Text('Evidencia / PDF'),
                           onPressed: () => _showSessionScheduleEvidenceDialog(
                             context,
                             workshop,
                             session,
                             stats,
+                          ),
+                        ),
+                        OutlinedButton.icon(
+                          icon: const Icon(
+                            Icons.picture_as_pdf_rounded,
+                            size: 15,
+                            color: Color(0xFFDC2626),
+                          ),
+                          label: const Text('Descargar PDF'),
+                          onPressed: () => PdfExporter.downloadOrShareSessionPdf(
+                            context: context,
+                            workshop: workshop,
+                            session: session,
                           ),
                         ),
                         OutlinedButton.icon(
@@ -1327,75 +1342,12 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
     Student student,
     AttendanceRecord record,
   ) {
-    final receiptText =
-        '=== COMPROBANTE OFICIAL DE EVIDENCIA Y ASISTENCIA ===\n'
-        'Taller: ${workshop.name} (${workshop.code})\n'
-        'Sesión: ${session.title}\n'
-        'Docente: ${workshop.instructorName}\n'
-        'Alumno: ${student.fullName}\n'
-        'Matrícula / Control: ${student.enrollmentNumber}\n'
-        'Estatus Hoy: ${record.status == AttendanceStatus.accredited ? "ACREDITADO" : "ASISTENCIA EN SALA"}\n'
-        'Circunstancia / Evidencia: ${record.notes ?? "Sin nota"}';
-
-    showDialog(
+    SessionEvidenceDialog.showStudentEvidence(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.verified_rounded, color: Color(0xFF7C3AED)),
-            SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Comprobante de Evidencia del Alumno',
-                style: TextStyle(fontSize: 16),
-              ),
-            ),
-          ],
-        ),
-        content: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF5F3FF),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFC4B5FD)),
-          ),
-          child: SelectableText(
-            receiptText,
-            style: const TextStyle(
-              fontSize: 12,
-              fontFamily: 'Consolas',
-              color: Color(0xFF4C1D95),
-              height: 1.4,
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cerrar'),
-          ),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.copy_rounded, size: 16),
-            label: const Text('Copiar Evidencia para el Alumno'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF7C3AED),
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: receiptText));
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    '📋 Comprobante de evidencia copiado al portapapeles.',
-                  ),
-                  backgroundColor: AppTheme.accreditedColor,
-                ),
-              );
-            },
-          ),
-        ],
-      ),
+      workshop: workshop,
+      session: session,
+      student: student,
+      record: record,
     );
   }
 
@@ -2233,78 +2185,10 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
     WorkshopSession session,
     SessionStatistics stats,
   ) {
-    final text =
-        '=== ACTA Y EVIDENCIA OFICIAL DE SESIÓN DE TALLER ===\n'
-        'Taller: ${workshop.name} (${workshop.code})\n'
-        'Docente Responsable: ${workshop.instructorName}\n'
-        'Sesión / Sección: ${session.title}\n'
-        'Día de Realización: ${session.formattedDateWithDay}\n'
-        'Hora en que Comenzó: ${session.startTimeLabel} hrs\n'
-        'Hora en que Terminó: ${session.endTimeLabel} hrs\n'
-        'Sello del Sistema: ${session.executionEvidenceSummary}\n'
-        'Tolerancia de Puntualidad: ${session.toleranceMinutes} minutos\n'
-        '----------------------------------------------------\n'
-        'Alumnos Inscritos: ${stats.totalStudents}\n'
-        'Asistencias Registradas Hoy: ${stats.registeredTodayCount}\n'
-        'Alumnos Acreditados: ${stats.accredited}\n'
-        'Notas / Evidencias de Alumnos: ${stats.notesCount}\n'
-        '====================================================';
-
-    showDialog(
+    SessionEvidenceDialog.showSessionEvidence(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.verified_rounded, color: AppTheme.primary),
-            SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Evidencia de Día y Horario de Sesión',
-                style: TextStyle(fontSize: 16),
-              ),
-            ),
-          ],
-        ),
-        content: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: AppTheme.slate50,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppTheme.slate200),
-          ),
-          child: SelectableText(
-            text,
-            style: const TextStyle(
-              fontSize: 12,
-              fontFamily: 'Consolas',
-              color: AppTheme.slate900,
-              height: 1.4,
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cerrar'),
-          ),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.copy_rounded, size: 16),
-            label: const Text('Copiar Acta de Evidencia'),
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: text));
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    '📋 Evidencia de día y horario de la sesión copiada al portapapeles.',
-                  ),
-                  backgroundColor: AppTheme.accreditedColor,
-                ),
-              );
-            },
-          ),
-        ],
-      ),
+      workshop: workshop,
+      session: session,
     );
   }
 
