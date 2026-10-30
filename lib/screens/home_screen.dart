@@ -6,7 +6,6 @@ import '../models/workshop.dart';
 import '../providers/attendance_provider.dart';
 import '../utils/app_theme.dart';
 import 'teacher/workshop_detail_screen.dart';
-import 'teacher/live_session_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -351,9 +350,13 @@ class _HomeScreenState extends State<HomeScreen> {
                               workshop,
                             ),
                           ),
-                          OutlinedButton.icon(
+                          ElevatedButton.icon(
                             icon: const Icon(Icons.settings_rounded, size: 16),
                             label: const Text('Administrar Taller'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primary,
+                              foregroundColor: Colors.white,
+                            ),
                             onPressed: () {
                               Navigator.push(
                                 context,
@@ -365,25 +368,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               );
                             },
                           ),
-                          if (activeSession != null)
-                            ElevatedButton.icon(
-                              icon: const Icon(
-                                Icons.qr_code_scanner_rounded,
-                                size: 16,
-                              ),
-                              label: const Text('Abrir Pase de Lista'),
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => LiveSessionScreen(
-                                      workshop: workshop,
-                                      session: activeSession,
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
                         ],
                       ),
                     ],
