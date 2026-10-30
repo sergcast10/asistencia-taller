@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -26,6 +27,7 @@ class _StudentWebAttendanceScreenState
 
   String _savedControlNumber = '';
   String _savedFullName = '';
+  String _deviceId = '';
 
   final _controlNumberController = TextEditingController();
   final _fullNameController = TextEditingController();
@@ -60,8 +62,24 @@ class _StudentWebAttendanceScreenState
     } catch (_) {}
   }
 
+  Future<String> _getOrCreateDeviceId(SharedPreferences prefs) async {
+    var existing = prefs.getString('student_device_id') ?? '';
+    if (existing.isEmpty) {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      final rnd = Random.secure();
+      final code = List.generate(
+        6,
+        (_) => chars[rnd.nextInt(chars.length)],
+      ).join();
+      existing = 'CEL-$code';
+      await prefs.setString('student_device_id', existing);
+    }
+    return existing;
+  }
+
   Future<void> _checkSavedStudentAndProcess() async {
     final prefs = await SharedPreferences.getInstance();
+    final deviceId = await _getOrCreateDeviceId(prefs);
     final savedControl = prefs.getString('student_saved_control_number') ?? '';
     final savedName = prefs.getString('student_saved_full_name') ?? '';
     final savedEmail = prefs.getString('student_saved_email') ?? '';
@@ -69,6 +87,7 @@ class _StudentWebAttendanceScreenState
     if (!mounted) return;
 
     setState(() {
+      _deviceId = deviceId;
       _savedControlNumber = savedControl;
       _savedFullName = savedName;
       _controlNumberController.text = savedControl;
@@ -86,7 +105,7 @@ class _StudentWebAttendanceScreenState
     // SI YA ESTÁ REGISTRADO EN ESTE CELULAR: Procesar automáticamente en 1 segundo
     if (savedControl.isNotEmpty && !_isAutoSubmitted) {
       _isAutoSubmitted = true;
-      _executeAttendanceRegistration(
+      await _executeAttendanceRegistration(
         controlNumber: savedControl,
         fullName: savedName,
         email: savedEmail,
@@ -98,11 +117,11 @@ class _StudentWebAttendanceScreenState
     }
   }
 
-  void _executeAttendanceRegistration({
+  Future<void> _executeAttendanceRegistration({
     required String controlNumber,
     required String fullName,
     String? email,
-  }) {
+  }) async {
     final provider = context.read<AttendanceProvider>();
     final result = provider.processQrScan(
       qrRawContent: widget.qrToken,
@@ -111,8 +130,22 @@ class _StudentWebAttendanceScreenState
           ? fullName.trim()
           : 'Alumno $controlNumber',
       studentEmail: email?.trim(),
+      deviceId: _deviceId,
     );
 
+    // Si este era el celular viejo y fue reemplazado, borrar datos guardados aquí
+    if (!result.success &&
+        result.student != null &&
+        result.student!.previousDeviceId == _deviceId) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('student_saved_control_number');
+      await prefs.remove('student_saved_full_name');
+      await prefs.remove('student_saved_email');
+      _savedControlNumber = '';
+      _savedFullName = '';
+    }
+
+    if (!mounted) return;
     setState(() {
       _attendanceResult = result;
       _isLoading = false;
@@ -303,6 +336,18 @@ class _StudentWebAttendanceScreenState
                           color: AppTheme.slate600,
                         ),
                       ),
+                      if (_deviceId.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            '📱 ID de este celular: $_deviceId',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: AppTheme.primary,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -577,6 +622,17 @@ class _StudentWebAttendanceScreenState
                       color: AppTheme.slate700,
                     ),
                   ),
+                  if (_deviceId.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      '📱 ID de este celular: $_deviceId',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.primary,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

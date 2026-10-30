@@ -19,6 +19,7 @@ class AttendanceRecord {
   int lateMinutes; // Minutos de retraso respecto al inicio del pase
   bool isSuspended; // 🚫 Suspendido en la sesión por conducta inapropiada
   String? suspensionReason; // Motivo de la suspensión disciplinaria
+  String? deviceId; // 📱 ID del celular desde el que se registró la asistencia
 
   AttendanceRecord({
     required this.id,
@@ -32,6 +33,7 @@ class AttendanceRecord {
     this.lateMinutes = 0,
     this.isSuspended = false,
     this.suspensionReason,
+    this.deviceId,
   });
 
   bool get hasCheckIn => checkInTime != null;
@@ -100,6 +102,9 @@ class AttendanceRecord {
       final cleanReason = suspensionReason!.replaceAll('||', ' - ').trim();
       parts.add('SUSPENDED:$cleanReason');
     }
+    if (deviceId != null && deviceId!.trim().isNotEmpty) {
+      parts.add('DEV:${deviceId!.replaceAll('||', '').trim()}');
+    }
     if (isLate || lateMinutes > 0) {
       parts.add('LATE:$lateMinutes');
     }
@@ -129,6 +134,11 @@ class AttendanceRecord {
         final reasonText = seg.substring(10).trim();
         if (reasonText.isNotEmpty) {
           suspensionReason = reasonText;
+        }
+      } else if (seg.startsWith('DEV:')) {
+        final dev = seg.substring(4).trim();
+        if (dev.isNotEmpty) {
+          deviceId = dev;
         }
       } else if (seg.startsWith('LATE:')) {
         final mins = int.tryParse(seg.substring(5).trim()) ?? 0;
@@ -161,6 +171,7 @@ class AttendanceRecord {
       'lateMinutes': lateMinutes,
       'isSuspended': isSuspended,
       'suspensionReason': suspensionReason,
+      'deviceId': deviceId,
     };
   }
 
@@ -177,6 +188,7 @@ class AttendanceRecord {
       lateMinutes: map['lateMinutes'] is int ? map['lateMinutes'] : 0,
       isSuspended: map['isSuspended'] == true || map['isSuspended'] == 1,
       suspensionReason: map['suspensionReason']?.toString(),
+      deviceId: map['deviceId']?.toString(),
     );
   }
 

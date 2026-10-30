@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../models/workshop.dart';
 import '../../models/session.dart';
@@ -642,7 +641,28 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                     onPressed: () =>
                         _showAddStudentDialog(context, provider, workshop),
                   ),
-                  if (workshop.enrolledStudents.isNotEmpty)
+                  if (workshop.enrolledStudents.isNotEmpty) ...[
+                    OutlinedButton.icon(
+                      icon: const Icon(
+                        Icons.phonelink_setup_rounded,
+                        size: 17,
+                        color: Color(0xFF0284C7),
+                      ),
+                      label: const Text(
+                        '📱 Autorizar Nuevo Celular (Borrar Viejo)',
+                        style: TextStyle(color: Color(0xFF0284C7)),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFF7DD3FC)),
+                        backgroundColor: const Color(0xFFF0F9FF),
+                      ),
+                      onPressed: () => _showAuthorizeNewPhoneDialog(
+                        context,
+                        provider,
+                        workshop,
+                        student: null,
+                      ),
+                    ),
                     OutlinedButton.icon(
                       icon: const Icon(
                         Icons.gavel_rounded,
@@ -664,6 +684,7 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                         student: null,
                       ),
                     ),
+                  ],
                 ],
               ),
             ],
@@ -882,6 +903,50 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                                 ),
                               ),
                             ],
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Icon(
+                                  student.allowNewDevice
+                                      ? Icons.phonelink_setup_rounded
+                                      : Icons.smartphone_rounded,
+                                  size: 13,
+                                  color: student.allowNewDevice
+                                      ? const Color(0xFF0284C7)
+                                      : (student.boundDeviceId != null &&
+                                                student
+                                                    .boundDeviceId!
+                                                    .isNotEmpty
+                                            ? AppTheme.accreditedColor
+                                            : AppTheme.slate600),
+                                ),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    student.allowNewDevice
+                                        ? '🔄 Nuevo celular autorizado por docente (Celular viejo ${student.previousDeviceId ?? ""} borrado • Esperando escaneo del nuevo)'
+                                        : (student.boundDeviceId != null &&
+                                                  student
+                                                      .boundDeviceId!
+                                                      .isNotEmpty
+                                              ? '📱 Celular vinculado: ${student.boundDeviceId}${student.previousDeviceId != null && student.previousDeviceId!.isNotEmpty ? " (Anterior borrado: ${student.previousDeviceId})" : ""}'
+                                              : '📱 Celular: Se vinculará automáticamente al escanear el QR'),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: student.allowNewDevice
+                                          ? const Color(0xFF0369A1)
+                                          : (student.boundDeviceId != null &&
+                                                    student
+                                                        .boundDeviceId!
+                                                        .isNotEmpty
+                                                ? const Color(0xFF065F46)
+                                                : AppTheme.slate600),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ],
                         ),
                       ),
@@ -1101,6 +1166,37 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                             );
                           },
                         ),
+                      OutlinedButton.icon(
+                        icon: const Icon(
+                          Icons.phonelink_setup_rounded,
+                          size: 15,
+                          color: Color(0xFF0284C7),
+                        ),
+                        label: const Text(
+                          '📱 Nuevo Celular (Borrar Viejo)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF0284C7),
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Color(0xFF7DD3FC)),
+                          backgroundColor: const Color(0xFFF0F9FF),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        onPressed: () => _showAuthorizeNewPhoneDialog(
+                          context,
+                          provider,
+                          workshop,
+                          student: student,
+                        ),
+                      ),
                       OutlinedButton.icon(
                         icon: const Icon(
                           Icons.gavel_rounded,
@@ -2865,6 +2961,283 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
             child: const Text('Inscribir Alumno'),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Modal para que el docente autorice a un alumno el uso de su NUEVO CELULAR y borre/desvincule automáticamente el CELULAR VIEJO
+  void _showAuthorizeNewPhoneDialog(
+    BuildContext context,
+    AttendanceProvider provider,
+    Workshop workshop, {
+    Student? student,
+  }) {
+    final currentSession = _getCurrentOrTodaySession(workshop);
+    Student? selectedStudent =
+        student ??
+        (workshop.enrolledStudents.isNotEmpty
+            ? workshop.enrolledStudents.first
+            : null);
+
+    final newDeviceCtrl = TextEditingController();
+    final reasonCtrl = TextEditingController(
+      text: 'El alumno cambió de teléfono celular y solicitó actualizar su acceso.',
+    );
+    bool grantAttendanceToday = true;
+    bool grantFullAccreditation = true;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final currentOldPhone =
+              selectedStudent?.boundDeviceId ??
+              selectedStudent?.previousDeviceId ??
+              'Sin ID previo registrado';
+
+          return AlertDialog(
+            title: const Row(
+              children: [
+                Icon(
+                  Icons.phonelink_setup_rounded,
+                  color: Color(0xFF0284C7),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Autorizar Nuevo Celular y Borrar Celular Viejo',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0369A1),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 500,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0F9FF),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFF7DD3FC)),
+                      ),
+                      child: const Text(
+                        '🔒 Si el alumno estrenó o cambió de celular, aquí puedes darle acceso con su nuevo dispositivo. El celular viejo quedará borrado y bloqueado permanentemente, y el nuevo celular tomará su lugar.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF0C4A6E),
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    if (student == null &&
+                        workshop.enrolledStudents.isNotEmpty) ...[
+                      const Text(
+                        '1. Selecciona al alumno que cambió de celular:',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: workshop.enrolledStudents.map((s) {
+                          final isSel = selectedStudent?.id == s.id;
+                          return ChoiceChip(
+                            label: Text(
+                              '${s.fullName} (${s.enrollmentNumber})',
+                              style: const TextStyle(fontSize: 11),
+                            ),
+                            selected: isSel,
+                            selectedColor: const Color(0xFFE0F2FE),
+                            onSelected: (_) {
+                              setDialogState(() {
+                                selectedStudent = s;
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 12),
+                    ] else if (selectedStudent != null) ...[
+                      Text(
+                        'Alumno: ${selectedStudent!.fullName} (${selectedStudent!.enrollmentNumber})',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.slate900,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+
+                    // Tarjeta mostrando el celular viejo que será eliminado
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF2F2),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFFCA5A5)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.phonelink_erase_rounded,
+                            color: Color(0xFFB91C1C),
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  '🗑️ Celular Anterior que se Borrará:',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF991B1B),
+                                  ),
+                                ),
+                                Text(
+                                  currentOldPhone,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF7F1D1D),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    const Text(
+                      '📱 ID del Nuevo Celular (Opcional):',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.slate800,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: newDeviceCtrl,
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        labelText:
+                            'Dejar vacío para vincular automáticamente al escanear QR',
+                        hintText:
+                            'O escribe el ID que muestra su nuevo celular (Ej. CEL-8F4A2C)',
+                        prefixIcon: Icon(
+                          Icons.smartphone_rounded,
+                          color: Color(0xFF0284C7),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: reasonCtrl,
+                      maxLines: 2,
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        labelText: 'Motivo del cambio de celular (Evidencia)',
+                        prefixIcon: Icon(Icons.notes_rounded),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      title: const Text(
+                        'Otorgar también su asistencia del día de hoy',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      subtitle: const Text(
+                        'Registra su asistencia hoy y deja constancia del cambio de celular',
+                        style: TextStyle(fontSize: 11),
+                      ),
+                      value: grantAttendanceToday,
+                      onChanged: (v) =>
+                          setDialogState(() => grantAttendanceToday = v),
+                    ),
+                    if (grantAttendanceToday)
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        title: const Text(
+                          'Acreditar Sesión Completa Hoy (Entrada + Salida OK)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        value: grantFullAccreditation,
+                        onChanged: (v) =>
+                            setDialogState(() => grantFullAccreditation = v),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.published_with_changes_rounded, size: 18),
+                label: const Text('Borrar Viejo y Dar Acceso al Nuevo Celular'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0284C7),
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () async {
+                  if (selectedStudent == null) return;
+                  await provider.authorizeNewStudentDevice(
+                    workshopId: workshop.id,
+                    sessionId: currentSession?.id,
+                    studentId: selectedStudent!.id,
+                    newDeviceId: newDeviceCtrl.text.trim(),
+                    reason: reasonCtrl.text.trim(),
+                    grantAttendanceToday: grantAttendanceToday,
+                    grantFullAccreditation: grantFullAccreditation,
+                  );
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          '📱 Celular viejo borrado para ${selectedStudent!.fullName}. Su nuevo celular ya tiene acceso autorizado.',
+                        ),
+                        backgroundColor: const Color(0xFF0284C7),
+                      ),
+                    );
+                  }
+                },
+              ),
+            ],
+          );
+        },
       ),
     );
   }

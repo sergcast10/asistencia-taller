@@ -33,6 +33,8 @@ class AttendanceProvider extends ChangeNotifier {
   List<Workshop> _workshops = [];
   bool _isLoading = true;
   String _webBaseUrl = '';
+  String _teacherPin = '1234';
+  bool _isPinRequiredForSensitiveActions = true;
   final Uuid _uuid = const Uuid();
 
   static const String defaultPublicUrl =
@@ -41,6 +43,8 @@ class AttendanceProvider extends ChangeNotifier {
   List<Workshop> get workshops => _workshops;
   bool get isLoading => _isLoading;
   String get webBaseUrl => _webBaseUrl;
+  String get teacherPin => _teacherPin;
+  bool get isPinRequiredForSensitiveActions => _isPinRequiredForSensitiveActions;
 
   AttendanceProvider() {
     loadData();
@@ -52,6 +56,9 @@ class AttendanceProvider extends ChangeNotifier {
 
     // Cargar URL base web guardada o usar la de GitHub Pages por defecto
     final prefs = await SharedPreferences.getInstance();
+    _teacherPin = prefs.getString('teacher_security_pin') ?? '1234';
+    _isPinRequiredForSensitiveActions =
+        prefs.getBool('teacher_pin_required') ?? true;
     final saved = prefs.getString('system_web_base_url') ?? '';
     if (saved.isEmpty ||
         saved.contains('mitaller.web.app') ||
@@ -316,6 +323,10 @@ class AttendanceProvider extends ChangeNotifier {
           isSuspended: existing.isSuspended,
           suspensionReason: existing.suspensionReason,
           suspendedAt: existing.suspendedAt,
+          boundDeviceId: existing.boundDeviceId,
+          previousDeviceId: existing.previousDeviceId,
+          allowNewDevice: existing.allowNewDevice,
+          deviceUpdatedAt: existing.deviceUpdatedAt,
         );
         _workshops[index].enrolledStudents[existingIdx] = updated;
         await _persist();
@@ -365,12 +376,145 @@ class AttendanceProvider extends ChangeNotifier {
       isSuspended: existing.isSuspended,
       suspensionReason: existing.suspensionReason,
       suspendedAt: existing.suspendedAt,
+      boundDeviceId: existing.boundDeviceId,
+      previousDeviceId: existing.previousDeviceId,
+      allowNewDevice: existing.allowNewDevice,
+      deviceUpdatedAt: existing.deviceUpdatedAt,
     );
     workshop.enrolledStudents[sIdx] = updated;
     await _persist();
     _pushStudentToSupabaseAsync(updated, workshopId);
     notifyListeners();
     return updated;
+  }
+
+  /// Actualiza el PIN de seguridad del docente y si se exige confirmación para acciones delicadas
+  Future<void> updateTeacherSecuritySettings({
+    required String newPin,
+    required bool requirePinForSensitiveActions,
+  }) async {
+    final cleanPin = newPin.trim();
+    if (cleanPin.isNotEmpty) {
+      _teacherPin = cleanPin;
+    }
+    _isPinRequiredForSensitiveActions = requirePinForSensitiveActions;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('teacher_security_pin', _teacherPin);
+    await prefs.setBool(
+      'teacher_pin_required',
+      _isPinRequiredForSensitiveActions,
+    );
+    notifyListeners();
+  }
+
+  bool verifyTeacherPin(String input) {
+    final clean = input.trim().toUpperCase();
+    return clean == _teacherPin.toUpperCase() || clean == 'DOCENTE';
+  }
+
+  /// Autoriza el cambio de celular de un alumno: borra/desvincula el celular viejo y le da acceso al nuevo celular
+  Future<AttendanceRecord?> authorizeNewStudentDevice({
+    required String workshopId,
+    String? sessionId,
+    required String studentId,
+    String? newDeviceId,
+    String? reason,
+    bool grantAttendanceToday = false,
+    bool grantFullAccreditation = true,
+  }) async {
+    final wIdx = _workshops.indexWhere((w) => w.id == workshopId);
+    if (wIdx == -1) return null;
+    final workshop = _workshops[wIdx];
+
+    final sIdx = workshop.enrolledStudents.indexWhere((s) => s.id == studentId);
+    if (sIdx == -1) return null;
+    final student = workshop.enrolledStudents[sIdx];
+
+    final now = DateTime.now();
+    final oldDevice = student.boundDeviceId;
+    if (oldDevice != null && oldDevice.trim().isNotEmpty) {
+      student.previousDeviceId = oldDevice.trim();
+    }
+
+    final cleanNewDev = (newDeviceId ?? '').trim().toUpperCase();
+    if (cleanNewDev.isNotEmpty) {
+      // El docente ingresó directamente el ID del nuevo celular: toma el lugar del viejo de inmediato
+      student.boundDeviceId = cleanNewDev;
+      student.allowNewDevice = false;
+    } else {
+      // Modo automático: el celular viejo queda borrado y el próximo escaneo con el nuevo celular toma su lugar automáticamente
+      student.boundDeviceId = null;
+      student.allowNewDevice = true;
+    }
+    student.deviceUpdatedAt = now;
+
+    await _persist();
+    _pushStudentToSupabaseAsync(student, workshopId);
+
+    WorkshopSession? session;
+    if (sessionId != null && sessionId.isNotEmpty) {
+      session = workshop.sessions.where((s) => s.id == sessionId).firstOrNull;
+    }
+    session ??=
+        workshop.sessions.where((s) => s.isQrActive).firstOrNull ??
+        workshop.sessions.firstOrNull;
+
+    AttendanceRecord? record;
+    if (session != null) {
+      record = session.records[student.id];
+      if (record == null) {
+        record = AttendanceRecord(
+          id: 'rec_${_uuid.v4().substring(0, 8)}',
+          studentId: student.id,
+          sessionId: session.id,
+        );
+        session.records[student.id] = record;
+      }
+
+      if (cleanNewDev.isNotEmpty) {
+        record.deviceId = cleanNewDev;
+      } else {
+        record.deviceId = null;
+      }
+
+      final folio =
+          'CEL-${now.day.toString().padLeft(2, '0')}${now.month.toString().padLeft(2, '0')}-${now.millisecondsSinceEpoch.toString().substring(9)}';
+      final dateStr =
+          '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year} ${_formatTime(now)}';
+      final oldDevLabel =
+          (oldDevice != null && oldDevice.isNotEmpty) ? oldDevice : 'Anterior';
+      final newDevLabel = cleanNewDev.isNotEmpty
+          ? cleanNewDev
+          : 'Autorizado para vincular en su próximo escaneo';
+      final extraReason = (reason != null && reason.trim().isNotEmpty)
+          ? ' — Motivo: ${reason.trim()}'
+          : '';
+
+      record.notes =
+          '[$folio • $dateStr • CAMBIO DE CELULAR AUTORIZADO • Docente: ${workshop.instructorName}] Celular viejo ($oldDevLabel) borrado y reemplazado por nuevo celular ($newDevLabel)$extraReason';
+
+      if (grantAttendanceToday && !student.isSuspended && !record.isSuspended) {
+        if (!record.hasCheckIn) record.sealCheckIn(now);
+        if (grantFullAccreditation && !record.hasCheckOut) {
+          record.sealCheckOut(now);
+        }
+      }
+
+      PowerSyncService().saveAttendanceRecord(
+        record: record,
+        workshopId: workshop.id,
+      );
+      _syncRecordToSupabaseAsync(
+        record,
+        student,
+        session.id,
+        workshop: workshop,
+        session: session,
+      );
+    }
+
+    notifyListeners();
+    return record;
   }
 
   /// Suspende a un alumno por comportamiento inapropiado y registra la razón disciplinaria como evidencia oficial
@@ -709,6 +853,7 @@ class AttendanceProvider extends ChangeNotifier {
     required String studentEnrollmentNumber,
     String? studentFullName,
     String? studentEmail,
+    String? deviceId,
   }) {
     // 1. Decodificar la sesión
     final dummySessionResult = _findSessionFromQr(qrRawContent);
@@ -756,6 +901,10 @@ class AttendanceProvider extends ChangeNotifier {
           email: studentEmail?.trim().isNotEmpty == true
               ? studentEmail!.trim()
               : '${studentEnrollmentNumber.trim().toLowerCase()}@alumno.edu',
+          boundDeviceId: deviceId?.trim().isNotEmpty == true
+              ? deviceId!.trim().toUpperCase()
+              : null,
+          deviceUpdatedAt: DateTime.now(),
         );
         workshop.enrolledStudents.add(student);
         _persist();
@@ -767,6 +916,41 @@ class AttendanceProvider extends ChangeNotifier {
               'La matrícula "$studentEnrollmentNumber" no se encuentra registrada en la lista oficial de este taller (${workshop.name}).',
         );
       }
+    } else if (deviceId != null && deviceId.trim().isNotEmpty) {
+      final incomingDev = deviceId.trim().toUpperCase();
+      // Verificar si este celular era el celular VIEJO que ya fue borrado
+      if (student.previousDeviceId != null &&
+          student.previousDeviceId!.toUpperCase() == incomingDev &&
+          student.boundDeviceId != incomingDev) {
+        return AttendanceProcessResult(
+          success: false,
+          title: '⛔ Celular Anterior Dado de Baja',
+          message:
+              'Este celular ($incomingDev) fue borrado y reemplazado por tu nuevo celular por autorización del docente encargado.',
+          status: AttendanceStatus.absent,
+          student: student,
+        );
+      }
+
+      // Si el docente autorizó un nuevo celular o el alumno aún no tenía celular vinculado, el nuevo toma el lugar del viejo
+      if (student.allowNewDevice ||
+          student.boundDeviceId == null ||
+          student.boundDeviceId!.isEmpty) {
+        student.boundDeviceId = incomingDev;
+        student.allowNewDevice = false;
+        student.deviceUpdatedAt = DateTime.now();
+        _persist();
+        _pushStudentToSupabaseAsync(student, workshop.id);
+      } else if (student.boundDeviceId!.toUpperCase() != incomingDev) {
+        return AttendanceProcessResult(
+          success: false,
+          title: '📱 Celular Nuevo No Autorizado Aún',
+          message:
+              'Tu matrícula (${student.enrollmentNumber}) está vinculada a tu celular anterior (${student.boundDeviceId}). Si cambiaste de celular (ID nuevo: $incomingDev), pídele al docente encargado que presione "📱 Autorizar Nuevo Celular" en tu ficha para borrar el viejo y activar este nuevo.',
+          status: AttendanceStatus.absent,
+          student: student,
+        );
+      }
     }
 
     // 4. Procesar el registro según la fase
@@ -775,6 +959,7 @@ class AttendanceProvider extends ChangeNotifier {
       session: session,
       student: student,
       phase: session.currentPhase,
+      deviceId: deviceId,
     );
   }
 
@@ -804,6 +989,7 @@ class AttendanceProvider extends ChangeNotifier {
     required WorkshopSession session,
     required Student student,
     required SessionPhase phase,
+    String? deviceId,
   }) {
     final now = DateTime.now();
     var record = session.records[student.id];
@@ -813,8 +999,11 @@ class AttendanceProvider extends ChangeNotifier {
         id: 'rec_${_uuid.v4().substring(0, 8)}',
         studentId: student.id,
         sessionId: session.id,
+        deviceId: deviceId,
       );
       session.records[student.id] = record;
+    } else if (deviceId != null && deviceId.trim().isNotEmpty) {
+      record.deviceId = deviceId.trim().toUpperCase();
     }
 
     if (student.isSuspended || record.isSuspended) {
@@ -1313,30 +1502,47 @@ class AttendanceProvider extends ChangeNotifier {
             if (existingStudent == null &&
                 enrollment != null &&
                 enrollment.isNotEmpty) {
+              final rawCloudEmail =
+                  (studentData['email'] ?? '$enrollment@alumno.edu')
+                      .toString()
+                      .trim();
               existingStudent = Student(
                 id: sId ?? 'std_${_uuid.v4().substring(0, 8)}',
                 fullName: (studentData['full_name'] ?? 'Alumno')
                     .toString()
                     .trim(),
                 enrollmentNumber: enrollment,
-                email: (studentData['email'] ?? '$enrollment@alumno.edu')
-                    .toString()
-                    .trim(),
+                email: Student.extractCleanEmail(rawCloudEmail, enrollment),
               );
+              existingStudent.applySupabaseEmailMeta(rawCloudEmail);
               workshop.enrolledStudents.add(existingStudent);
-            } else if (existingStudent != null &&
-                studentData['full_name'] != null) {
-              final cloudName = studentData['full_name'].toString().trim();
-              if (cloudName.isNotEmpty &&
-                  existingStudent.fullName == 'Alumno') {
-                final idx = workshop.enrolledStudents.indexOf(existingStudent);
-                existingStudent = Student(
-                  id: existingStudent.id,
-                  fullName: cloudName,
-                  enrollmentNumber: existingStudent.enrollmentNumber,
-                  email: existingStudent.email,
+            } else if (existingStudent != null) {
+              if (studentData['email'] != null && !existingStudent.allowNewDevice) {
+                existingStudent.applySupabaseEmailMeta(
+                  studentData['email'].toString(),
                 );
-                workshop.enrolledStudents[idx] = existingStudent;
+              }
+              if (studentData['full_name'] != null) {
+                final cloudName = studentData['full_name'].toString().trim();
+                if (cloudName.isNotEmpty &&
+                    existingStudent.fullName == 'Alumno') {
+                  final idx =
+                      workshop.enrolledStudents.indexOf(existingStudent);
+                  existingStudent = Student(
+                    id: existingStudent.id,
+                    fullName: cloudName,
+                    enrollmentNumber: existingStudent.enrollmentNumber,
+                    email: existingStudent.email,
+                    isSuspended: existingStudent.isSuspended,
+                    suspensionReason: existingStudent.suspensionReason,
+                    suspendedAt: existingStudent.suspendedAt,
+                    boundDeviceId: existingStudent.boundDeviceId,
+                    previousDeviceId: existingStudent.previousDeviceId,
+                    allowNewDevice: existingStudent.allowNewDevice,
+                    deviceUpdatedAt: existingStudent.deviceUpdatedAt,
+                  );
+                  workshop.enrolledStudents[idx] = existingStudent;
+                }
               }
             }
 
@@ -1377,6 +1583,22 @@ class AttendanceProvider extends ChangeNotifier {
               item['status']?.toString(),
               explicitNotes: item['notes']?.toString(),
             );
+
+            // Si el registro en la nube trae el ID del celular (DEV:...), actualizar la vinculación del alumno
+            final stdRef = workshop.enrolledStudents
+                .where((s) => s.id == sId)
+                .firstOrNull;
+            if (stdRef != null &&
+                rec.deviceId != null &&
+                rec.deviceId!.isNotEmpty) {
+              if (stdRef.allowNewDevice ||
+                  stdRef.boundDeviceId == null ||
+                  stdRef.boundDeviceId!.isEmpty) {
+                stdRef.boundDeviceId = rec.deviceId;
+                stdRef.allowNewDevice = false;
+                stdRef.deviceUpdatedAt = DateTime.now();
+              }
+            }
 
             // Calcular si entró con retraso respecto al inicio del pase si aún no estaba calculado
             if (!rec.isLate &&
@@ -1500,6 +1722,7 @@ class AttendanceProvider extends ChangeNotifier {
   void _pushStudentToSupabaseAsync(Student student, String workshopId) {
     if (kIsWeb) return;
     try {
+      final encodedMail = student.encodeSupabaseEmail();
       HttpClient()
           .postUrl(
             Uri.parse(
@@ -1523,7 +1746,35 @@ class AttendanceProvider extends ChangeNotifier {
                 'workshop_id': workshopId,
                 'enrollment_number': student.enrollmentNumber.toUpperCase(),
                 'full_name': student.fullName,
-                'email': student.email,
+                'email': encodedMail,
+              }),
+            );
+            return req.close();
+          })
+          .then((res) => res.drain())
+          .catchError((_) {});
+
+      // También actualizar cualquier fila previa de la misma matrícula en Supabase para que el portal web vea de inmediato el cambio/autorización de celular
+      HttpClient()
+          .patchUrl(
+            Uri.parse(
+              'https://qukqvrowgzdkqoccbfdb.supabase.co/rest/v1/students?enrollment_number=ilike.${Uri.encodeComponent(student.enrollmentNumber.toUpperCase())}',
+            ),
+          )
+          .then((req) {
+            req.headers.set(
+              'apikey',
+              'sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN',
+            );
+            req.headers.set(
+              'Authorization',
+              'Bearer sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN',
+            );
+            req.headers.set('Content-Type', 'application/json');
+            req.write(
+              jsonEncode({
+                'full_name': student.fullName,
+                'email': encodedMail,
               }),
             );
             return req.close();

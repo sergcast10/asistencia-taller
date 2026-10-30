@@ -60,6 +60,15 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
             actions: [
+              IconButton(
+                tooltip: 'Seguridad Anti-Hackeo y PIN Docente',
+                icon: const Icon(
+                  Icons.shield_rounded,
+                  color: AppTheme.primary,
+                ),
+                onPressed: () =>
+                    _showSecuritySettingsDialog(context, provider),
+              ),
               if (provider.workshops.isNotEmpty)
                 IconButton(
                   tooltip: 'Limpiar todos los datos',
@@ -960,7 +969,134 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _showSecuritySettingsDialog(
+    BuildContext context,
+    AttendanceProvider provider,
+  ) {
+    final pinCtrl = TextEditingController(text: provider.teacherPin);
+    bool requirePin = provider.isPinRequiredForSensitiveActions;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.shield_rounded, color: AppTheme.primary),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Blindaje de Seguridad y PIN Docente',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                ),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 480,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFECFDF5),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFF10B981)),
+                    ),
+                    child: const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '🛡️ 6 Capas de Seguridad Activas:',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF065F46),
+                          ),
+                        ),
+                        SizedBox(height: 6),
+                        Text(
+                          '• Firma Criptográfica HMAC-SHA256 en cada código QR.\n'
+                          '• Rotación dinámica cada 15 seg (impide mandar fotos del QR por WhatsApp).\n'
+                          '• Bloqueo de 1 Alumno por Celular (un alumno no puede registrar a otro compañero desde su teléfono).\n'
+                          '• Vínculo 1 Celular por Alumno: si cambia de celular, el docente le da acceso al nuevo y el viejo se borra automáticamente.\n'
+                          '• Sellado Inmutable de Entrada y Salida (nadie puede alterar la hora registrada).\n'
+                          '• PIN Docente para proteger borrado y desbloqueo de celulares.',
+                          style: TextStyle(
+                            fontSize: 11,
+                            height: 1.4,
+                            color: Color(0xFF047857),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: pinCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'PIN de Seguridad del Docente',
+                      hintText: 'Ej. 1234',
+                      prefixIcon: Icon(Icons.lock_rounded),
+                      helperText:
+                          'Este PIN también sirve si deseas autorizar en persona el cambio de celular en el teléfono de un alumno.',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    title: const Text(
+                      'Exigir PIN Docente antes de borrar talleres o registros',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    value: requirePin,
+                    onChanged: (v) => setDialogState(() => requirePin = v),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cerrar'),
+            ),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.save_rounded, size: 16),
+              label: const Text('Guardar PIN de Seguridad'),
+              onPressed: () async {
+                await provider.updateTeacherSecuritySettings(
+                  newPin: pinCtrl.text.trim(),
+                  requirePinForSensitiveActions: requirePin,
+                );
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        '🛡️ Configuración de seguridad y PIN Docente actualizados.',
+                      ),
+                      backgroundColor: AppTheme.accreditedColor,
+                    ),
+                  );
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _confirmClearData(BuildContext context, AttendanceProvider provider) {
+    final pinInputCtrl = TextEditingController();
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -971,9 +1107,27 @@ class _HomeScreenState extends State<HomeScreen> {
             Text('Limpiar Registros'),
           ],
         ),
-        content: const Text(
-          '¿Estás seguro de que deseas eliminar todos los talleres y listas de asistencia? La base de datos local quedará completamente limpia.',
-          style: TextStyle(fontSize: 13),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '¿Estás seguro de que deseas eliminar todos los talleres y listas de asistencia? La base de datos local quedará completamente limpia.',
+              style: TextStyle(fontSize: 13),
+            ),
+            if (provider.isPinRequiredForSensitiveActions) ...[
+              const SizedBox(height: 12),
+              TextField(
+                controller: pinInputCtrl,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  isDense: true,
+                  labelText: 'Ingresa tu PIN Docente para confirmar',
+                  prefixIcon: Icon(Icons.lock_outline_rounded),
+                ),
+              ),
+            ],
+          ],
         ),
         actions: [
           TextButton(
@@ -985,6 +1139,16 @@ class _HomeScreenState extends State<HomeScreen> {
               backgroundColor: AppTheme.absentColor,
             ),
             onPressed: () {
+              if (provider.isPinRequiredForSensitiveActions &&
+                  !provider.verifyTeacherPin(pinInputCtrl.text)) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('⛔ PIN Docente incorrecto. Acción bloqueada.'),
+                    backgroundColor: AppTheme.absentColor,
+                  ),
+                );
+                return;
+              }
               Navigator.pop(ctx);
               provider.clearAllData();
               ScaffoldMessenger.of(context).showSnackBar(
