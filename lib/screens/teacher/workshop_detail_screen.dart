@@ -144,6 +144,15 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                   );
                 },
               ),
+              IconButton(
+                tooltip: 'Eliminar este Taller',
+                icon: const Icon(
+                  Icons.delete_outline_rounded,
+                  color: AppTheme.absentColor,
+                ),
+                onPressed: () =>
+                    _confirmDeleteWorkshop(context, provider, workshop),
+              ),
               const SizedBox(width: 6),
             ],
             bottom: TabBar(
@@ -2716,6 +2725,22 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
           ),
         ),
         actions: [
+          TextButton.icon(
+            icon: const Icon(
+              Icons.delete_forever_rounded,
+              color: AppTheme.absentColor,
+              size: 16,
+            ),
+            label: const Text(
+              'Eliminar Taller',
+              style: TextStyle(color: AppTheme.absentColor),
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              _confirmDeleteWorkshop(context, provider, workshop);
+            },
+          ),
+          const Spacer(),
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancelar'),
@@ -2746,6 +2771,122 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
             },
           ),
         ],
+      ),
+    );
+  }
+
+  void _confirmDeleteWorkshop(
+    BuildContext context,
+    AttendanceProvider provider,
+    Workshop workshop,
+  ) {
+    final pinCtrl = TextEditingController();
+    final bool isPinRequired = provider.isPinRequiredForSensitiveActions;
+    String? pinError;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: AppTheme.absentColor, size: 28),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '¿Eliminar este Taller?',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Estás a punto de eliminar permanentemente el taller "${workshop.name}" (${workshop.code}).',
+                style: const TextStyle(fontSize: 13, color: AppTheme.slate800),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEE2E2),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFFCA5A5)),
+                ),
+                child: const Text(
+                  '⚠️ Esta acción borrará todas sus sesiones y registros de asistencia tanto en la app como en la nube.',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF991B1B),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              if (isPinRequired) ...[
+                const SizedBox(height: 14),
+                const Text(
+                  'Ingresa tu PIN Docente para confirmar (Por defecto: 1234):',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: pinCtrl,
+                  obscureText: true,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'PIN Docente',
+                    prefixIcon: const Icon(Icons.lock_rounded),
+                    errorText: pinError,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.delete_forever_rounded, size: 18),
+              label: const Text('Sí, Eliminar Taller'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.absentColor,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                if (isPinRequired) {
+                  final inputPin = pinCtrl.text.trim();
+                  if (!provider.verifyTeacherPin(inputPin)) {
+                    setDialogState(() {
+                      pinError = 'PIN incorrecto. Ingresa tu PIN de seguridad.';
+                    });
+                    return;
+                  }
+                }
+
+                Navigator.pop(ctx);
+                await provider.deleteWorkshop(workshop.id);
+
+                if (context.mounted) {
+                  Navigator.pop(context); // Regresa a la pantalla principal
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        '🗑️ Taller "${workshop.name}" eliminado correctamente.',
+                      ),
+                      backgroundColor: AppTheme.absentColor,
+                    ),
+                  );
+                }
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

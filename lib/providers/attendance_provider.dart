@@ -44,7 +44,8 @@ class AttendanceProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String get webBaseUrl => _webBaseUrl;
   String get teacherPin => _teacherPin;
-  bool get isPinRequiredForSensitiveActions => _isPinRequiredForSensitiveActions;
+  bool get isPinRequiredForSensitiveActions =>
+      _isPinRequiredForSensitiveActions;
 
   AttendanceProvider() {
     loadData();
@@ -188,8 +189,9 @@ class AttendanceProvider extends ChangeNotifier {
               final parsedDate =
                   WorkshopSession.tryParseSpanishDate(parts[i]) ??
                   s.date.add(Duration(days: i));
-              final singleLabel =
-                  WorkshopSession.formatSingleDateWithDay(parsedDate);
+              final singleLabel = WorkshopSession.formatSingleDateWithDay(
+                parsedDate,
+              );
               final newTitle = 'Sesión $sessionNum: $baseTopic';
               sessionNum++;
 
@@ -383,6 +385,66 @@ class AttendanceProvider extends ChangeNotifier {
     return workshop;
   }
 
+  /// Elimina un taller (con sus sesiones y registros) si fue creado por error
+  Future<bool> deleteWorkshop(String workshopId) async {
+    final index = _workshops.indexWhere((w) => w.id == workshopId);
+    if (index == -1) return false;
+
+    _workshops.removeAt(index);
+    await _persist();
+
+    // 1. Limpiar en SQLite local via PowerSync si está activo
+    if (PowerSyncService().isInitialized) {
+      try {
+        await PowerSyncService().db.execute(
+          'DELETE FROM attendance_records WHERE session_id IN (SELECT id FROM sessions WHERE workshop_id = ?)',
+          [workshopId],
+        );
+        await PowerSyncService().db.execute(
+          'DELETE FROM sessions WHERE workshop_id = ?',
+          [workshopId],
+        );
+        await PowerSyncService().db.execute(
+          'DELETE FROM students WHERE workshop_id = ?',
+          [workshopId],
+        );
+        await PowerSyncService().db.execute(
+          'DELETE FROM workshops WHERE id = ?',
+          [workshopId],
+        );
+      } catch (e) {
+        debugPrint('Aviso eliminación SQLite taller: $e');
+      }
+    }
+
+    // 2. Eliminar en Supabase Cloud si no es Web
+    if (!kIsWeb) {
+      try {
+        final client = HttpClient();
+        final uri = Uri.parse(
+          'https://qukqvrowgzdkqoccbfdb.supabase.co/rest/v1/workshops?id=eq.$workshopId',
+        );
+        final req = await client.deleteUrl(uri);
+        req.headers.set(
+          'apikey',
+          'sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN',
+        );
+        req.headers.set(
+          'Authorization',
+          'Bearer sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN',
+        );
+        final res = await req.close();
+        await res.drain();
+        client.close();
+      } catch (e) {
+        debugPrint('Aviso Supabase delete taller: $e');
+      }
+    }
+
+    notifyListeners();
+    return true;
+  }
+
   Future<Student?> addStudentToWorkshop({
     required String workshopId,
     required String enrollmentNumber,
@@ -565,8 +627,9 @@ class AttendanceProvider extends ChangeNotifier {
           'CEL-${now.day.toString().padLeft(2, '0')}${now.month.toString().padLeft(2, '0')}-${now.millisecondsSinceEpoch.toString().substring(9)}';
       final dateStr =
           '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year} ${_formatTime(now)}';
-      final oldDevLabel =
-          (oldDevice != null && oldDevice.isNotEmpty) ? oldDevice : 'Anterior';
+      final oldDevLabel = (oldDevice != null && oldDevice.isNotEmpty)
+          ? oldDevice
+          : 'Anterior';
       final newDevLabel = cleanNewDev.isNotEmpty
           ? cleanNewDev
           : 'Autorizado para vincular en su próximo escaneo';
@@ -900,7 +963,8 @@ class AttendanceProvider extends ChangeNotifier {
     // Registrar evidencia exacta de cuándo comenzó y a qué hora terminó
     if (newPhase == SessionPhase.entry) {
       session.actualStartedAt ??= now;
-    } else if (newPhase == SessionPhase.exit || newPhase == SessionPhase.finished) {
+    } else if (newPhase == SessionPhase.exit ||
+        newPhase == SessionPhase.finished) {
       session.actualEndedAt = now;
     }
 
@@ -1091,7 +1155,8 @@ class AttendanceProvider extends ChangeNotifier {
     }
 
     if (student.isSuspended || record.isSuspended) {
-      final reason = record.suspensionReason ??
+      final reason =
+          record.suspensionReason ??
           student.suspensionReason ??
           'Comportamiento inapropiado reportado por el docente encargado.';
       return AttendanceProcessResult(
@@ -1589,7 +1654,8 @@ class AttendanceProvider extends ChangeNotifier {
               existingStudent.applySupabaseEmailMeta(rawCloudEmail);
               workshop.enrolledStudents.add(existingStudent);
             } else if (existingStudent != null) {
-              if (studentData['email'] != null && !existingStudent.allowNewDevice) {
+              if (studentData['email'] != null &&
+                  !existingStudent.allowNewDevice) {
                 existingStudent.applySupabaseEmailMeta(
                   studentData['email'].toString(),
                 );
@@ -1598,8 +1664,9 @@ class AttendanceProvider extends ChangeNotifier {
                 final cloudName = studentData['full_name'].toString().trim();
                 if (cloudName.isNotEmpty &&
                     existingStudent.fullName == 'Alumno') {
-                  final idx =
-                      workshop.enrolledStudents.indexOf(existingStudent);
+                  final idx = workshop.enrolledStudents.indexOf(
+                    existingStudent,
+                  );
                   existingStudent = Student(
                     id: existingStudent.id,
                     fullName: cloudName,
@@ -1844,10 +1911,7 @@ class AttendanceProvider extends ChangeNotifier {
             );
             req.headers.set('Content-Type', 'application/json');
             req.write(
-              jsonEncode({
-                'full_name': student.fullName,
-                'email': encodedMail,
-              }),
+              jsonEncode({'full_name': student.fullName, 'email': encodedMail}),
             );
             return req.close();
           })
