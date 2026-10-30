@@ -4,10 +4,10 @@ import 'session.dart';
 
 class Workshop {
   final String id;
-  final String name;
-  final String code;
-  final String instructorName;
-  final String description;
+  String name;
+  String code;
+  String instructorName;
+  String description;
   final List<Student> enrolledStudents;
   final List<WorkshopSession> sessions;
 

@@ -640,6 +640,13 @@ class _SessionReportScreenState extends State<SessionReportScreen> {
                           final record = currentSession.records[student.id];
                           final status =
                               record?.status ?? AttendanceStatus.absent;
+                          final isSuspended =
+                              student.isSuspended ||
+                              (record?.isSuspended == true);
+                          final suspensionReason =
+                              record?.suspensionReason ??
+                              student.suspensionReason ??
+                              'Comportamiento inapropiado reportado por el docente encargado.';
 
                           // Texto claro de diagnóstico al cerrar la sesión
                           String closingDiagText;
@@ -647,7 +654,13 @@ class _SessionReportScreenState extends State<SessionReportScreen> {
                           Color closingDiagBg;
                           IconData closingDiagIcon;
 
-                          if (status == AttendanceStatus.accredited) {
+                          if (isSuspended) {
+                            closingDiagText =
+                                '🚫 SUSPENDIDO POR CONDUCTA: $suspensionReason';
+                            closingDiagColor = const Color(0xFFB91C1C);
+                            closingDiagBg = const Color(0xFFFEE2E2);
+                            closingDiagIcon = Icons.gavel_rounded;
+                          } else if (status == AttendanceStatus.accredited) {
                             closingDiagText =
                                 '✅ CUMPLIÓ AL CERRAR LA SESIÓN (Entrada y Salida completas)';
                             closingDiagColor = AppTheme.accreditedColor;

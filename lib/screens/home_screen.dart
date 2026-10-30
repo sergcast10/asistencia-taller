@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/session.dart';
+import '../models/workshop.dart';
 import '../providers/attendance_provider.dart';
 import '../utils/app_theme.dart';
 import 'teacher/workshop_detail_screen.dart';
@@ -186,15 +187,36 @@ class _HomeScreenState extends State<HomeScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Expanded(
-                            child: Text(
-                              workshop.name,
-                              style: const TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w800,
-                                color: AppTheme.slate900,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(6),
+                              onTap: () => _showEditWorkshopDialog(
+                                context,
+                                provider,
+                                workshop,
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      workshop.name,
+                                      style: const TextStyle(
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppTheme.slate900,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  const Icon(
+                                    Icons.edit_rounded,
+                                    size: 16,
+                                    color: AppTheme.primary,
+                                  ),
+                                ],
                               ),
                             ),
                           ),
+                          const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 10,
@@ -288,6 +310,15 @@ class _HomeScreenState extends State<HomeScreen> {
                         runSpacing: 8,
                         alignment: WrapAlignment.end,
                         children: [
+                          OutlinedButton.icon(
+                            icon: const Icon(Icons.edit_rounded, size: 16),
+                            label: const Text('Editar Taller'),
+                            onPressed: () => _showEditWorkshopDialog(
+                              context,
+                              provider,
+                              workshop,
+                            ),
+                          ),
                           OutlinedButton.icon(
                             icon: const Icon(Icons.settings_rounded, size: 16),
                             label: const Text('Administrar Taller'),
@@ -390,6 +421,114 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _showEditWorkshopDialog(
+    BuildContext context,
+    AttendanceProvider provider,
+    Workshop workshop,
+  ) {
+    final nameCtrl = TextEditingController(text: workshop.name);
+    final codeCtrl = TextEditingController(text: workshop.code);
+    final instructorCtrl = TextEditingController(text: workshop.instructorName);
+    final descCtrl = TextEditingController(text: workshop.description);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.edit_note_rounded, color: AppTheme.primary),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Editar Datos del Taller',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 460,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Corrige el título, código, docente encargado o descripción del taller en caso de equivocación:',
+                  style: TextStyle(fontSize: 12, color: AppTheme.slate600),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Título / Nombre del Taller',
+                    prefixIcon: Icon(Icons.title_rounded),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: codeCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Código / Clave del Taller',
+                    prefixIcon: Icon(Icons.qr_code_rounded),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: instructorCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Docente Encargado',
+                    prefixIcon: Icon(Icons.person_rounded),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: descCtrl,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Descripción / Objetivo',
+                    prefixIcon: Icon(Icons.description_outlined),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.save_rounded, size: 16),
+            label: const Text('Guardar Cambios'),
+            onPressed: () async {
+              if (nameCtrl.text.trim().isEmpty) return;
+              await provider.updateWorkshop(
+                workshopId: workshop.id,
+                name: nameCtrl.text.trim(),
+                code: codeCtrl.text.trim(),
+                instructorName: instructorCtrl.text.trim(),
+                description: descCtrl.text.trim(),
+              );
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      '✅ Taller actualizado a "${nameCtrl.text.trim()}".',
+                    ),
+                    backgroundColor: AppTheme.accreditedColor,
+                  ),
+                );
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showCreateWorkshopDialog(
     BuildContext context,
     AttendanceProvider provider,
@@ -405,11 +544,15 @@ class _HomeScreenState extends State<HomeScreen> {
     final codeCtrl = TextEditingController();
     final instructorCtrl = TextEditingController();
     final descCtrl = TextEditingController();
-    final startCtrl = TextEditingController(text: defaultStart);
-    final endCtrl = TextEditingController(text: defaultEnd);
     final List<DateTime> selectedDates = [now];
     final List<TextEditingController> sessionTitleCtrls = [
       TextEditingController(text: 'Sesión 1: Introducción y Teoría'),
+    ];
+    final List<TextEditingController> sessionStartCtrls = [
+      TextEditingController(text: defaultStart),
+    ];
+    final List<TextEditingController> sessionEndCtrls = [
+      TextEditingController(text: defaultEnd),
     ];
 
     String suggestedTitleFor(int sessionNumber) {
@@ -421,6 +564,33 @@ class _HomeScreenState extends State<HomeScreen> {
       ];
       final topic = suggestions[(sessionNumber - 1) % suggestions.length];
       return 'Sesión $sessionNumber: $topic';
+    }
+
+    Future<void> pickTimeForCtrl(
+      BuildContext ctx,
+      TextEditingController ctrl,
+      void Function(void Function()) setDialogState,
+    ) async {
+      final parts = ctrl.text.trim().split(':');
+      final initialHour = parts.isNotEmpty
+          ? (int.tryParse(parts[0]) ?? now.hour)
+          : now.hour;
+      final initialMinute = parts.length > 1
+          ? (int.tryParse(parts[1]) ?? 0)
+          : 0;
+      final picked = await showTimePicker(
+        context: ctx,
+        initialTime: TimeOfDay(
+          hour: initialHour.clamp(0, 23),
+          minute: initialMinute.clamp(0, 59),
+        ),
+      );
+      if (picked != null) {
+        setDialogState(() {
+          ctrl.text =
+              '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
+        });
+      }
     }
 
     showDialog(
@@ -469,13 +639,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const Divider(height: 24),
                   const Text(
-                    '📅 Preparar Sesiones (Escribe el título y elige la fecha de cada sesión):',
+                    '📅 Preparar Sesiones (Cada sección tiene su propio título, día y horario):',
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
                   ),
                   const SizedBox(height: 8),
                   ...List.generate(selectedDates.length, (idx) {
                     final d = selectedDates[idx];
                     final titleCtrl = sessionTitleCtrls[idx];
+                    final sStartCtrl = sessionStartCtrls[idx];
+                    final sEndCtrl = sessionEndCtrls[idx];
                     return Container(
                       margin: const EdgeInsets.only(bottom: 10),
                       padding: const EdgeInsets.all(10),
@@ -553,6 +725,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                     setDialogState(() {
                                       selectedDates.removeAt(idx);
                                       sessionTitleCtrls.removeAt(idx);
+                                      sessionStartCtrls.removeAt(idx);
+                                      sessionEndCtrls.removeAt(idx);
                                     });
                                   },
                                 ),
@@ -571,6 +745,62 @@ class _HomeScreenState extends State<HomeScreen> {
                                 size: 18,
                               ),
                             ),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: sStartCtrl,
+                                  decoration: InputDecoration(
+                                    isDense: true,
+                                    labelText: 'Inicio Sesión ${idx + 1}',
+                                    prefixIcon: const Icon(
+                                      Icons.play_circle_outline,
+                                      size: 17,
+                                    ),
+                                    suffixIcon: IconButton(
+                                      tooltip: 'Elegir hora en reloj',
+                                      icon: const Icon(
+                                        Icons.access_time_rounded,
+                                        size: 16,
+                                      ),
+                                      onPressed: () => pickTimeForCtrl(
+                                        ctx,
+                                        sStartCtrl,
+                                        setDialogState,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: TextField(
+                                  controller: sEndCtrl,
+                                  decoration: InputDecoration(
+                                    isDense: true,
+                                    labelText: 'Término Sesión ${idx + 1}',
+                                    prefixIcon: const Icon(
+                                      Icons.stop_circle_outlined,
+                                      size: 17,
+                                    ),
+                                    suffixIcon: IconButton(
+                                      tooltip: 'Elegir hora en reloj',
+                                      icon: const Icon(
+                                        Icons.access_time_rounded,
+                                        size: 16,
+                                      ),
+                                      onPressed: () => pickTimeForCtrl(
+                                        ctx,
+                                        sEndCtrl,
+                                        setDialogState,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -598,11 +828,23 @@ class _HomeScreenState extends State<HomeScreen> {
                           );
                           if (picked != null) {
                             setDialogState(() {
+                              final prevStart = sessionStartCtrls.isNotEmpty
+                                  ? sessionStartCtrls.last.text
+                                  : defaultStart;
+                              final prevEnd = sessionEndCtrls.isNotEmpty
+                                  ? sessionEndCtrls.last.text
+                                  : defaultEnd;
                               selectedDates.add(picked);
                               sessionTitleCtrls.add(
                                 TextEditingController(
                                   text: suggestedTitleFor(selectedDates.length),
                                 ),
+                              );
+                              sessionStartCtrls.add(
+                                TextEditingController(text: prevStart),
+                              );
+                              sessionEndCtrls.add(
+                                TextEditingController(text: prevEnd),
                               );
                             });
                           }
@@ -628,8 +870,16 @@ class _HomeScreenState extends State<HomeScreen> {
                           );
                           if (range != null) {
                             setDialogState(() {
+                              final baseStart = sessionStartCtrls.isNotEmpty
+                                  ? sessionStartCtrls.first.text
+                                  : defaultStart;
+                              final baseEnd = sessionEndCtrls.isNotEmpty
+                                  ? sessionEndCtrls.first.text
+                                  : defaultEnd;
                               selectedDates.clear();
                               sessionTitleCtrls.clear();
+                              sessionStartCtrls.clear();
+                              sessionEndCtrls.clear();
                               var cur = range.start;
                               int safety = 0;
                               while (!cur.isAfter(range.end) && safety < 15) {
@@ -641,36 +891,18 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ),
                                   ),
                                 );
+                                sessionStartCtrls.add(
+                                  TextEditingController(text: baseStart),
+                                );
+                                sessionEndCtrls.add(
+                                  TextEditingController(text: baseEnd),
+                                );
                                 cur = cur.add(const Duration(days: 1));
                                 safety++;
                               }
                             });
                           }
                         },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: startCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Hora de Inicio',
-                            prefixIcon: Icon(Icons.play_circle_outline),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: TextField(
-                          controller: endCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Hora de Término',
-                            prefixIcon: Icon(Icons.stop_circle_outlined),
-                          ),
-                        ),
                       ),
                     ],
                   ),
@@ -691,6 +923,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     final t = sessionTitleCtrls[i].text.trim();
                     return t.isNotEmpty ? t : suggestedTitleFor(i + 1);
                   });
+                  final startTimes = List.generate(selectedDates.length, (i) {
+                    final s = sessionStartCtrls[i].text.trim();
+                    return s.isNotEmpty ? s : defaultStart;
+                  });
+                  final endTimes = List.generate(selectedDates.length, (i) {
+                    final e = sessionEndCtrls[i].text.trim();
+                    return e.isNotEmpty ? e : defaultEnd;
+                  });
                   provider.addWorkshop(
                     name: nameCtrl.text.trim(),
                     code: codeCtrl.text.trim(),
@@ -700,8 +940,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     initialSessionDate: selectedDates.first,
                     initialSessionDates: selectedDates,
                     initialSessionTitles: titles,
-                    initialStartTimeLabel: startCtrl.text.trim(),
-                    initialEndTimeLabel: endCtrl.text.trim(),
+                    initialSessionStartTimes: startTimes,
+                    initialSessionEndTimes: endTimes,
+                    initialStartTimeLabel: startTimes.first,
+                    initialEndTimeLabel: endTimes.first,
                   );
                   Navigator.pop(ctx);
                 }

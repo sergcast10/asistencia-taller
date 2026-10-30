@@ -343,12 +343,22 @@ class PdfExporter {
                   final st = workshop.enrolledStudents[idx];
                   final rec = session.records[st.id];
                   final status = rec?.status ?? AttendanceStatus.absent;
+                  final isSuspended =
+                      st.isSuspended || (rec?.isSuspended == true);
+                  final suspensionReason =
+                      rec?.suspensionReason ??
+                      st.suspensionReason ??
+                      'Conducta inapropiada';
 
                   String statusLabel;
                   PdfColor statusColor;
                   PdfColor rowBadgeBg;
 
-                  if (status == AttendanceStatus.accredited) {
+                  if (isSuspended) {
+                    statusLabel = 'SUSPENDIDO POR CONDUCTA';
+                    statusColor = redPdf;
+                    rowBadgeBg = redBgPdf;
+                  } else if (status == AttendanceStatus.accredited) {
                     statusLabel = 'CUMPLIÓ (Entrada y Salida)';
                     statusColor = greenPdf;
                     rowBadgeBg = greenBgPdf;
@@ -366,14 +376,17 @@ class PdfExporter {
                     rowBadgeBg = redBgPdf;
                   }
 
-                  final noteClean =
-                      (rec?.notes != null && rec!.notes!.trim().isNotEmpty)
-                      ? _cleanForPdf(rec.notes!)
-                      : (rec?.isLate == true
-                            ? 'Retardo (+${rec!.lateMinutes} min)'
-                            : (status == AttendanceStatus.accredited
-                                  ? 'Asistencia completa'
-                                  : '-'));
+                  final noteClean = isSuspended
+                      ? _cleanForPdf(
+                          'SUSPENDIDO POR CONDUCTA: $suspensionReason',
+                        )
+                      : ((rec?.notes != null && rec!.notes!.trim().isNotEmpty)
+                            ? _cleanForPdf(rec.notes!)
+                            : (rec?.isLate == true
+                                  ? 'Retardo (+${rec!.lateMinutes} min)'
+                                  : (status == AttendanceStatus.accredited
+                                        ? 'Asistencia completa'
+                                        : '-')));
 
                   return pw.TableRow(
                     verticalAlignment: pw.TableCellVerticalAlignment.middle,

@@ -5,12 +5,18 @@ class Student {
   final String enrollmentNumber; // Matrícula / DNI / Código
   final String fullName;
   final String email;
+  bool isSuspended; // 🚫 Indica si el alumno fue suspendido por conducta inapropiada
+  String? suspensionReason; // Motivo o comportamiento reportado por el docente encargado
+  DateTime? suspendedAt;
 
   Student({
     required this.id,
     required this.enrollmentNumber,
     required this.fullName,
     required this.email,
+    this.isSuspended = false,
+    this.suspensionReason,
+    this.suspendedAt,
   });
 
   Map<String, dynamic> toMap() {
@@ -19,6 +25,9 @@ class Student {
       'enrollmentNumber': enrollmentNumber,
       'fullName': fullName,
       'email': email,
+      'isSuspended': isSuspended,
+      'suspensionReason': suspensionReason,
+      'suspendedAt': suspendedAt?.toIso8601String(),
     };
   }
 
@@ -28,6 +37,11 @@ class Student {
       enrollmentNumber: map['enrollmentNumber'] ?? '',
       fullName: map['fullName'] ?? '',
       email: map['email'] ?? '',
+      isSuspended: map['isSuspended'] == true || map['isSuspended'] == 1,
+      suspensionReason: map['suspensionReason'],
+      suspendedAt: map['suspendedAt'] != null
+          ? DateTime.tryParse(map['suspendedAt'].toString())
+          : null,
     );
   }
 

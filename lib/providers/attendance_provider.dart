@@ -190,6 +190,8 @@ class AttendanceProvider extends ChangeNotifier {
     DateTime? initialSessionDate,
     List<DateTime>? initialSessionDates,
     List<String>? initialSessionTitles,
+    List<String>? initialSessionStartTimes,
+    List<String>? initialSessionEndTimes,
     String? initialImpartedDaysLabel,
     String? initialStartTimeLabel,
     String? initialEndTimeLabel,
@@ -235,18 +237,59 @@ class AttendanceProvider extends ChangeNotifier {
                       initialSessionTitle.trim().isNotEmpty
                   ? initialSessionTitle.trim()
                   : 'Sesión ${i + 1}: $baseTopic');
+        final customStart =
+            (initialSessionStartTimes != null &&
+                i < initialSessionStartTimes.length &&
+                initialSessionStartTimes[i].trim().isNotEmpty)
+            ? initialSessionStartTimes[i].trim()
+            : initialStartTimeLabel;
+        final customEnd =
+            (initialSessionEndTimes != null &&
+                i < initialSessionEndTimes.length &&
+                initialSessionEndTimes[i].trim().isNotEmpty)
+            ? initialSessionEndTimes[i].trim()
+            : initialEndTimeLabel;
         await createSession(
           workshopId: newWorkshop.id,
           title: customTitle,
           date: d,
           impartedDaysLabel: singleDateLabel,
-          startTimeLabel: initialStartTimeLabel,
-          endTimeLabel: initialEndTimeLabel,
+          startTimeLabel: customStart,
+          endTimeLabel: customEnd,
         );
       }
     }
 
     return newWorkshop;
+  }
+
+  /// Permite editar el título, clave, docente encargado y descripción de un taller en caso de equivocación
+  Future<Workshop?> updateWorkshop({
+    required String workshopId,
+    required String name,
+    required String code,
+    required String instructorName,
+    required String description,
+  }) async {
+    final index = _workshops.indexWhere((w) => w.id == workshopId);
+    if (index == -1) return null;
+
+    final workshop = _workshops[index];
+    if (name.trim().isNotEmpty) {
+      workshop.name = name.trim();
+    }
+    if (code.trim().isNotEmpty) {
+      workshop.code = code.trim();
+    }
+    if (instructorName.trim().isNotEmpty) {
+      workshop.instructorName = instructorName.trim();
+    }
+    workshop.description = description.trim();
+
+    await _persist();
+    _pushWorkshopToSupabaseAsync(workshop);
+    notifyListeners();
+    return workshop;
   }
 
   Future<Student?> addStudentToWorkshop({
@@ -270,6 +313,9 @@ class AttendanceProvider extends ChangeNotifier {
               ? fullName.trim()
               : existing.fullName,
           email: email.trim().isNotEmpty ? email.trim() : existing.email,
+          isSuspended: existing.isSuspended,
+          suspensionReason: existing.suspensionReason,
+          suspendedAt: existing.suspendedAt,
         );
         _workshops[index].enrolledStudents[existingIdx] = updated;
         await _persist();
@@ -308,6 +354,7 @@ class AttendanceProvider extends ChangeNotifier {
     final sIdx = workshop.enrolledStudents.indexWhere((s) => s.id == studentId);
     if (sIdx == -1) return null;
 
+    final existing = workshop.enrolledStudents[sIdx];
     final updated = Student(
       id: studentId,
       enrollmentNumber: enrollmentNumber.trim().toUpperCase(),
@@ -315,12 +362,133 @@ class AttendanceProvider extends ChangeNotifier {
       email: email.trim().isNotEmpty
           ? email.trim()
           : '${enrollmentNumber.trim().toLowerCase()}@alumno.edu',
+      isSuspended: existing.isSuspended,
+      suspensionReason: existing.suspensionReason,
+      suspendedAt: existing.suspendedAt,
     );
     workshop.enrolledStudents[sIdx] = updated;
     await _persist();
     _pushStudentToSupabaseAsync(updated, workshopId);
     notifyListeners();
     return updated;
+  }
+
+  /// Suspende a un alumno por comportamiento inapropiado y registra la razón disciplinaria como evidencia oficial
+  Future<AttendanceRecord?> suspendStudentForBehavior({
+    required String workshopId,
+    String? sessionId,
+    required String studentId,
+    required String behaviorReason,
+    String? extraDetails,
+  }) async {
+    final wIdx = _workshops.indexWhere((w) => w.id == workshopId);
+    if (wIdx == -1) return null;
+    final workshop = _workshops[wIdx];
+
+    final sIdx = workshop.enrolledStudents.indexWhere((s) => s.id == studentId);
+    if (sIdx == -1) return null;
+    final student = workshop.enrolledStudents[sIdx];
+
+    final now = DateTime.now();
+    final fullReason = (extraDetails != null && extraDetails.trim().isNotEmpty)
+        ? '${behaviorReason.trim()} — ${extraDetails.trim()}'
+        : behaviorReason.trim();
+
+    student.isSuspended = true;
+    student.suspensionReason = fullReason;
+    student.suspendedAt = now;
+
+    WorkshopSession? session;
+    if (sessionId != null && sessionId.isNotEmpty) {
+      session = workshop.sessions.where((s) => s.id == sessionId).firstOrNull;
+    }
+    session ??=
+        workshop.sessions.where((s) => s.isQrActive).firstOrNull ??
+        workshop.sessions.firstOrNull;
+
+    AttendanceRecord? record;
+    if (session != null) {
+      record = session.records[student.id];
+      if (record == null) {
+        record = AttendanceRecord(
+          id: 'rec_${_uuid.v4().substring(0, 8)}',
+          studentId: student.id,
+          sessionId: session.id,
+        );
+        session.records[student.id] = record;
+      }
+
+      final folio =
+          'SUSP-${now.day.toString().padLeft(2, '0')}${now.month.toString().padLeft(2, '0')}-${now.millisecondsSinceEpoch.toString().substring(9)}';
+      final dateStr =
+          '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year} ${_formatTime(now)}';
+
+      record.isSuspended = true;
+      record.suspensionReason = fullReason;
+      record.notes =
+          '[$folio • $dateStr • SUSPENSIÓN POR CONDUCTA • Docente: ${workshop.instructorName}] $fullReason';
+
+      PowerSyncService().saveAttendanceRecord(
+        record: record,
+        workshopId: workshop.id,
+      );
+      _syncRecordToSupabaseAsync(
+        record,
+        student,
+        session.id,
+        workshop: workshop,
+        session: session,
+      );
+    }
+
+    await _persist();
+    _pushStudentToSupabaseAsync(student, workshopId);
+    notifyListeners();
+    return record;
+  }
+
+  /// Levanta la suspensión disciplinaria de un alumno
+  Future<void> liftStudentSuspension({
+    required String workshopId,
+    String? sessionId,
+    required String studentId,
+  }) async {
+    final wIdx = _workshops.indexWhere((w) => w.id == workshopId);
+    if (wIdx == -1) return;
+    final workshop = _workshops[wIdx];
+
+    final sIdx = workshop.enrolledStudents.indexWhere((s) => s.id == studentId);
+    if (sIdx == -1) return;
+    final student = workshop.enrolledStudents[sIdx];
+
+    student.isSuspended = false;
+    student.suspensionReason = null;
+    student.suspendedAt = null;
+
+    for (final s in workshop.sessions) {
+      if (sessionId == null || s.id == sessionId) {
+        final rec = s.records[student.id];
+        if (rec != null && rec.isSuspended) {
+          rec.isSuspended = false;
+          rec.suspensionReason = null;
+          PowerSyncService().saveAttendanceRecord(
+            record: rec,
+            workshopId: workshop.id,
+          );
+          _syncRecordToSupabaseAsync(
+            rec,
+            student,
+            s.id,
+            workshop: workshop,
+            session: s,
+          );
+        }
+      }
+    }
+
+    await _persist();
+    _pushStudentToSupabaseAsync(student, workshopId);
+    notifyListeners();
   }
 
   /// Integra o edita a un alumno y le otorga asistencia directa sin celular (por olvido, extravío o circunstancia especial) con evidencia oficial del día
@@ -649,6 +817,20 @@ class AttendanceProvider extends ChangeNotifier {
       session.records[student.id] = record;
     }
 
+    if (student.isSuspended || record.isSuspended) {
+      final reason = record.suspensionReason ??
+          student.suspensionReason ??
+          'Comportamiento inapropiado reportado por el docente encargado.';
+      return AttendanceProcessResult(
+        success: false,
+        title: '🚫 Alumno Suspendido por Conducta',
+        message:
+            'El alumno ${student.fullName} se encuentra SUSPENDIDO por el docente encargado (${workshop.instructorName}). Motivo: "$reason". No puede acreditar asistencia mientras la suspensión esté activa.',
+        status: AttendanceStatus.absent,
+        student: student,
+      );
+    }
+
     if (phase == SessionPhase.entry) {
       if (record.hasCheckIn) {
         return AttendanceProcessResult(
@@ -888,12 +1070,14 @@ class AttendanceProvider extends ChangeNotifier {
     record.notes =
         '[$folio • $dateStr • Docente: ${workshop.instructorName}] $cleanInput';
 
-    if (markEntry && !record.hasCheckIn) {
-      record.sealCheckIn(now);
-    }
-    if (markAccredited) {
-      if (!record.hasCheckIn) record.sealCheckIn(now);
-      if (!record.hasCheckOut) record.sealCheckOut(now);
+    if (!student.isSuspended && !record.isSuspended) {
+      if (markEntry && !record.hasCheckIn) {
+        record.sealCheckIn(now);
+      }
+      if (markAccredited) {
+        if (!record.hasCheckIn) record.sealCheckIn(now);
+        if (!record.hasCheckOut) record.sealCheckOut(now);
+      }
     }
 
     await _persist();
@@ -935,6 +1119,10 @@ class AttendanceProvider extends ChangeNotifier {
       session.records[student.id] = record;
     }
 
+    if (student.isSuspended || record.isSuspended) {
+      return;
+    }
+
     if (!record.hasCheckIn) record.sealCheckIn(now);
     if (!record.hasCheckOut) record.sealCheckOut(now);
 
@@ -964,8 +1152,11 @@ class AttendanceProvider extends ChangeNotifier {
     int count = 0;
 
     for (final student in workshop.enrolledStudents) {
+      if (student.isSuspended) continue;
       final rec = session.records[student.id];
-      if (rec != null && (rec.hasCheckIn || rec.hasCheckOut || rec.hasNotes)) {
+      if (rec != null &&
+          !rec.isSuspended &&
+          (rec.hasCheckIn || rec.hasCheckOut || rec.hasNotes)) {
         if (!rec.hasCheckIn) rec.sealCheckIn(now);
         if (!rec.hasCheckOut) rec.sealCheckOut(now);
         PowerSyncService().saveAttendanceRecord(

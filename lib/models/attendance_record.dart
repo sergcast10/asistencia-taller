@@ -17,6 +17,8 @@ class AttendanceRecord {
   String? notes; // 📝 Nota o evidencia de situación tomada por el docente o alumno
   bool isLate; // ⏱️ Indica si registró entrada con retraso
   int lateMinutes; // Minutos de retraso respecto al inicio del pase
+  bool isSuspended; // 🚫 Suspendido en la sesión por conducta inapropiada
+  String? suspensionReason; // Motivo de la suspensión disciplinaria
 
   AttendanceRecord({
     required this.id,
@@ -28,6 +30,8 @@ class AttendanceRecord {
     this.notes,
     this.isLate = false,
     this.lateMinutes = 0,
+    this.isSuspended = false,
+    this.suspensionReason,
   });
 
   bool get hasCheckIn => checkInTime != null;
@@ -57,6 +61,9 @@ class AttendanceRecord {
   }
 
   AttendanceStatus get status {
+    if (isSuspended) {
+      return AttendanceStatus.absent;
+    }
     if (hasCheckIn && hasCheckOut) {
       return AttendanceStatus.accredited;
     } else if (hasCheckIn && !hasCheckOut) {
@@ -69,6 +76,9 @@ class AttendanceRecord {
   }
 
   String get statusLabel {
+    if (isSuspended) {
+      return 'Suspendido por Conducta';
+    }
     switch (status) {
       case AttendanceStatus.accredited:
         return 'Acreditado';
@@ -81,11 +91,15 @@ class AttendanceRecord {
     }
   }
 
-  bool get isAccredited => status == AttendanceStatus.accredited;
+  bool get isAccredited => !isSuspended && status == AttendanceStatus.accredited;
 
   /// Codifica estatus + retardo + nota de evidencia en el campo status de Supabase
   String encodeSupabaseStatus() {
-    final parts = <String>[status.name];
+    final parts = <String>[isSuspended ? 'suspended' : status.name];
+    if (isSuspended && suspensionReason != null && suspensionReason!.trim().isNotEmpty) {
+      final cleanReason = suspensionReason!.replaceAll('||', ' - ').trim();
+      parts.add('SUSPENDED:$cleanReason');
+    }
     if (isLate || lateMinutes > 0) {
       parts.add('LATE:$lateMinutes');
     }
@@ -105,9 +119,18 @@ class AttendanceRecord {
 
     final segments = rawStatus.split('||');
     final baseStatus = segments.first.trim();
+    if (baseStatus == 'suspended') {
+      isSuspended = true;
+    }
 
     for (final seg in segments.skip(1)) {
-      if (seg.startsWith('LATE:')) {
+      if (seg.startsWith('SUSPENDED:')) {
+        isSuspended = true;
+        final reasonText = seg.substring(10).trim();
+        if (reasonText.isNotEmpty) {
+          suspensionReason = reasonText;
+        }
+      } else if (seg.startsWith('LATE:')) {
         final mins = int.tryParse(seg.substring(5).trim()) ?? 0;
         lateMinutes = mins;
         isLate = mins > 0;
@@ -136,6 +159,8 @@ class AttendanceRecord {
       'notes': notes,
       'isLate': isLate,
       'lateMinutes': lateMinutes,
+      'isSuspended': isSuspended,
+      'suspensionReason': suspensionReason,
     };
   }
 
@@ -150,6 +175,8 @@ class AttendanceRecord {
       notes: map['notes'],
       isLate: map['isLate'] == true || map['isLate'] == 1,
       lateMinutes: map['lateMinutes'] is int ? map['lateMinutes'] : 0,
+      isSuspended: map['isSuspended'] == true || map['isSuspended'] == 1,
+      suspensionReason: map['suspensionReason']?.toString(),
     );
   }
 

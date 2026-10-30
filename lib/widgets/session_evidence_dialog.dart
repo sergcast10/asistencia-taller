@@ -221,13 +221,24 @@ class SessionEvidenceDialog {
                     final student = workshop.enrolledStudents[idx];
                     final rec = session.records[student.id];
                     final st = rec?.status ?? AttendanceStatus.absent;
+                    final isSuspended =
+                        student.isSuspended || (rec?.isSuspended == true);
+                    final suspensionReason =
+                        rec?.suspensionReason ??
+                        student.suspensionReason ??
+                        'Conducta inapropiada reportada por el docente';
 
                     String statusLabel;
                     Color statusColor;
                     Color statusBg;
                     IconData statusIcon;
 
-                    if (st == AttendanceStatus.accredited) {
+                    if (isSuspended) {
+                      statusLabel = 'SUSPENDIDO POR CONDUCTA';
+                      statusColor = const Color(0xFFB91C1C);
+                      statusBg = const Color(0xFFFEE2E2);
+                      statusIcon = Icons.gavel_rounded;
+                    } else if (st == AttendanceStatus.accredited) {
                       statusLabel = 'CUMPLIÓ (Entrada y Salida OK)';
                       statusColor = AppTheme.accreditedColor;
                       statusBg = AppTheme.accreditedBg;
@@ -384,6 +395,31 @@ class SessionEvidenceDialog {
                               ],
                             ),
                           ),
+                          if (isSuspended) ...[
+                            const SizedBox(height: 6),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFEF2F2),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: const Color(0xFFFCA5A5),
+                                ),
+                              ),
+                              child: Text(
+                                '🚫 Motivo de Suspensión (Docente: ${workshop.instructorName}): $suspensionReason',
+                                style: const TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF991B1B),
+                                ),
+                              ),
+                            ),
+                          ],
                           if (rec?.hasNotes == true) ...[
                             const SizedBox(height: 6),
                             Container(

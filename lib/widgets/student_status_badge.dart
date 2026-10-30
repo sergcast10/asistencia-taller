@@ -5,8 +5,13 @@ import '../utils/app_theme.dart';
 
 class StudentStatusBadge extends StatelessWidget {
   final AttendanceStatus status;
+  final bool isSuspended;
 
-  const StudentStatusBadge({super.key, required this.status});
+  const StudentStatusBadge({
+    super.key,
+    required this.status,
+    this.isSuspended = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -15,31 +20,38 @@ class StudentStatusBadge extends StatelessWidget {
     IconData icon;
     String label;
 
-    switch (status) {
-      case AttendanceStatus.accredited:
-        bg = AppTheme.accreditedBg;
-        text = AppTheme.accreditedColor;
-        icon = Icons.check_circle_rounded;
-        label = 'Acreditado';
-        break;
-      case AttendanceStatus.incompleteEntryOnly:
-        bg = AppTheme.incompleteBg;
-        text = AppTheme.incompleteColor;
-        icon = Icons.warning_rounded;
-        label = 'Solo Entrada';
-        break;
-      case AttendanceStatus.incompleteExitOnly:
-        bg = AppTheme.incompleteBg;
-        text = AppTheme.incompleteColor;
-        icon = Icons.warning_rounded;
-        label = 'Solo Salida';
-        break;
-      case AttendanceStatus.absent:
-        bg = AppTheme.absentBg;
-        text = AppTheme.absentColor;
-        icon = Icons.cancel_rounded;
-        label = 'Inasistencia';
-        break;
+    if (isSuspended) {
+      bg = const Color(0xFFFEE2E2);
+      text = const Color(0xFFB91C1C);
+      icon = Icons.gavel_rounded;
+      label = 'Suspendido';
+    } else {
+      switch (status) {
+        case AttendanceStatus.accredited:
+          bg = AppTheme.accreditedBg;
+          text = AppTheme.accreditedColor;
+          icon = Icons.check_circle_rounded;
+          label = 'Acreditado';
+          break;
+        case AttendanceStatus.incompleteEntryOnly:
+          bg = AppTheme.incompleteBg;
+          text = AppTheme.incompleteColor;
+          icon = Icons.warning_rounded;
+          label = 'Solo Entrada';
+          break;
+        case AttendanceStatus.incompleteExitOnly:
+          bg = AppTheme.incompleteBg;
+          text = AppTheme.incompleteColor;
+          icon = Icons.warning_rounded;
+          label = 'Solo Salida';
+          break;
+        case AttendanceStatus.absent:
+          bg = AppTheme.absentBg;
+          text = AppTheme.absentColor;
+          icon = Icons.cancel_rounded;
+          label = 'Inasistencia';
+          break;
+      }
     }
 
     return Container(

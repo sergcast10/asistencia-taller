@@ -84,8 +84,40 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
 
         return Scaffold(
           appBar: AppBar(
-            title: Text(workshop.name),
+            title: InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: () => _showEditWorkshopDialog(context, provider, workshop),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        workshop.name,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    const Icon(
+                      Icons.edit_rounded,
+                      size: 17,
+                      color: AppTheme.primary,
+                    ),
+                  ],
+                ),
+              ),
+            ),
             actions: [
+              IconButton(
+                tooltip: 'Editar Título y Datos del Taller',
+                icon: const Icon(
+                  Icons.edit_note_rounded,
+                  color: AppTheme.primary,
+                ),
+                onPressed: () =>
+                    _showEditWorkshopDialog(context, provider, workshop),
+              ),
               IconButton(
                 tooltip: 'Sincronizar Alumnos y Asistencias con Supabase',
                 icon: const Icon(Icons.cloud_sync_rounded, color: AppTheme.primary),
@@ -610,6 +642,28 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                     onPressed: () =>
                         _showAddStudentDialog(context, provider, workshop),
                   ),
+                  if (workshop.enrolledStudents.isNotEmpty)
+                    OutlinedButton.icon(
+                      icon: const Icon(
+                        Icons.gavel_rounded,
+                        size: 17,
+                        color: Color(0xFFB91C1C),
+                      ),
+                      label: const Text(
+                        '🚫 Suspender por Conducta',
+                        style: TextStyle(color: Color(0xFFB91C1C)),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFFFCA5A5)),
+                        backgroundColor: const Color(0xFFFEF2F2),
+                      ),
+                      onPressed: () => _showSuspendStudentDialog(
+                        context,
+                        provider,
+                        workshop,
+                        student: null,
+                      ),
+                    ),
                 ],
               ),
             ],
@@ -692,17 +746,28 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
           ...workshop.enrolledStudents.map((student) {
             final record = currentSession?.records[student.id];
             final status = record?.status ?? AttendanceStatus.absent;
+            final isStudentSuspended =
+                student.isSuspended || (record?.isSuspended == true);
+            final suspensionReasonText =
+                record?.suspensionReason ??
+                student.suspensionReason ??
+                'Comportamiento inapropiado reportado por el docente encargado.';
 
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: isStudentSuspended
+                    ? const Color(0xFFFFFBFB)
+                    : Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: status == AttendanceStatus.accredited
-                      ? AppTheme.accreditedColor.withValues(alpha: 0.45)
-                      : AppTheme.slate200,
+                  color: isStudentSuspended
+                      ? const Color(0xFFFCA5A5)
+                      : (status == AttendanceStatus.accredited
+                            ? AppTheme.accreditedColor.withValues(alpha: 0.45)
+                            : AppTheme.slate200),
+                  width: isStudentSuspended ? 1.5 : 1.0,
                 ),
               ),
               child: Column(
@@ -713,17 +778,21 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                     children: [
                       CircleAvatar(
                         radius: 22,
-                        backgroundColor: status == AttendanceStatus.accredited
-                            ? AppTheme.accreditedBg
-                            : AppTheme.primaryLight,
+                        backgroundColor: isStudentSuspended
+                            ? const Color(0xFFFEE2E2)
+                            : (status == AttendanceStatus.accredited
+                                  ? AppTheme.accreditedBg
+                                  : AppTheme.primaryLight),
                         child: Text(
                           student.fullName.isNotEmpty
                               ? student.fullName[0].toUpperCase()
                               : '?',
                           style: TextStyle(
-                            color: status == AttendanceStatus.accredited
-                                ? AppTheme.accreditedColor
-                                : AppTheme.primary,
+                            color: isStudentSuspended
+                                ? const Color(0xFFB91C1C)
+                                : (status == AttendanceStatus.accredited
+                                      ? AppTheme.accreditedColor
+                                      : AppTheme.primary),
                             fontWeight: FontWeight.w800,
                             fontSize: 16,
                           ),
@@ -739,10 +808,12 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                                 Flexible(
                                   child: Text(
                                     student.fullName,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontWeight: FontWeight.w800,
                                       fontSize: 15,
-                                      color: AppTheme.slate900,
+                                      color: isStudentSuspended
+                                          ? const Color(0xFF991B1B)
+                                          : AppTheme.slate900,
                                     ),
                                   ),
                                 ),
@@ -815,9 +886,61 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                         ),
                       ),
                       const SizedBox(width: 8),
-                      StudentStatusBadge(status: status),
+                      StudentStatusBadge(
+                        status: status,
+                        isSuspended: isStudentSuspended,
+                      ),
                     ],
                   ),
+
+                  // Si el alumno fue SUSPENDIDO por comportamiento inapropiado
+                  if (isStudentSuspended) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF2F2),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFFCA5A5)),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(
+                            Icons.gavel_rounded,
+                            size: 17,
+                            color: Color(0xFFB91C1C),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '🚫 SUSPENDIDO POR CONDUCTA INAPROPIADA (Docente: ${workshop.instructorName})',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF991B1B),
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  'Razón del comportamiento: $suspensionReasonText',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF7F1D1D),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
 
                   // Si el alumno tiene nota de evidencia / circunstancia del día
                   if (record?.hasNotes == true) ...[
@@ -870,41 +993,42 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
 
                   const Divider(height: 20),
 
-                  // BOTONES DE ACCIÓN DIRECTA PARA EL MAESTRO EN LA TARJETA DEL ESTUDIANTE (EJ. JUAN TORRES)
+                  // BOTONES DE ACCIÓN DIRECTA PARA EL MAESTRO EN LA TARJETA DEL ESTUDIANTE
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      ElevatedButton.icon(
-                        icon: const Icon(
-                          Icons.phonelink_erase_rounded,
-                          size: 15,
-                        ),
-                        label: const Text(
-                          '📵 Sin Celular / Dar Asistencia',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
+                      if (!isStudentSuspended)
+                        ElevatedButton.icon(
+                          icon: const Icon(
+                            Icons.phonelink_erase_rounded,
+                            size: 15,
+                          ),
+                          label: const Text(
+                            '📵 Sin Celular / Dar Asistencia',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF7C3AED),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          onPressed: () => _showEditOrNoPhoneAttendanceDialog(
+                            context,
+                            provider,
+                            workshop,
+                            student: student,
+                            defaultNoPhoneMode: true,
                           ),
                         ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF7C3AED),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        onPressed: () => _showEditOrNoPhoneAttendanceDialog(
-                          context,
-                          provider,
-                          workshop,
-                          student: student,
-                          defaultNoPhoneMode: true,
-                        ),
-                      ),
                       OutlinedButton.icon(
                         icon: const Icon(Icons.edit_note_rounded, size: 16),
                         label: const Text(
@@ -930,7 +1054,8 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                           defaultNoPhoneMode: false,
                         ),
                       ),
-                      if (status != AttendanceStatus.accredited)
+                      if (!isStudentSuspended &&
+                          status != AttendanceStatus.accredited)
                         ElevatedButton.icon(
                           icon: const Icon(Icons.school_rounded, size: 15),
                           label: const Text(
@@ -970,6 +1095,85 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                               SnackBar(
                                 content: Text(
                                   '🎓 Asistencia acreditada hoy para ${student.fullName}.',
+                                ),
+                                backgroundColor: AppTheme.accreditedColor,
+                              ),
+                            );
+                          },
+                        ),
+                      OutlinedButton.icon(
+                        icon: const Icon(
+                          Icons.gavel_rounded,
+                          size: 15,
+                          color: Color(0xFFB91C1C),
+                        ),
+                        label: Text(
+                          isStudentSuspended
+                              ? '✏️ Editar Razón Suspensión'
+                              : '🚫 Suspender por Conducta',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFFB91C1C),
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Color(0xFFFCA5A5)),
+                          backgroundColor: const Color(0xFFFEF2F2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        onPressed: () => _showSuspendStudentDialog(
+                          context,
+                          provider,
+                          workshop,
+                          student: student,
+                        ),
+                      ),
+                      if (isStudentSuspended)
+                        OutlinedButton.icon(
+                          icon: const Icon(
+                            Icons.check_circle_outline_rounded,
+                            size: 15,
+                            color: AppTheme.accreditedColor,
+                          ),
+                          label: const Text(
+                            '✅ Levantar Suspensión',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: AppTheme.accreditedColor,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(
+                              color: AppTheme.accreditedColor.withValues(
+                                alpha: 0.4,
+                              ),
+                            ),
+                            backgroundColor: AppTheme.accreditedBg,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          onPressed: () async {
+                            await provider.liftStudentSuspension(
+                              workshopId: workshop.id,
+                              sessionId: currentSession?.id,
+                              studentId: student.id,
+                            );
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  '✅ Suspensión levantada para ${student.fullName}.',
                                 ),
                                 backgroundColor: AppTheme.accreditedColor,
                               ),
@@ -1552,12 +1756,31 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                               Expanded(
                                 child: TextField(
                                   controller: startCtrls[idx],
-                                  decoration: const InputDecoration(
+                                  decoration: InputDecoration(
                                     isDense: true,
-                                    labelText: 'Hora Inicio',
-                                    prefixIcon: Icon(
+                                    labelText: 'Hora Inicio Sesión ${idx + 1}',
+                                    prefixIcon: const Icon(
                                       Icons.play_circle_outline,
                                       size: 17,
+                                    ),
+                                    suffixIcon: IconButton(
+                                      tooltip: 'Elegir hora de inicio en reloj',
+                                      icon: const Icon(
+                                        Icons.access_time_rounded,
+                                        size: 16,
+                                      ),
+                                      onPressed: () async {
+                                        final t = await showTimePicker(
+                                          context: ctx,
+                                          initialTime: TimeOfDay.now(),
+                                        );
+                                        if (t != null) {
+                                          setDialogState(() {
+                                            startCtrls[idx].text =
+                                                '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+                                          });
+                                        }
+                                      },
                                     ),
                                   ),
                                 ),
@@ -1566,12 +1789,35 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                               Expanded(
                                 child: TextField(
                                   controller: endCtrls[idx],
-                                  decoration: const InputDecoration(
+                                  decoration: InputDecoration(
                                     isDense: true,
-                                    labelText: 'Hora Término',
-                                    prefixIcon: Icon(
+                                    labelText: 'Hora Término Sesión ${idx + 1}',
+                                    prefixIcon: const Icon(
                                       Icons.stop_circle_outlined,
                                       size: 17,
+                                    ),
+                                    suffixIcon: IconButton(
+                                      tooltip: 'Elegir hora de término en reloj',
+                                      icon: const Icon(
+                                        Icons.access_time_rounded,
+                                        size: 16,
+                                      ),
+                                      onPressed: () async {
+                                        final t = await showTimePicker(
+                                          context: ctx,
+                                          initialTime: TimeOfDay.fromDateTime(
+                                            DateTime.now().add(
+                                              const Duration(hours: 2),
+                                            ),
+                                          ),
+                                        );
+                                        if (t != null) {
+                                          setDialogState(() {
+                                            endCtrls[idx].text =
+                                                '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+                                          });
+                                        }
+                                      },
                                     ),
                                   ),
                                 ),
@@ -1669,17 +1915,11 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
       return 'Sesión $sessionNum: $t';
     }
 
-    final startCtrl = TextEditingController(
-      text: existingSession?.startTimeLabel ?? defaultStart,
-    );
-    final endCtrl = TextEditingController(
-      text: existingSession?.endTimeLabel ?? defaultEnd,
-    );
     final tolCtrl = TextEditingController(
       text: '${existingSession?.toleranceMinutes ?? 15}',
     );
 
-    // Cada sesión tiene SU PROPIO título editable y SU PROPIO día único
+    // Cada sesión tiene SU PROPIO título editable, SU PROPIO día único y SU PROPIO horario (inicio y término)
     DateTime selectedDate = existingSession?.date ?? now;
     final List<DateTime> sessionDates = [selectedDate];
     final List<TextEditingController> sessionTitleCtrls = [
@@ -1687,9 +1927,46 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
         text: existingSession?.title ?? suggestedTitleFor(nextSessionNumber),
       ),
     ];
+    final List<TextEditingController> sessionStartCtrls = [
+      TextEditingController(
+        text: existingSession?.startTimeLabel ?? defaultStart,
+      ),
+    ];
+    final List<TextEditingController> sessionEndCtrls = [
+      TextEditingController(
+        text: existingSession?.endTimeLabel ?? defaultEnd,
+      ),
+    ];
 
     bool isSameDay(DateTime a, DateTime b) =>
         a.year == b.year && a.month == b.month && a.day == b.day;
+
+    Future<void> pickTimeForCtrl(
+      BuildContext ctx,
+      TextEditingController ctrl,
+      void Function(void Function()) setDialogState,
+    ) async {
+      final parts = ctrl.text.trim().split(':');
+      final initialHour = parts.isNotEmpty
+          ? (int.tryParse(parts[0]) ?? now.hour)
+          : now.hour;
+      final initialMinute = parts.length > 1
+          ? (int.tryParse(parts[1]) ?? 0)
+          : 0;
+      final picked = await showTimePicker(
+        context: ctx,
+        initialTime: TimeOfDay(
+          hour: initialHour.clamp(0, 23),
+          minute: initialMinute.clamp(0, 59),
+        ),
+      );
+      if (picked != null) {
+        setDialogState(() {
+          ctrl.text =
+              '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
+        });
+      }
+    }
 
     showDialog(
       context: context,
@@ -1728,8 +2005,8 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                       ),
                       child: Text(
                         existingSession != null
-                            ? 'Escribe el título personalizado de esta sesión y selecciona la fecha en que se impartirá.'
-                            : 'Puedes colocar el título personalizado y la fecha de cada sesión (por ejemplo, Sesión 1 con su tema y día, Sesión 2 con su propio tema y día).',
+                            ? 'Escribe el título personalizado de esta sesión, selecciona la fecha en que se impartirá y su hora de inicio y término.'
+                            : 'Cada sección/sesión cuenta con su propio título personalizado, su propia fecha y su propia hora de inicio y término.',
                         style: const TextStyle(
                           fontSize: 11,
                           color: AppTheme.slate800,
@@ -1739,8 +2016,8 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                     const SizedBox(height: 12),
                     Text(
                       existingSession != null
-                          ? '1. 📝 Título y Fecha del Día de esta Sesión:'
-                          : '1. 📝 Preparar Título y Fecha de cada Sesión (1 Sesión por Día):',
+                          ? '1. 📝 Título, Fecha y Horario de esta Sesión:'
+                          : '1. 📝 Preparar Título, Fecha y Horario Individual de cada Sesión:',
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
@@ -1759,6 +2036,8 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                         final sessionNumLabel = existingSession != null
                             ? 'Sesión actual'
                             : 'Sesión $sessionNum';
+                        final sStartCtrl = sessionStartCtrls[idx];
+                        final sEndCtrl = sessionEndCtrls[idx];
 
                         return Container(
                           margin: const EdgeInsets.only(bottom: 10),
@@ -1816,6 +2095,8 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                                         setDialogState(() {
                                           sessionDates.removeAt(idx);
                                           sessionTitleCtrls.removeAt(idx);
+                                          sessionStartCtrls.removeAt(idx);
+                                          sessionEndCtrls.removeAt(idx);
                                           selectedDate = sessionDates.first;
                                         });
                                       },
@@ -1924,6 +2205,68 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                                   ),
                                 ],
                               ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: TextField(
+                                      controller: sStartCtrl,
+                                      decoration: InputDecoration(
+                                        isDense: true,
+                                        labelText: existingSession != null
+                                            ? 'Hora de Inicio'
+                                            : 'Inicio Sesión $sessionNum',
+                                        hintText: '09:00',
+                                        prefixIcon: const Icon(
+                                          Icons.play_circle_outline,
+                                          size: 17,
+                                        ),
+                                        suffixIcon: IconButton(
+                                          tooltip: 'Seleccionar en reloj',
+                                          icon: const Icon(
+                                            Icons.schedule_rounded,
+                                            size: 16,
+                                          ),
+                                          onPressed: () => pickTimeForCtrl(
+                                            ctx,
+                                            sStartCtrl,
+                                            setDialogState,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: sEndCtrl,
+                                      decoration: InputDecoration(
+                                        isDense: true,
+                                        labelText: existingSession != null
+                                            ? 'Hora de Término'
+                                            : 'Término Sesión $sessionNum',
+                                        hintText: '11:00',
+                                        prefixIcon: const Icon(
+                                          Icons.stop_circle_outlined,
+                                          size: 17,
+                                        ),
+                                        suffixIcon: IconButton(
+                                          tooltip: 'Seleccionar en reloj',
+                                          icon: const Icon(
+                                            Icons.schedule_rounded,
+                                            size: 16,
+                                          ),
+                                          onPressed: () => pickTimeForCtrl(
+                                            ctx,
+                                            sEndCtrl,
+                                            setDialogState,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ],
                           ),
                         );
@@ -1948,12 +2291,20 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                             onPressed: () async {
                               final picked = await showDatePicker(
                                 context: ctx,
-                                initialDate: sessionDates.last,
+                                initialDate: sessionDates.last.add(
+                                  const Duration(days: 1),
+                                ),
                                 firstDate: DateTime(2024),
                                 lastDate: DateTime(2030),
                               );
                               if (picked != null) {
                                 setDialogState(() {
+                                  final prevStart = sessionStartCtrls.isNotEmpty
+                                      ? sessionStartCtrls.last.text
+                                      : defaultStart;
+                                  final prevEnd = sessionEndCtrls.isNotEmpty
+                                      ? sessionEndCtrls.last.text
+                                      : defaultEnd;
                                   sessionDates.add(picked);
                                   sessionTitleCtrls.add(
                                     TextEditingController(
@@ -1963,6 +2314,12 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                                             1,
                                       ),
                                     ),
+                                  );
+                                  sessionStartCtrls.add(
+                                    TextEditingController(text: prevStart),
+                                  );
+                                  sessionEndCtrls.add(
+                                    TextEditingController(text: prevEnd),
                                   );
                                 });
                               }
@@ -1991,8 +2348,16 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                               );
                               if (range != null) {
                                 setDialogState(() {
+                                  final baseStart = sessionStartCtrls.isNotEmpty
+                                      ? sessionStartCtrls.first.text
+                                      : defaultStart;
+                                  final baseEnd = sessionEndCtrls.isNotEmpty
+                                      ? sessionEndCtrls.first.text
+                                      : defaultEnd;
                                   sessionDates.clear();
                                   sessionTitleCtrls.clear();
+                                  sessionStartCtrls.clear();
+                                  sessionEndCtrls.clear();
                                   var cur = range.start;
                                   int safety = 0;
                                   while (!cur.isAfter(range.end) &&
@@ -2007,6 +2372,12 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                                         ),
                                       ),
                                     );
+                                    sessionStartCtrls.add(
+                                      TextEditingController(text: baseStart),
+                                    );
+                                    sessionEndCtrls.add(
+                                      TextEditingController(text: baseEnd),
+                                    );
                                     cur = cur.add(const Duration(days: 1));
                                     safety++;
                                   }
@@ -2018,84 +2389,6 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                         ],
                       ),
                     ],
-                    const SizedBox(height: 14),
-                    const Text(
-                      '2. 🕒 Evidencia de Hora de Inicio y Hora de Término:',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: startCtrl,
-                            decoration: InputDecoration(
-                              labelText: 'Hora de Inicio',
-                              hintText: '09:00',
-                              prefixIcon: const Icon(Icons.play_circle_outline),
-                              suffixIcon: IconButton(
-                                tooltip: 'Seleccionar en reloj',
-                                icon: const Icon(
-                                  Icons.schedule_rounded,
-                                  size: 18,
-                                ),
-                                onPressed: () async {
-                                  final t = await showTimePicker(
-                                    context: ctx,
-                                    initialTime: TimeOfDay.now(),
-                                  );
-                                  if (t != null) {
-                                    setDialogState(() {
-                                      startCtrl.text =
-                                          '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
-                                    });
-                                  }
-                                },
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: TextField(
-                            controller: endCtrl,
-                            decoration: InputDecoration(
-                              labelText: 'Hora de Término',
-                              hintText: '11:00',
-                              prefixIcon: const Icon(
-                                Icons.stop_circle_outlined,
-                              ),
-                              suffixIcon: IconButton(
-                                tooltip: 'Seleccionar en reloj',
-                                icon: const Icon(
-                                  Icons.schedule_rounded,
-                                  size: 18,
-                                ),
-                                onPressed: () async {
-                                  final t = await showTimePicker(
-                                    context: ctx,
-                                    initialTime: TimeOfDay.fromDateTime(
-                                      DateTime.now().add(
-                                        const Duration(hours: 2),
-                                      ),
-                                    ),
-                                  );
-                                  if (t != null) {
-                                    setDialogState(() {
-                                      endCtrl.text =
-                                          '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
-                                    });
-                                  }
-                                },
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: tolCtrl,
@@ -2125,16 +2418,17 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                             : 'Crear Sesión'),
                 ),
                 onPressed: () async {
-                  final startStr = startCtrl.text.trim().isNotEmpty
-                      ? startCtrl.text.trim()
-                      : defaultStart;
-                  final endStr = endCtrl.text.trim().isNotEmpty
-                      ? endCtrl.text.trim()
-                      : defaultEnd;
                   final tol = int.tryParse(tolCtrl.text.trim()) ?? 15;
 
                   if (existingSession != null) {
                     final customTitle = sessionTitleCtrls.first.text.trim();
+                    final startStr =
+                        sessionStartCtrls.first.text.trim().isNotEmpty
+                        ? sessionStartCtrls.first.text.trim()
+                        : defaultStart;
+                    final endStr = sessionEndCtrls.first.text.trim().isNotEmpty
+                        ? sessionEndCtrls.first.text.trim()
+                        : defaultEnd;
                     await provider.updateSessionSchedule(
                       workshopId: workshop.id,
                       sessionId: existingSession.id,
@@ -2158,6 +2452,13 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                       final sessionTitle = customTitle.isNotEmpty
                           ? customTitle
                           : suggestedTitleFor(nextSessionNumber + i);
+                      final startStr =
+                          sessionStartCtrls[i].text.trim().isNotEmpty
+                          ? sessionStartCtrls[i].text.trim()
+                          : defaultStart;
+                      final endStr = sessionEndCtrls[i].text.trim().isNotEmpty
+                          ? sessionEndCtrls[i].text.trim()
+                          : defaultEnd;
                       await provider.createSession(
                         workshopId: workshop.id,
                         title: sessionTitle,
@@ -2175,6 +2476,312 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
             ],
           );
         },
+      ),
+    );
+  }
+
+  /// Permite editar el título, código, docente encargado y descripción del taller si el usuario se equivocó
+  void _showEditWorkshopDialog(
+    BuildContext context,
+    AttendanceProvider provider,
+    Workshop workshop,
+  ) {
+    final nameCtrl = TextEditingController(text: workshop.name);
+    final codeCtrl = TextEditingController(text: workshop.code);
+    final instructorCtrl = TextEditingController(text: workshop.instructorName);
+    final descCtrl = TextEditingController(text: workshop.description);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.edit_note_rounded, color: AppTheme.primary),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Editar Título y Datos del Taller',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 460,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Si te equivocaste en el título del taller o en alguno de sus datos, puedes corregirlo aquí:',
+                  style: TextStyle(fontSize: 12, color: AppTheme.slate600),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Título / Nombre del Taller',
+                    prefixIcon: Icon(Icons.title_rounded),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: codeCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Código / Clave del Taller',
+                    prefixIcon: Icon(Icons.qr_code_rounded),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: instructorCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Docente Encargado',
+                    prefixIcon: Icon(Icons.person_rounded),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: descCtrl,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Descripción / Objetivo',
+                    prefixIcon: Icon(Icons.description_outlined),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.save_rounded, size: 16),
+            label: const Text('Guardar Cambios'),
+            onPressed: () async {
+              if (nameCtrl.text.trim().isEmpty) return;
+              await provider.updateWorkshop(
+                workshopId: workshop.id,
+                name: nameCtrl.text.trim(),
+                code: codeCtrl.text.trim(),
+                instructorName: instructorCtrl.text.trim(),
+                description: descCtrl.text.trim(),
+              );
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      '✅ Taller actualizado a "${nameCtrl.text.trim()}".',
+                    ),
+                    backgroundColor: AppTheme.accreditedColor,
+                  ),
+                );
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Modal disciplinario para que el docente encargado pueda suspender a un alumno por comportamiento inapropiado y registrar la razón exacta
+  void _showSuspendStudentDialog(
+    BuildContext context,
+    AttendanceProvider provider,
+    Workshop workshop, {
+    Student? student,
+  }) {
+    final currentSession = _getCurrentOrTodaySession(workshop);
+    Student? selectedStudent =
+        student ??
+        (workshop.enrolledStudents.isNotEmpty
+            ? workshop.enrolledStudents.first
+            : null);
+
+    final behaviorReasons = <String>[
+      '🚫 Falta de respeto o conducta inapropiada hacia docente o compañeros',
+      '⚠️ Incumplimiento de normas de seguridad o uso indebido de equipo',
+      '🔊 Interrupción reiterada de la sesión del taller',
+      '🚶 Abandono injustificado o desorden durante la práctica',
+      '📵 Uso inapropiado de dispositivos o distracción grave en clase',
+    ];
+
+    String chosenCategory = behaviorReasons.first;
+    final detailCtrl = TextEditingController(
+      text: selectedStudent?.suspensionReason ?? '',
+    );
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.gavel_rounded, color: Color(0xFFB91C1C)),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Suspender Alumno por Conducta Inapropiada',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF991B1B),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 500,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF2F2),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFFCA5A5)),
+                    ),
+                    child: Text(
+                      'Docente encargado: ${workshop.instructorName}\nAl suspender al alumno por comportamiento inapropiado, su asistencia no será acreditada y la razón quedará asentada en el acta de cierre y en el PDF de evidencia.',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF7F1D1D),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  if (student == null &&
+                      workshop.enrolledStudents.isNotEmpty) ...[
+                    const Text(
+                      '1. Selecciona al alumno a suspender:',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: workshop.enrolledStudents.map((s) {
+                        final isSel = selectedStudent?.id == s.id;
+                        return ChoiceChip(
+                          label: Text(
+                            '${s.fullName} (${s.enrollmentNumber})',
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                          selected: isSel,
+                          selectedColor: const Color(0xFFFEE2E2),
+                          onSelected: (_) {
+                            setDialogState(() {
+                              selectedStudent = s;
+                              detailCtrl.text = s.suspensionReason ?? '';
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 12),
+                  ] else if (selectedStudent != null) ...[
+                    Text(
+                      'Alumno: ${selectedStudent!.fullName} (${selectedStudent!.enrollmentNumber})',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.slate900,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                  const Text(
+                    'Motivo / Tipo de conducta inapropiada:',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.slate800,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: behaviorReasons.map((r) {
+                      final sel = chosenCategory == r;
+                      return ChoiceChip(
+                        label: Text(r, style: const TextStyle(fontSize: 11)),
+                        selected: sel,
+                        selectedColor: const Color(0xFFFEE2E2),
+                        onSelected: (_) {
+                          setDialogState(() => chosenCategory = r);
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: detailCtrl,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText:
+                          'Describe la razón exacta de su comportamiento (Obligatorio para evidencia)',
+                      hintText:
+                          'Ej. El alumno realizó comentarios inapropiados e interrumpió la práctica de laboratorio pese a las advertencias del docente...',
+                      prefixIcon: Icon(
+                        Icons.report_problem_rounded,
+                        color: Color(0xFFB91C1C),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.gavel_rounded, size: 17),
+              label: const Text('Aplicar Suspensión y Guardar Evidencia'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFB91C1C),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                if (selectedStudent == null) return;
+                final extraText = detailCtrl.text.trim();
+                await provider.suspendStudentForBehavior(
+                  workshopId: workshop.id,
+                  sessionId: currentSession?.id,
+                  studentId: selectedStudent!.id,
+                  behaviorReason: chosenCategory,
+                  extraDetails: extraText,
+                );
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        '🚫 Alumno ${selectedStudent!.fullName} suspendido por conducta inapropiada.',
+                      ),
+                      backgroundColor: const Color(0xFFB91C1C),
+                    ),
+                  );
+                }
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
