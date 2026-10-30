@@ -961,6 +961,48 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                                     ),
                                   ),
                                 ),
+                                const SizedBox(width: 6),
+                                InkWell(
+                                  borderRadius: BorderRadius.circular(8),
+                                  onTap: () => _confirmDeleteStudentDialog(
+                                    context,
+                                    provider,
+                                    workshop,
+                                    student,
+                                  ),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 7,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFEF2F2),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: const Color(0xFFFCA5A5),
+                                      ),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.delete_outline_rounded,
+                                          size: 12,
+                                          color: AppTheme.absentColor,
+                                        ),
+                                        SizedBox(width: 4),
+                                        Text(
+                                          'Eliminar',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppTheme.absentColor,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
                               ],
                             ),
                             const SizedBox(height: 3),
@@ -1355,6 +1397,39 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                             );
                           },
                         ),
+                      OutlinedButton.icon(
+                        icon: const Icon(
+                          Icons.delete_outline_rounded,
+                          size: 15,
+                          color: AppTheme.absentColor,
+                        ),
+                        label: const Text(
+                          '🗑️ Dar de Baja / Eliminar',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.absentColor,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(
+                            color: AppTheme.absentColor.withValues(alpha: 0.4),
+                          ),
+                          backgroundColor: const Color(0xFFFFF1F2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        onPressed: () => _confirmDeleteStudentDialog(
+                          context,
+                          provider,
+                          workshop,
+                          student,
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -1606,6 +1681,27 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
             ),
           ),
           actions: [
+            if (student != null)
+              TextButton.icon(
+                icon: const Icon(
+                  Icons.delete_forever_rounded,
+                  color: AppTheme.absentColor,
+                  size: 16,
+                ),
+                label: const Text(
+                  'Eliminar Alumno',
+                  style: TextStyle(color: AppTheme.absentColor),
+                ),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _confirmDeleteStudentDialog(
+                    context,
+                    provider,
+                    workshop,
+                    student,
+                  );
+                },
+              ),
             TextButton(
               onPressed: () => Navigator.pop(ctx),
               child: const Text('Cancelar'),
@@ -3089,6 +3185,220 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                     SnackBar(
                       content: Text(
                         '🗑️ Sesión "${session.title.isEmpty ? 'Programada' : session.title}" eliminada correctamente.',
+                      ),
+                      backgroundColor: AppTheme.absentColor,
+                    ),
+                  );
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Confirmación detallada con protección de PIN para dar de baja o eliminar definitivamente a un estudiante
+  void _confirmDeleteStudentDialog(
+    BuildContext context,
+    AttendanceProvider provider,
+    Workshop workshop,
+    Student student,
+  ) {
+    final pinCtrl = TextEditingController();
+    final bool isPinRequired = provider.isPinRequiredForSensitiveActions;
+    String? pinError;
+
+    int studentAttendanceCount = 0;
+    for (var s in workshop.sessions) {
+      if (s.records.containsKey(student.id)) {
+        studentAttendanceCount++;
+      }
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: AppTheme.absentColor, size: 28),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '¿Dar de Baja a este Alumno?',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+                ),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Estás a punto de dar de baja al siguiente estudiante del taller:',
+                  style: TextStyle(fontSize: 13, color: AppTheme.slate600),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.slate100,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppTheme.slate200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        student.fullName,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.slate900,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          const Icon(Icons.badge_rounded, size: 13, color: AppTheme.slate600),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Matrícula / Control: ${student.enrollmentNumber}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppTheme.slate700,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(Icons.email_outlined, size: 13, color: AppTheme.slate600),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              student.email.split('||').first,
+                              style: const TextStyle(fontSize: 12, color: AppTheme.slate600),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(Icons.history_edu_rounded, size: 13, color: AppTheme.primary),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Sesiones con registro en este taller: $studentAttendanceCount',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.primary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (student.boundDeviceId != null && student.boundDeviceId!.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(Icons.smartphone_rounded, size: 13, color: AppTheme.slate600),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                'Celular vinculado: ${student.boundDeviceId}',
+                                style: const TextStyle(fontSize: 12, color: AppTheme.slate600),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEE2E2),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFFCA5A5)),
+                  ),
+                  child: const Text(
+                    '⚠️ Esta acción dará de baja al alumno del padrón oficial del taller y borrará todos sus registros de asistencia y vinculación de celular de forma definitiva tanto en la app como en la nube.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF991B1B),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                if (isPinRequired) ...[
+                  const SizedBox(height: 14),
+                  const Text(
+                    'Ingresa tu PIN Docente para autorizar (Por defecto: 1234):',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: pinCtrl,
+                    obscureText: true,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: 'PIN Docente',
+                      prefixIcon: const Icon(Icons.lock_rounded),
+                      errorText: pinError,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.delete_forever_rounded, size: 18),
+              label: const Text('Sí, Dar de Baja al Alumno'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.absentColor,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                if (isPinRequired) {
+                  final inputPin = pinCtrl.text.trim();
+                  if (!provider.verifyTeacherPin(inputPin)) {
+                    setDialogState(() {
+                      pinError = 'PIN incorrecto. Ingresa tu PIN de seguridad.';
+                    });
+                    return;
+                  }
+                }
+
+                Navigator.pop(ctx);
+                await provider.deleteStudent(
+                  workshopId: workshop.id,
+                  studentId: student.id,
+                );
+
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        '🗑️ Alumno "${student.fullName}" eliminado correctamente del taller.',
                       ),
                       backgroundColor: AppTheme.absentColor,
                     ),

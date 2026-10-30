@@ -963,6 +963,85 @@ class AttendanceProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Da de baja y elimina definitivamente a un estudiante del taller (y limpia sus registros de asistencia)
+  Future<void> deleteStudent({
+    required String workshopId,
+    required String studentId,
+  }) async {
+    final wIdx = _workshops.indexWhere((w) => w.id == workshopId);
+    if (wIdx == -1) return;
+    final w = _workshops[wIdx];
+
+    // Remover al estudiante del padrón del taller
+    w.enrolledStudents.removeWhere((s) => s.id == studentId);
+
+    // Remover sus registros de asistencia de todas las sesiones de este taller
+    for (var s in w.sessions) {
+      s.records.remove(studentId);
+    }
+    await _persist();
+
+    // 1. Limpiar en SQLite local via PowerSync si está activo
+    if (PowerSyncService().isInitialized) {
+      try {
+        await PowerSyncService().db.execute(
+          'DELETE FROM attendance_records WHERE student_id = ?',
+          [studentId],
+        );
+        await PowerSyncService().db.execute(
+          'DELETE FROM students WHERE id = ?',
+          [studentId],
+        );
+      } catch (e) {
+        debugPrint('Aviso eliminación SQLite alumno: $e');
+      }
+    }
+
+    // 2. Eliminar en Supabase Cloud si no es Web
+    if (!kIsWeb) {
+      try {
+        final client = HttpClient();
+        // Borrar registros de asistencia del alumno
+        final uriRecs = Uri.parse(
+          'https://qukqvrowgzdkqoccbfdb.supabase.co/rest/v1/attendance_records?student_id=eq.$studentId',
+        );
+        final reqRecs = await client.deleteUrl(uriRecs);
+        reqRecs.headers.set(
+          'apikey',
+          'sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN',
+        );
+        reqRecs.headers.set(
+          'Authorization',
+          'Bearer sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN',
+        );
+        final resRecs = await reqRecs.close();
+        await resRecs.drain();
+
+        // Borrar al alumno de la tabla students
+        final uriStd = Uri.parse(
+          'https://qukqvrowgzdkqoccbfdb.supabase.co/rest/v1/students?id=eq.$studentId',
+        );
+        final reqStd = await client.deleteUrl(uriStd);
+        reqStd.headers.set(
+          'apikey',
+          'sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN',
+        );
+        reqStd.headers.set(
+          'Authorization',
+          'Bearer sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN',
+        );
+        final resStd = await reqStd.close();
+        await resStd.drain();
+
+        client.close();
+      } catch (e) {
+        debugPrint('Aviso Supabase delete alumno: $e');
+      }
+    }
+
+    notifyListeners();
+  }
+
   /// Permite al docente editar la fecha del día en que se impartirá esta sesión, la hora de inicio, la hora de término y la tolerancia para dejar evidencia exacta
   Future<void> updateSessionSchedule({
     required String workshopId,
