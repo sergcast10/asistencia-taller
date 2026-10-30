@@ -77,11 +77,87 @@ class AttendanceProvider extends ChangeNotifier {
 
     _workshops = await StorageService.loadWorkshops();
     await _normalizeMultiDaySessions();
+    await _sanitizeCrossWorkshopAttendance();
     _isLoading = false;
     notifyListeners();
 
     // Sincronizar automáticamente desde Supabase al iniciar
     syncAllActiveSessionsFromSupabase();
+  }
+
+  /// Limpia registros de asistencia huérfanos o duplicados entre distintos talleres o sesiones
+  Future<void> _sanitizeCrossWorkshopAttendance() async {
+    bool modified = false;
+
+    // 1. Limpieza local inmediata por incoherencia de sessionId
+    for (final w in _workshops) {
+      for (final s in w.sessions) {
+        final before = s.records.length;
+        s.records.removeWhere(
+          (k, r) => r.sessionId.isNotEmpty && r.sessionId != s.id,
+        );
+        if (s.records.length != before) {
+          modified = true;
+        }
+      }
+    }
+
+    // 2. Si hay conexión a Supabase, verificar el session_id real de cada registro
+    if (!kIsWeb) {
+      try {
+        final client = HttpClient();
+        final uri = Uri.parse(
+          'https://qukqvrowgzdkqoccbfdb.supabase.co/rest/v1/attendance_records?select=id,session_id',
+        );
+        final req = await client.getUrl(uri);
+        req.headers.set(
+          'apikey',
+          'sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN',
+        );
+        req.headers.set(
+          'Authorization',
+          'Bearer sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN',
+        );
+        final res = await req.close();
+        if (res.statusCode == 200) {
+          final body = await res.transform(utf8.decoder).join();
+          final List<dynamic> list = jsonDecode(body);
+          final Map<String, String> validRecordSessionMap = {};
+          for (var item in list) {
+            final id = item['id']?.toString();
+            final sessId = item['session_id']?.toString();
+            if (id != null && sessId != null) {
+              validRecordSessionMap[id] = sessId;
+            }
+          }
+
+          for (final w in _workshops) {
+            for (final s in w.sessions) {
+              final toRemove = <String>[];
+              s.records.forEach((studentId, rec) {
+                final realSession = validRecordSessionMap[rec.id];
+                if (realSession != null && realSession != s.id) {
+                  toRemove.add(studentId);
+                }
+              });
+              if (toRemove.isNotEmpty) {
+                for (final id in toRemove) {
+                  s.records.remove(id);
+                }
+                modified = true;
+              }
+            }
+          }
+        }
+        client.close();
+      } catch (e) {
+        debugPrint('Aviso sanitize Supabase: $e');
+      }
+    }
+
+    if (modified) {
+      await _persist();
+    }
   }
 
   /// Si una sesión tenía múltiples días concatenados (ej. "Martes 20/10/2026 • Miércoles 21/10/2026..."),
@@ -162,11 +238,19 @@ class AttendanceProvider extends ChangeNotifier {
   /// Sincroniza todas las sesiones del taller activo con Supabase
   Future<void> syncAllActiveSessionsFromSupabase() async {
     for (final w in _workshops) {
-      _pushWorkshopToSupabaseAsync(w);
-      for (final s in w.sessions) {
-        _pushSessionToSupabaseAsync(w, s);
-        await syncRecordsFromSupabase(workshopId: w.id, sessionId: s.id);
-      }
+      await syncWorkshopSessionsFromSupabase(w.id);
+    }
+  }
+
+  /// Sincroniza únicamente las sesiones y asistencia de un taller específico
+  Future<void> syncWorkshopSessionsFromSupabase(String workshopId) async {
+    final wIdx = _workshops.indexWhere((w) => w.id == workshopId);
+    if (wIdx == -1) return;
+    final w = _workshops[wIdx];
+    _pushWorkshopToSupabaseAsync(w);
+    for (final s in w.sessions) {
+      _pushSessionToSupabaseAsync(w, s);
+      await syncRecordsFromSupabase(workshopId: w.id, sessionId: s.id);
     }
   }
 
@@ -1074,24 +1158,6 @@ class AttendanceProvider extends ChangeNotifier {
         student: student,
       );
     } else if (phase == SessionPhase.exit) {
-      // Si en esta sesión aún no figuraba checkInTime pero el alumno ya registró su entrada hoy en otra sesión del taller, heredarla
-      if (!record.hasCheckIn) {
-        for (final otherSession in workshop.sessions) {
-          if (_isSameCalendarDay(otherSession.date, session.date)) {
-            final otherRec = otherSession.records[student.id];
-            if (otherRec != null && otherRec.hasCheckIn) {
-              record.checkInTime = otherRec.checkInTime;
-              record.isLate = otherRec.isLate;
-              record.lateMinutes = otherRec.lateMinutes;
-              if (record.notes == null && otherRec.hasNotes) {
-                record.notes = otherRec.notes;
-              }
-              break;
-            }
-          }
-        }
-      }
-
       if (record.hasCheckOut) {
         return AttendanceProcessResult(
           success: true,
@@ -1153,10 +1219,21 @@ class AttendanceProvider extends ChangeNotifier {
       final payload = QrService.extractPayload(qrRaw);
       if (!payload.trim().startsWith('{')) return null;
 
-      for (var w in _workshops) {
-        for (var s in w.sessions) {
-          if (payload.contains(s.id)) {
-            return _WorkshopSessionMatch(workshop: w, session: s);
+      final Map<String, dynamic> data = jsonDecode(payload);
+      final targetSessionId = data['s']?.toString();
+      final targetWorkshopId = data['w']?.toString();
+
+      if (targetSessionId != null && targetSessionId.isNotEmpty) {
+        for (var w in _workshops) {
+          if (targetWorkshopId != null &&
+              targetWorkshopId.isNotEmpty &&
+              w.id != targetWorkshopId) {
+            continue;
+          }
+          for (var s in w.sessions) {
+            if (s.id == targetSessionId) {
+              return _WorkshopSessionMatch(workshop: w, session: s);
+            }
           }
         }
       }
@@ -1422,13 +1499,7 @@ class AttendanceProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  bool _isSameCalendarDay(DateTime a, DateTime b) {
-    final la = a.toLocal();
-    final lb = b.toLocal();
-    return la.year == lb.year && la.month == lb.month && la.day == lb.day;
-  }
-
-  /// Sincronizar registros del inventario en vivo desde Supabase Cloud (incluye alumnos registrados hoy)
+  /// Sincronizar registros del inventario en vivo desde Supabase Cloud (estrictamente para esta sesión)
   Future<int> syncRecordsFromSupabase({
     required String workshopId,
     required String sessionId,
@@ -1444,9 +1515,9 @@ class AttendanceProvider extends ChangeNotifier {
 
       final client = HttpClient();
 
-      // 1. Traer todos los registros de asistencia con los datos del estudiante
+      // 1. Traer ÚNICAMENTE los registros de asistencia que corresponden a ESTA sesión exacta
       final uri = Uri.parse(
-        'https://qukqvrowgzdkqoccbfdb.supabase.co/rest/v1/attendance_records?select=*,students(*)&order=created_at.asc',
+        'https://qukqvrowgzdkqoccbfdb.supabase.co/rest/v1/attendance_records?session_id=eq.$sessionId&select=*,students(*)&order=created_at.asc',
       );
       final req = await client.getUrl(uri);
       req.headers.set(
@@ -1465,26 +1536,27 @@ class AttendanceProvider extends ChangeNotifier {
         final List<dynamic> list = jsonDecode(responseBody);
         int updatedCount = 0;
 
+        // Limpiar cualquier registro que haya quedado erróneamente guardado con sessionId diferente
+        session.records.removeWhere(
+          (k, r) => r.sessionId.isNotEmpty && r.sessionId != sessionId,
+        );
+
         for (var item in list) {
           final recSessionId = item['session_id']?.toString() ?? '';
-          final createdAtStr =
-              item['created_at']?.toString() ??
-              item['check_in_time']?.toString();
-          final createdAt = createdAtStr != null
-              ? DateTime.tryParse(createdAtStr)?.toLocal()
-              : null;
-
-          // Aceptar si pertenece exactamente a esta sesión, o si fue registrado el día de hoy
-          final isExactSession = recSessionId == sessionId;
-          final isSameDayRecord =
-              createdAt != null && _isSameCalendarDay(createdAt, session.date);
-
-          if (!isExactSession && !isSameDayRecord) continue;
+          // Validación estricta: sólo registros que pertenezcan a esta sesión exacta
+          if (recSessionId != sessionId) continue;
 
           final studentData = item['students'];
           String? sId = item['student_id']?.toString();
 
           if (studentData != null) {
+            final studentWorkshopId = studentData['workshop_id']?.toString();
+            if (studentWorkshopId != null &&
+                studentWorkshopId.isNotEmpty &&
+                studentWorkshopId != workshop.id) {
+              // El estudiante pertenece a otro taller
+              continue;
+            }
             final enrollment = studentData['enrollment_number']
                 ?.toString()
                 .trim()

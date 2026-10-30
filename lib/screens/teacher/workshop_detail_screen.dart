@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../models/workshop.dart';
 import '../../models/session.dart';
 import '../../models/student.dart';
@@ -24,6 +25,7 @@ class WorkshopDetailScreen extends StatefulWidget {
 class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  String? _selectedSessionIdForStudents;
 
   @override
   void initState() {
@@ -40,7 +42,7 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
   Future<void> _syncWorkshopData() async {
     if (!mounted) return;
     final provider = context.read<AttendanceProvider>();
-    await provider.syncAllActiveSessionsFromSupabase();
+    await provider.syncWorkshopSessionsFromSupabase(widget.workshopId);
   }
 
   @override
@@ -51,6 +53,12 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
 
   WorkshopSession? _getCurrentOrTodaySession(Workshop workshop) {
     if (workshop.sessions.isEmpty) return null;
+    if (_selectedSessionIdForStudents != null) {
+      final found = workshop.sessions
+          .where((s) => s.id == _selectedSessionIdForStudents)
+          .firstOrNull;
+      if (found != null) return found;
+    }
     final active = workshop.sessions.where((s) => s.isQrActive).firstOrNull;
     return active ?? workshop.sessions.first;
   }
@@ -119,13 +127,18 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
               ),
               IconButton(
                 tooltip: 'Sincronizar Alumnos y Asistencias con Supabase',
-                icon: const Icon(Icons.cloud_sync_rounded, color: AppTheme.primary),
+                icon: const Icon(
+                  Icons.cloud_sync_rounded,
+                  color: AppTheme.primary,
+                ),
                 onPressed: () async {
                   await _syncWorkshopData();
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('☁️ Padrón de alumnos y asistencias sincronizado.'),
+                      content: Text(
+                        '☁️ Padrón de alumnos y asistencias sincronizado.',
+                      ),
                       backgroundColor: AppTheme.accreditedColor,
                     ),
                   );
@@ -238,9 +251,7 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
           decoration: BoxDecoration(
             color: AppTheme.primaryLight,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: AppTheme.primary.withValues(alpha: 0.25),
-            ),
+            border: Border.all(color: AppTheme.primary.withValues(alpha: 0.25)),
           ),
           child: Row(
             children: [
@@ -275,11 +286,8 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                onPressed: () => _showPrepareAllSessionsDialog(
-                  context,
-                  provider,
-                  workshop,
-                ),
+                onPressed: () =>
+                    _showPrepareAllSessionsDialog(context, provider, workshop),
               ),
             ],
           ),
@@ -501,11 +509,12 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                             color: Color(0xFFDC2626),
                           ),
                           label: const Text('Descargar PDF'),
-                          onPressed: () => PdfExporter.downloadOrShareSessionPdf(
-                            context: context,
-                            workshop: workshop,
-                            session: session,
-                          ),
+                          onPressed: () =>
+                              PdfExporter.downloadOrShareSessionPdf(
+                                context: context,
+                                workshop: workshop,
+                                session: session,
+                              ),
                         ),
                         OutlinedButton.icon(
                           icon: const Icon(Icons.fact_check_rounded, size: 16),
@@ -715,6 +724,67 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
           ],
         ),
         const SizedBox(height: 12),
+
+        if (workshop.sessions.length > 1)
+          Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: AppTheme.primary.withValues(alpha: 0.25),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.event_note_rounded,
+                  size: 20,
+                  color: AppTheme.primary,
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'Asistencia de la Sesión:',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.slate800,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      isExpanded: true,
+                      value: currentSession?.id,
+                      items: workshop.sessions.map((s) {
+                        return DropdownMenuItem<String>(
+                          value: s.id,
+                          child: Text(
+                            '${s.title} (${s.formattedShortDate})',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: AppTheme.primary,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (newId) {
+                        if (newId != null) {
+                          setState(() {
+                            _selectedSessionIdForStudents = newId;
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
 
         if (workshop.enrolledStudents.isEmpty)
           Container(
@@ -1298,8 +1368,7 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
     bool defaultNoPhoneMode = true,
   }) {
     final currentSession = _getCurrentOrTodaySession(workshop);
-    final existingRec =
-        (student != null && currentSession != null)
+    final existingRec = (student != null && currentSession != null)
         ? currentSession.records[student.id]
         : null;
 
@@ -1374,7 +1443,8 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                   const SizedBox(height: 14),
 
                   // Selector rápido de alumno inscrito si se abrió desde el botón general
-                  if (student == null && workshop.enrolledStudents.isNotEmpty) ...[
+                  if (student == null &&
+                      workshop.enrolledStudents.isNotEmpty) ...[
                     const Text(
                       'Seleccionar alumno inscrito (o escribe uno nuevo abajo):',
                       style: TextStyle(
@@ -1479,10 +1549,8 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                     controller: extraNoteCtrl,
                     maxLines: 2,
                     decoration: const InputDecoration(
-                      labelText:
-                          'Observaciones adicionales de la evidencia (Opcional)',
-                      hintText:
-                          'Ej. El alumno avisó al inicio de la sesión que extravió su celular...',
+                      labelText: 'Observaciones adicionales de la evidencia (Opcional)',
+                      hintText: 'Ej. El alumno avisó al inicio de la sesión que extravió su celular...',
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -1564,19 +1632,18 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                 Navigator.pop(ctx);
 
                 if (grantAttendanceToday) {
-                  final rec = await provider
-                      .registerOrEditStudentWithoutPhone(
-                        workshopId: workshop.id,
-                        sessionId: currentSession?.id,
-                        studentId: student?.id,
-                        enrollmentNumber: mat,
-                        fullName: name,
-                        email: email,
-                        circumstanceReason: selectedReason,
-                        extraDetails: extraNoteCtrl.text.trim(),
-                        markEntry: true,
-                        markAccredited: grantFullAccreditation,
-                      );
+                  final rec = await provider.registerOrEditStudentWithoutPhone(
+                    workshopId: workshop.id,
+                    sessionId: currentSession?.id,
+                    studentId: student?.id,
+                    enrollmentNumber: mat,
+                    fullName: name,
+                    email: email,
+                    circumstanceReason: selectedReason,
+                    extraDetails: extraNoteCtrl.text.trim(),
+                    markEntry: true,
+                    markAccredited: grantFullAccreditation,
+                  );
 
                   if (!context.mounted) return;
                   final updatedSession = _getCurrentOrTodaySession(workshop);
@@ -1893,7 +1960,8 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                                       size: 17,
                                     ),
                                     suffixIcon: IconButton(
-                                      tooltip: 'Elegir hora de término en reloj',
+                                      tooltip:
+                                          'Elegir hora de término en reloj',
                                       icon: const Icon(
                                         Icons.access_time_rounded,
                                         size: 16,
@@ -2029,9 +2097,7 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
       ),
     ];
     final List<TextEditingController> sessionEndCtrls = [
-      TextEditingController(
-        text: existingSession?.endTimeLabel ?? defaultEnd,
-      ),
+      TextEditingController(text: existingSession?.endTimeLabel ?? defaultEnd),
     ];
 
     bool isSameDay(DateTime a, DateTime b) =>
@@ -2532,9 +2598,8 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                           ? customTitle
                           : existingSession.title,
                       date: selectedDate,
-                      impartedDaysLabel: WorkshopSession.formatSingleDateWithDay(
-                        selectedDate,
-                      ),
+                      impartedDaysLabel:
+                          WorkshopSession.formatSingleDateWithDay(selectedDate),
                       startTimeLabel: startStr,
                       endTimeLabel: endStr,
                       toleranceMinutes: tol,
@@ -2827,10 +2892,8 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                     controller: detailCtrl,
                     maxLines: 3,
                     decoration: const InputDecoration(
-                      labelText:
-                          'Describe la razón exacta de su comportamiento (Obligatorio para evidencia)',
-                      hintText:
-                          'Ej. El alumno realizó comentarios inapropiados e interrumpió la práctica de laboratorio pese a las advertencias del docente...',
+                      labelText: 'Describe la razón exacta de su comportamiento (Obligatorio para evidencia)',
+                      hintText: 'Ej. El alumno realizó comentarios inapropiados e interrumpió la práctica de laboratorio pese a las advertencias del docente...',
                       prefixIcon: Icon(
                         Icons.report_problem_rounded,
                         color: Color(0xFFB91C1C),
@@ -2998,10 +3061,7 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
           return AlertDialog(
             title: const Row(
               children: [
-                Icon(
-                  Icons.phonelink_setup_rounded,
-                  color: Color(0xFF0284C7),
-                ),
+                Icon(Icons.phonelink_setup_rounded, color: Color(0xFF0284C7)),
                 SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -3141,10 +3201,8 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                       controller: newDeviceCtrl,
                       decoration: const InputDecoration(
                         isDense: true,
-                        labelText:
-                            'Dejar vacío para vincular automáticamente al escanear QR',
-                        hintText:
-                            'O escribe el ID que muestra su nuevo celular (Ej. CEL-8F4A2C)',
+                        labelText: 'Dejar vacío para vincular automáticamente al escanear QR',
+                        hintText: 'O escribe el ID que muestra su nuevo celular (Ej. CEL-8F4A2C)',
                         prefixIcon: Icon(
                           Icons.smartphone_rounded,
                           color: Color(0xFF0284C7),
@@ -3205,7 +3263,10 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                 child: const Text('Cancelar'),
               ),
               ElevatedButton.icon(
-                icon: const Icon(Icons.published_with_changes_rounded, size: 18),
+                icon: const Icon(
+                  Icons.published_with_changes_rounded,
+                  size: 18,
+                ),
                 label: const Text('Borrar Viejo y Dar Acceso al Nuevo Celular'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF0284C7),

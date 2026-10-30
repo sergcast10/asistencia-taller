@@ -944,30 +944,19 @@
             }
           }
 
-          // 2. Obtener registro de asistencia previo (tanto de la sesión actual como del día de hoy)
+          // 2. Obtener registro de asistencia previo (ESTRICTAMENTE de esta sesión y taller)
           const targetSessionId = sessionId || 'ses_001';
           const { data: studentRecs } = await supabaseClient
             .from('attendance_records')
             .select('*')
+            .eq('session_id', targetSessionId)
             .in('student_id', allStudentIds)
             .order('created_at', { ascending: false });
 
           const recsArray = studentRecs || [];
-          let existingRec = recsArray.find(r => r.session_id === targetSessionId) || null;
+          let existingRec = recsArray.length > 0 ? recsArray[0] : null;
 
-          // Buscar también cualquier registro del mismo día de hoy (por si el docente recreó la sesión o reinstaló la app)
           const nowDate = new Date();
-          const todayRecs = recsArray.filter(r => {
-            const refStr = r.check_in_time || r.created_at || r.check_out_time;
-            if (!refStr) return false;
-            const d = new Date(refStr);
-            const sameDay = d.getFullYear() === nowDate.getFullYear() &&
-                            d.getMonth() === nowDate.getMonth() &&
-                            d.getDate() === nowDate.getDate();
-            const recentHours = Math.abs(nowDate.getTime() - d.getTime()) < (18 * 3600 * 1000);
-            return sameDay || recentHours;
-          });
-
           const nowIso = nowDate.toISOString();
           let baseStatus = 'pending';
           let checkInIso = existingRec ? existingRec.check_in_time : null;
@@ -975,35 +964,17 @@
           let title = '';
           let message = '';
 
-          // Si no tenía check_in_time en este ID de sesión pero ya había registrado su entrada hoy, heredarla automáticamente
-          if (!checkInIso) {
-            const recWithEntryToday = todayRecs.find(r => !!r.check_in_time);
-            if (recWithEntryToday) {
-              checkInIso = recWithEntryToday.check_in_time;
-              if (!existingRec) existingRec = recWithEntryToday;
-            }
-          }
-          if (!checkOutIso) {
-            const recWithExitToday = todayRecs.find(r => !!r.check_out_time);
-            if (recWithExitToday) {
-              checkOutIso = recWithExitToday.check_out_time;
-            }
-          }
-
-          // Extraer nota o retardo previos si existían en cualquiera de los registros de hoy
+          // Extraer nota o retardo previos si existían en el registro previo de ESTA sesión
           let prevLateMins = 0;
           let prevNote = '';
-          const statusSources = existingRec ? [existingRec, ...todayRecs] : todayRecs;
-          for (const src of statusSources) {
-            if (src && src.status) {
-              const parts = String(src.status).split('||');
-              if (parts[0] === 'accredited') baseStatus = 'accredited';
-              for (let i = 1; i < parts.length; i++) {
-                if (parts[i].startsWith('LATE:') && prevLateMins === 0) {
-                  prevLateMins = parseInt(parts[i].substring(5), 10) || 0;
-                } else if (parts[i].startsWith('NOTE:') && !prevNote) {
-                  prevNote = parts[i].substring(5);
-                }
+          if (existingRec && existingRec.status) {
+            const parts = String(existingRec.status).split('||');
+            if (parts[0] === 'accredited') baseStatus = 'accredited';
+            for (let i = 1; i < parts.length; i++) {
+              if (parts[i].startsWith('LATE:') && prevLateMins === 0) {
+                prevLateMins = parseInt(parts[i].substring(5), 10) || 0;
+              } else if (parts[i].startsWith('NOTE:') && !prevNote) {
+                prevNote = parts[i].substring(5);
               }
             }
           }
