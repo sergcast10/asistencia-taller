@@ -90,23 +90,6 @@ class _StudentScannerScreenState extends State<StudentScannerScreen> {
     }
   }
 
-  Future<void> _clearSavedStudentData() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('student_saved_control_number');
-    await prefs.remove('student_saved_full_name');
-    setState(() {
-      _savedControlNumber = '';
-      _savedFullName = '';
-      _controlNumberController.clear();
-      _fullNameController.clear();
-    });
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Datos desvinculados de este teléfono.')),
-      );
-    }
-  }
-
   void _showControlNumberPromptDialog(String qrContent) {
     // Intentar interpretar información preliminar del QR para mostrar al alumno
     String detectedPhaseName = 'Pase de Asistencia';
@@ -466,15 +449,10 @@ class _StudentScannerScreenState extends State<StudentScannerScreen> {
                   ),
                 ),
                 if (_savedControlNumber.isNotEmpty)
-                  TextButton(
-                    onPressed: _clearSavedStudentData,
-                    child: const Text(
-                      'Cambiar',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                  const Icon(
+                    Icons.lock_rounded,
+                    size: 18,
+                    color: AppTheme.primary,
                   ),
               ],
             ),

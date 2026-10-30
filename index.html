@@ -333,23 +333,19 @@
     <!-- TARJETA PRINCIPAL: FORMULARIO INTELIGENTE -->
     <div id="actionCard" class="card">
       
-      <!-- CASO 1: ALUMNO YA REGISTRADO ANTERIORMENTE -->
+      <!-- CASO 1: ALUMNO YA REGISTRADO ANTERIORMENTE (PASE AUTOMÁTICO SIN TOCAR BOTONES) -->
       <div id="savedStudentView" class="hidden">
         <div class="greeting-box">
           <div class="greeting-title" id="savedGreetingName">¡Hola!</div>
           <div class="greeting-subtitle" id="savedGreetingControl">Matrícula: </div>
         </div>
 
-        <p style="font-size: 13px; color: var(--slate-600); margin-bottom: 16px; text-align: center;">
-          Tu identidad ya está guardada en este celular. Solo confirma tu asistencia para el pase de hoy.
+        <p id="autoSubmitStatusText" style="font-size: 14px; font-weight: 700; color: var(--primary); margin-bottom: 16px; text-align: center;">
+          ⏳ Registrando tu asistencia automáticamente...
         </p>
 
-        <button id="btnConfirmAttendance" class="btn btn-primary" onclick="submitAttendance(true)">
+        <button id="btnConfirmAttendance" class="btn btn-primary hidden" onclick="submitAttendance(true)">
           <span id="btnConfirmText">Confirmar Asistencia</span>
-        </button>
-
-        <button class="btn btn-secondary" onclick="switchStudent()">
-          ¿No eres tú? Cambiar de alumno
         </button>
       </div>
 
@@ -554,6 +550,10 @@
 
     // Inicializar al cargar la página
     window.addEventListener('DOMContentLoaded', async () => {
+      // Limpiar la barra de direcciones del navegador para que el enlace se vea corto y limpio
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
       const badgeEl = document.getElementById('deviceIdBadge');
       if (badgeEl) {
         badgeEl.textContent = `📱 ID de tu Celular: ${currentDeviceId}`;
@@ -561,7 +561,7 @@
       setupPhaseBadge(currentPhase);
       updateToleranceBanner();
       await loadSessionMetadata();
-      checkSavedStudent();
+      await checkSavedStudent();
     });
 
     function updateToleranceBanner() {
@@ -642,7 +642,7 @@
       } catch (_) {}
     }
 
-    // Comprobar si este celular ya tiene un alumno guardado en localStorage
+    // Comprobar si este celular ya tiene un alumno guardado en localStorage y registrar AUTOMÁTICAMENTE
     async function checkSavedStudent() {
       const savedControl = localStorage.getItem('asistencia_control_number');
       const savedName = localStorage.getItem('asistencia_full_name');
@@ -669,18 +669,23 @@
         document.getElementById('savedGreetingControl').textContent = `Matrícula: ${savedControl}`;
         document.getElementById('savedStudentView').classList.remove('hidden');
         document.getElementById('newStudentForm').classList.add('hidden');
+
+        // Pase automático inmediato al leer el QR sin tocar ningún botón
+        await submitAttendance(true);
         return;
       }
 
-      // Si no hay datos guardados, mostrar formulario
+      // Si no hay datos guardados, mostrar formulario de primera vez
       document.getElementById('savedStudentView').classList.add('hidden');
       document.getElementById('newStudentForm').classList.remove('hidden');
     }
 
-    // Al teclear número de control: verificación en tiempo real
+    // Al teclear número de control: verificación en tiempo real y envío automático si ya está inscrito
     let searchTimeout;
+    let autoSubmitTimeout;
     async function handleControlInput(val) {
       clearTimeout(searchTimeout);
+      clearTimeout(autoSubmitTimeout);
       const cleanVal = val.trim().toUpperCase();
       if (cleanVal.length < 3) {
         document.getElementById('nameGroup').classList.add('hidden');
@@ -694,7 +699,7 @@
           try {
             const { data: stdArr } = await supabaseClient
               .from('students')
-              .select('full_name')
+              .select('full_name, enrollment_number')
               .ilike('enrollment_number', cleanVal)
               .limit(1);
             foundStudent = stdArr && stdArr.length > 0 ? stdArr[0] : null;
@@ -710,8 +715,12 @@
         if (foundStudent) {
           isStudentEnrolledInDb = true;
           document.getElementById('nameGroup').classList.add('hidden');
-          document.getElementById('controlHelper').innerHTML = `✅ Alumno reconocido: <strong>${foundStudent.full_name || foundStudent.fullName}</strong>`;
+          document.getElementById('controlHelper').innerHTML = `✅ Alumno reconocido: <strong>${foundStudent.full_name || foundStudent.fullName}</strong> • Registrando automáticamente...`;
           document.getElementById('controlHelper').style.color = 'var(--success)';
+          // Redirigir y sellar automáticamente sin que tenga que tocar el botón
+          autoSubmitTimeout = setTimeout(() => {
+            submitAttendance(false);
+          }, 500);
         } else {
           isStudentEnrolledInDb = false;
           document.getElementById('nameGroup').classList.remove('hidden');
@@ -719,14 +728,6 @@
           document.getElementById('controlHelper').style.color = 'var(--primary)';
         }
       }, 350);
-    }
-
-    // Cambiar de alumno
-    function switchStudent() {
-      document.getElementById('savedStudentView').classList.add('hidden');
-      document.getElementById('newStudentForm').classList.remove('hidden');
-      document.getElementById('controlNumber').value = '';
-      document.getElementById('controlNumber').focus();
     }
 
     // Enviar registro de asistencia

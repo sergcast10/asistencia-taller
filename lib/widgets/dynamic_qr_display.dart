@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -308,51 +308,103 @@ class _DynamicQrDisplayState extends State<DynamicQrDisplay> {
                       ),
                     )
                   else
-                    InkWell(
-                      onTap: () => _showWebUrlConfigDialog(context, provider),
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFECFDF5),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      alignment: WrapAlignment.center,
+                      children: [
+                        InkWell(
+                          onTap: () =>
+                              _showWebUrlConfigDialog(context, provider),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: const Color(0xFF10B981)
-                                .withValues(alpha: 0.4),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.check_circle_rounded,
-                              color: Color(0xFF059669),
-                              size: 14,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
                             ),
-                            const SizedBox(width: 6),
-                            Flexible(
-                              child: Text(
-                                'Redirige a: ${provider.webBaseUrl}',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: Color(0xFF065F46),
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                overflow: TextOverflow.ellipsis,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFECFDF5),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: const Color(0xFF10B981)
+                                    .withValues(alpha: 0.4),
                               ),
                             ),
-                            const SizedBox(width: 6),
-                            const Icon(
-                              Icons.edit_rounded,
-                              color: Color(0xFF059669),
-                              size: 12,
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.check_circle_rounded,
+                                  color: Color(0xFF059669),
+                                  size: 14,
+                                ),
+                                SizedBox(width: 6),
+                                Text(
+                                  'Portal Web Activo',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Color(0xFF065F46),
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                SizedBox(width: 6),
+                                Icon(
+                                  Icons.edit_rounded,
+                                  color: Color(0xFF059669),
+                                  size: 12,
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
-                      ),
+                        InkWell(
+                          onTap: () {
+                            Clipboard.setData(
+                              ClipboardData(text: _currentQrData),
+                            );
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  '📋 Enlace de asistencia copiado al portapapeles.',
+                                ),
+                                backgroundColor: AppTheme.accreditedColor,
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppTheme.slate100,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: AppTheme.slate200),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.copy_rounded,
+                                  color: AppTheme.primary,
+                                  size: 13,
+                                ),
+                                SizedBox(width: 5),
+                                Text(
+                                  'Copiar enlace',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: AppTheme.primary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                 ],
               );
@@ -372,68 +424,65 @@ class _DynamicQrDisplayState extends State<DynamicQrDisplay> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         title: const Row(
           children: [
-            Icon(Icons.language_rounded, color: AppTheme.primary),
-            SizedBox(width: 10),
-            Text('URL Web para Alumnos'),
+            Icon(Icons.link_rounded, color: AppTheme.primary),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Enlace para Alumnos',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+              ),
+            ),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Al escanear el código QR con la cámara de su celular (sin instalar ninguna app), los alumnos serán dirigidos a esta dirección web:',
-              style: TextStyle(fontSize: 13, color: AppTheme.slate700),
-            ),
-            const SizedBox(height: 14),
             TextField(
               controller: controller,
-              decoration: const InputDecoration(
-                labelText: 'URL Base del Sistema',
-                hintText:
-                    'Pega aquí el enlace https://... del túnel o servidor',
-                prefixIcon: Icon(Icons.link_rounded),
-              ),
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              icon: const Icon(
-                Icons.wifi_rounded,
-                size: 16,
-                color: AppTheme.primary,
-              ),
-              label: const Text(
-                'Usar IP Local de tu PC (http://192.168.0.24:8080)',
-              ),
-              onPressed: () {
-                controller.text = 'http://192.168.0.24:8080';
-              },
-            ),
-            const SizedBox(height: 8),
-            if (kIsWeb)
-              OutlinedButton.icon(
-                icon: const Icon(Icons.my_location_rounded, size: 16),
-                label: const Text('Usar dirección actual de este navegador'),
-                onPressed: () {
-                  controller.text = Uri.base.origin;
-                },
-              ),
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: AppTheme.slate100,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Text(
-                '💡 ¿Por qué no abre "localhost"?\nEn tu celular, "localhost" apunta al propio celular (no a tu PC). Para que los celulares accedan por Wi-Fi, tu PC debe usar su IP local o un enlace en la nube (ej. Firebase Hosting, Vercel o ngrok).',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: AppTheme.slate700,
-                  height: 1.3,
+              style: const TextStyle(fontSize: 13),
+              decoration: InputDecoration(
+                labelText: 'Dirección Web del Portal',
+                hintText: 'https://...',
+                prefixIcon: const Icon(Icons.public_rounded),
+                suffixIcon: IconButton(
+                  tooltip: 'Copiar enlace',
+                  icon: const Icon(Icons.copy_rounded, size: 18),
+                  onPressed: () {
+                    Clipboard.setData(
+                      ClipboardData(text: controller.text.trim()),
+                    );
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('📋 Enlace copiado.'),
+                        backgroundColor: AppTheme.accreditedColor,
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
                 ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                icon: const Icon(
+                  Icons.cloud_done_rounded,
+                  size: 16,
+                  color: AppTheme.primary,
+                ),
+                label: const Text(
+                  'Restaurar Portal Oficial en la Nube',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                ),
+                onPressed: () {
+                  controller.text =
+                      'https://sergcast10.github.io/asistencia-taller';
+                },
               ),
             ),
           ],

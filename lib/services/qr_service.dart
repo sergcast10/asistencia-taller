@@ -52,6 +52,23 @@ class QrService {
       if (uri.queryParameters.containsKey('data')) {
         return uri.queryParameters['data']!;
       }
+      if (uri.queryParameters.containsKey('session') &&
+          uri.queryParameters.containsKey('token')) {
+        final s = uri.queryParameters['session'] ?? '';
+        final w = uri.queryParameters['workshop'] ?? '';
+        final p = uri.queryParameters['phase'] ?? 'entry';
+        final token = uri.queryParameters['token'] ?? '';
+        final parts = token.split('_');
+        final window = parts.length > 1 ? int.tryParse(parts[1]) : null;
+        final sig = parts.length > 2 ? parts.sublist(2).join('_') : '';
+        return jsonEncode({
+          's': s,
+          'w': w,
+          'p': p,
+          if (window != null) 't': window,
+          'sig': sig,
+        });
+      }
       if (uri.queryParameters.containsKey('token')) {
         return uri.queryParameters['token']!;
       }
@@ -61,7 +78,7 @@ class QrService {
   }
 
   /// Genera la carga útil encriptada que se codificará en el código QR
-  /// Si se especifica [webBaseUrl], genera una URL web completa (ej. https://dominio.com/?qr=...)
+  /// Si se especifica [webBaseUrl], genera una URL web limpia y corta
   /// para que la cámara del celular del alumno la abra automáticamente en el navegador.
   static String generateDynamicQrData({
     required String sessionId,
@@ -98,7 +115,17 @@ class QrService {
       final cleanBase = webBaseUrl.trim().replaceAll(RegExp(r'/+$'), '');
       final dynamicToken = '${phase.name}_${window}_$signature';
       final separator = cleanBase.contains('?') ? '&' : '?';
-      return '$cleanBase${separator}session=$sessionId&token=$dynamicToken&phase=${phase.name}&qr=${Uri.encodeComponent(jsonStr)}';
+      final extraParams = StringBuffer();
+      if (toleranceMinutes != null && toleranceMinutes != 15) {
+        extraParams.write('&tol=$toleranceMinutes');
+      }
+      if (registrationWindowMinutes != null && registrationWindowMinutes != 45) {
+        extraParams.write('&win=$registrationWindowMinutes');
+      }
+      if (phaseStartedAt != null) {
+        extraParams.write('&start=${phaseStartedAt.millisecondsSinceEpoch}');
+      }
+      return '$cleanBase${separator}session=$sessionId&workshop=$workshopId&phase=${phase.name}&token=$dynamicToken$extraParams';
     }
 
     return jsonStr;

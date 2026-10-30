@@ -181,33 +181,6 @@ class _StudentWebAttendanceScreenState
     );
   }
 
-  Future<void> _handleResetSavedData() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('student_saved_control_number');
-    await prefs.remove('student_saved_full_name');
-    await prefs.remove('student_saved_email');
-
-    setState(() {
-      _savedControlNumber = '';
-      _savedFullName = '';
-      _controlNumberController.clear();
-      _fullNameController.clear();
-      _emailController.clear();
-      _attendanceResult = null;
-      _isLoading = false;
-    });
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Datos desvinculados de este celular. Ahora puedes registrar a otro alumno.',
-          ),
-        ),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -667,17 +640,6 @@ class _StudentWebAttendanceScreenState
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 24),
-
-          // Enlace discreto para cambiar número de control si se equivocó
-          TextButton.icon(
-            icon: const Icon(Icons.switch_account_rounded, size: 16),
-            label: const Text(
-              '¿No eres tú? Cambiar datos guardados en este celular',
-              style: TextStyle(fontSize: 12),
-            ),
-            onPressed: _handleResetSavedData,
           ),
         ],
       ),
