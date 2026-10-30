@@ -56,8 +56,7 @@ class CsvExporter {
                 ? 'RETARDO (+${record.lateMinutes} MIN)'
                 : 'PUNTUAL (EN TOLERANCIA)');
 
-      final isSuspended =
-          student.isSuspended || (record?.isSuspended == true);
+      final isSuspended = student.isSuspended || (record?.isSuspended == true);
       final suspensionReason =
           record?.suspensionReason ??
           student.suspensionReason ??
@@ -74,7 +73,8 @@ class CsvExporter {
 
       if (isSuspended) {
         statusStr = 'SUSPENDIDO POR CONDUCTA';
-        condicionStr = 'SUSPENDIDO POR EL DOCENTE ENCARGADO: ${suspensionReason.replaceAll('"', "'")}';
+        condicionStr =
+            'SUSPENDIDO POR EL DOCENTE ENCARGADO: ${suspensionReason.replaceAll('"', "'")}';
         lockStr = 'SELLADO DISCIPLINARIO';
       } else if (record != null) {
         if (record.isLocked) {

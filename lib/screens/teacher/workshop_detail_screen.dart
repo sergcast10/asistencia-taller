@@ -377,14 +377,14 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                           icon: const Icon(
                             Icons.delete_outline_rounded,
                             size: 18,
-                            color: AppTheme.slate600,
+                            color: AppTheme.absentColor,
                           ),
-                          onPressed: () {
-                            provider.deleteSession(
-                              workshopId: workshop.id,
-                              sessionId: session.id,
-                            );
-                          },
+                          onPressed: () => _confirmDeleteSessionDialog(
+                            context,
+                            provider,
+                            workshop,
+                            session,
+                          ),
                         ),
                       ],
                     ),
@@ -2575,6 +2575,27 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
               ),
             ),
             actions: [
+              if (existingSession != null)
+                TextButton.icon(
+                  icon: const Icon(
+                    Icons.delete_forever_rounded,
+                    color: AppTheme.absentColor,
+                    size: 16,
+                  ),
+                  label: const Text(
+                    'Eliminar Sesión',
+                    style: TextStyle(color: AppTheme.absentColor),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _confirmDeleteSessionDialog(
+                      context,
+                      provider,
+                      workshop,
+                      existingSession,
+                    );
+                  },
+                ),
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
                 child: const Text('Cancelar'),
@@ -2878,6 +2899,196 @@ class _WorkshopDetailScreenState extends State<WorkshopDetailScreen>
                     SnackBar(
                       content: Text(
                         '🗑️ Taller "${workshop.name}" eliminado correctamente.',
+                      ),
+                      backgroundColor: AppTheme.absentColor,
+                    ),
+                  );
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Confirmación detallada con protección de PIN para eliminar una sesión/sección
+  void _confirmDeleteSessionDialog(
+    BuildContext context,
+    AttendanceProvider provider,
+    Workshop workshop,
+    WorkshopSession session,
+  ) {
+    final pinCtrl = TextEditingController();
+    final bool isPinRequired = provider.isPinRequiredForSensitiveActions;
+    String? pinError;
+    final stats = provider.getSessionStats(workshop, session);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: AppTheme.absentColor, size: 28),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '¿Eliminar esta Sesión?',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+                ),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Estás a punto de eliminar la siguiente sesión/sección:',
+                  style: TextStyle(fontSize: 13, color: AppTheme.slate600),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.slate100,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppTheme.slate200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        session.title.isEmpty ? 'Sesión sin título' : session.title,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.slate800,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          const Icon(Icons.calendar_today_rounded, size: 13, color: AppTheme.slate600),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              session.formattedDateWithDay,
+                              style: const TextStyle(fontSize: 12, color: AppTheme.slate700, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(Icons.access_time_rounded, size: 13, color: AppTheme.slate600),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              '${session.startTimeLabel} a ${session.endTimeLabel}',
+                              style: const TextStyle(fontSize: 12, color: AppTheme.slate700, fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(Icons.how_to_reg_rounded, size: 13, color: AppTheme.primary),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Asistencias registradas: ${stats.registeredTodayCount}',
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.primary),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEE2E2),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFFCA5A5)),
+                  ),
+                  child: const Text(
+                    '⚠️ Esta acción borrará la sesión y todos sus registros de asistencia asociados de forma permanente en la base de datos local y en la nube.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF991B1B),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                if (isPinRequired) ...[
+                  const SizedBox(height: 14),
+                  const Text(
+                    'Ingresa tu PIN Docente para autorizar (Por defecto: 1234):',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: pinCtrl,
+                    obscureText: true,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: 'PIN Docente',
+                      prefixIcon: const Icon(Icons.lock_rounded),
+                      errorText: pinError,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.delete_forever_rounded, size: 18),
+              label: const Text('Sí, Eliminar Sesión'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.absentColor,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                if (isPinRequired) {
+                  final inputPin = pinCtrl.text.trim();
+                  if (!provider.verifyTeacherPin(inputPin)) {
+                    setDialogState(() {
+                      pinError = 'PIN incorrecto. Ingresa tu PIN de seguridad.';
+                    });
+                    return;
+                  }
+                }
+
+                Navigator.pop(ctx);
+                if (_selectedSessionIdForStudents == session.id) {
+                  setState(() {
+                    _selectedSessionIdForStudents = null;
+                  });
+                }
+                await provider.deleteSession(
+                  workshopId: workshop.id,
+                  sessionId: session.id,
+                );
+
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        '🗑️ Sesión "${session.title.isEmpty ? 'Programada' : session.title}" eliminada correctamente.',
                       ),
                       backgroundColor: AppTheme.absentColor,
                     ),

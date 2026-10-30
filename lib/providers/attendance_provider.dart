@@ -901,6 +901,65 @@ class AttendanceProvider extends ChangeNotifier {
     if (wIdx == -1) return;
     _workshops[wIdx].sessions.removeWhere((s) => s.id == sessionId);
     await _persist();
+
+    // 1. Limpiar en SQLite local via PowerSync si está activo
+    if (PowerSyncService().isInitialized) {
+      try {
+        await PowerSyncService().db.execute(
+          'DELETE FROM attendance_records WHERE session_id = ?',
+          [sessionId],
+        );
+        await PowerSyncService().db.execute(
+          'DELETE FROM sessions WHERE id = ?',
+          [sessionId],
+        );
+      } catch (e) {
+        debugPrint('Aviso eliminación SQLite sesión: $e');
+      }
+    }
+
+    // 2. Eliminar en Supabase Cloud si no es Web
+    if (!kIsWeb) {
+      try {
+        final client = HttpClient();
+        // Borrar registros de asistencia de esta sesión
+        final uriRecs = Uri.parse(
+          'https://qukqvrowgzdkqoccbfdb.supabase.co/rest/v1/attendance_records?session_id=eq.$sessionId',
+        );
+        final reqRecs = await client.deleteUrl(uriRecs);
+        reqRecs.headers.set(
+          'apikey',
+          'sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN',
+        );
+        reqRecs.headers.set(
+          'Authorization',
+          'Bearer sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN',
+        );
+        final resRecs = await reqRecs.close();
+        await resRecs.drain();
+
+        // Borrar la sesión
+        final uriSess = Uri.parse(
+          'https://qukqvrowgzdkqoccbfdb.supabase.co/rest/v1/workshop_sessions?id=eq.$sessionId',
+        );
+        final reqSess = await client.deleteUrl(uriSess);
+        reqSess.headers.set(
+          'apikey',
+          'sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN',
+        );
+        reqSess.headers.set(
+          'Authorization',
+          'Bearer sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN',
+        );
+        final resSess = await reqSess.close();
+        await resSess.drain();
+
+        client.close();
+      } catch (e) {
+        debugPrint('Aviso Supabase delete sesión: $e');
+      }
+    }
+
     notifyListeners();
   }
 
