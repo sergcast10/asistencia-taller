@@ -279,6 +279,7 @@ class AttendanceProvider extends ChangeNotifier {
     required String code,
     required String instructorName,
     required String description,
+    String eventType = 'workshop',
     String? initialSessionTitle,
     DateTime? initialSessionDate,
     List<DateTime>? initialSessionDates,
@@ -295,6 +296,7 @@ class AttendanceProvider extends ChangeNotifier {
       code: code,
       instructorName: instructorName,
       description: description,
+      eventType: eventType,
       enrolledStudents: [],
       sessions: [],
     );
@@ -363,6 +365,7 @@ class AttendanceProvider extends ChangeNotifier {
     required String code,
     required String instructorName,
     required String description,
+    String? eventType,
   }) async {
     final index = _workshops.indexWhere((w) => w.id == workshopId);
     if (index == -1) return null;
@@ -376,6 +379,9 @@ class AttendanceProvider extends ChangeNotifier {
     }
     if (instructorName.trim().isNotEmpty) {
       workshop.instructorName = instructorName.trim();
+    }
+    if (eventType != null && eventType.isNotEmpty) {
+      workshop.eventType = eventType;
     }
     workshop.description = description.trim();
 
@@ -1384,6 +1390,62 @@ class AttendanceProvider extends ChangeNotifier {
         message:
             'El alumno ${student.fullName} se encuentra SUSPENDIDO por el docente encargado (${workshop.instructorName}). Motivo: "$reason". No puede acreditar asistencia mientras la suspensión esté activa.',
         status: AttendanceStatus.absent,
+        student: student,
+      );
+    }
+
+    // --- MODO CONFERENCIA: REGISTRO ÚNICO DE ASISTENCIA Y SALIDA / ACREDITACIÓN DIRECTA ---
+    if (workshop.isConference) {
+      if (record.hasCheckIn && record.status == AttendanceStatus.accredited) {
+        return AttendanceProcessResult(
+          success: true,
+          title: '🎓 Conferencia Ya Acreditada 🔒',
+          message:
+              'Tu asistencia a la conferencia ya fue sellada a las ${_formatTime(record.checkInTime!)} y tu acreditación se encuentra registrada y asegurada.',
+          status: AttendanceStatus.accredited,
+          student: student,
+        );
+      }
+
+      record.sealCheckIn(now);
+      record.sealCheckOut(now);
+      record.isLocked = true;
+      record.notes = 'Asistencia y Acreditación de Conferencia en Registro Único';
+
+      if (session.phaseStartedAt != null) {
+        final minsElapsed = now.difference(session.phaseStartedAt!).inMinutes;
+        if (minsElapsed > session.toleranceMinutes) {
+          record.isLate = true;
+          record.lateMinutes = minsElapsed;
+        } else {
+          record.isLate = false;
+          record.lateMinutes = 0;
+        }
+      }
+
+      _persist();
+      PowerSyncService().saveAttendanceRecord(
+        record: record,
+        workshopId: workshop.id,
+      );
+      _syncRecordToSupabaseAsync(
+        record,
+        student,
+        session.id,
+        workshop: workshop,
+        session: session,
+      );
+
+      final lateTag = record.isLate
+          ? ' (⏱️ Registrado con retraso: +${record.lateMinutes} min)'
+          : ' (✅ Puntual dentro de tolerancia)';
+
+      return AttendanceProcessResult(
+        success: true,
+        title: '🎓 ¡Conferencia ACREDITADA! 🎉',
+        message:
+            '¡Excelente, ${student.fullName}! Se registró tu asistencia a la conferencia a las ${_formatTime(now)}$lateTag. Tu acreditación ha sido otorgada con éxito en un solo registro.',
+        status: AttendanceStatus.accredited,
         student: student,
       );
     }

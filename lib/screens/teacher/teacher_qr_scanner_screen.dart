@@ -129,13 +129,21 @@ class _TeacherQrScannerScreenState extends State<TeacherQrScannerScreen> {
     try {
       if (raw.startsWith('{') && raw.endsWith('}')) {
         final map = jsonDecode(raw);
-        if (map['enrollmentNumber'] != null)
+        if (map['enrollmentNumber'] != null) {
           return map['enrollmentNumber'].toString().trim();
-        if (map['controlNumber'] != null)
+        }
+        if (map['controlNumber'] != null) {
           return map['controlNumber'].toString().trim();
-        if (map['control'] != null) return map['control'].toString().trim();
-        if (map['id'] != null) return map['id'].toString().trim();
-        if (map['matricula'] != null) return map['matricula'].toString().trim();
+        }
+        if (map['control'] != null) {
+          return map['control'].toString().trim();
+        }
+        if (map['id'] != null) {
+          return map['id'].toString().trim();
+        }
+        if (map['matricula'] != null) {
+          return map['matricula'].toString().trim();
+        }
       }
     } catch (_) {}
 

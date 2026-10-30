@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../models/session.dart';
+import '../models/workshop.dart';
 import '../providers/attendance_provider.dart';
 import '../services/qr_service.dart';
 import '../utils/app_theme.dart';
@@ -50,6 +51,12 @@ class _DynamicQrDisplayState extends State<DynamicQrDisplay> {
   void _refreshQr() {
     if (!mounted) return;
     final provider = context.read<AttendanceProvider>();
+    final workshop = provider.workshops.cast<Workshop?>().firstWhere(
+      (w) => w?.id == widget.workshopId,
+      orElse: () => null,
+    );
+    final isConf = workshop?.isConference ?? false;
+
     setState(() {
       _secondsLeft = QrService.getSecondsUntilNextWindow();
       _currentQrData = QrService.generateDynamicQrData(
@@ -61,6 +68,7 @@ class _DynamicQrDisplayState extends State<DynamicQrDisplay> {
         toleranceMinutes: widget.session.toleranceMinutes,
         registrationWindowMinutes: widget.session.registrationWindowMinutes,
         phaseStartedAt: widget.session.phaseStartedAt,
+        isConference: isConf,
       );
     });
   }
@@ -89,10 +97,23 @@ class _DynamicQrDisplayState extends State<DynamicQrDisplay> {
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<AttendanceProvider>();
+    final workshop = provider.workshops.cast<Workshop?>().firstWhere(
+      (w) => w?.id == widget.workshopId,
+      orElse: () => null,
+    );
+    final isConf = workshop?.isConference ?? false;
+
     final isEntry = widget.session.currentPhase == SessionPhase.entry;
-    final phaseColor = isEntry ? AppTheme.accreditedColor : AppTheme.primary;
-    final phaseBg = isEntry ? AppTheme.accreditedBg : AppTheme.primaryLight;
-    final phaseTitle = isEntry ? 'PASE DE ENTRADA' : 'PASE DE SALIDA';
+    final phaseColor = isConf
+        ? const Color(0xFF7C3AED)
+        : (isEntry ? AppTheme.accreditedColor : AppTheme.primary);
+    final phaseBg = isConf
+        ? const Color(0xFFF5F3FF)
+        : (isEntry ? AppTheme.accreditedBg : AppTheme.primaryLight);
+    final phaseTitle = isConf
+        ? '🎤 PASE ÚNICO DE CONFERENCIA'
+        : (isEntry ? 'PASE DE ENTRADA' : 'PASE DE SALIDA');
 
     return Container(
       padding: const EdgeInsets.all(24),

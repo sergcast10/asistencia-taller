@@ -1,1230 +1,1263 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Registro de Asistencia - Taller</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --primary: #4F46E5;
-      --primary-hover: #4338CA;
-      --primary-light: #EEF2FF;
-      --success: #10B981;
-      --success-light: #ECFDF5;
-      --warning: #F59E0B;
-      --warning-light: #FFFBEB;
-      --slate-50: #F8FAFC;
-      --slate-100: #F1F5F9;
-      --slate-200: #E2E8F0;
-      --slate-600: #475569;
-      --slate-700: #334155;
-      --slate-900: #0F172A;
-    }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    body {
-      background-color: var(--slate-50);
-      color: var(--slate-900);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 16px;
-    }
-
-    .container {
-      width: 100%;
-      max-width: 440px;
-      margin: auto;
-    }
-
-    .header-card {
-      background: white;
-      border-radius: 20px;
-      padding: 24px;
-      border: 1px solid var(--slate-200);
-      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
-      margin-bottom: 16px;
-      text-align: center;
-    }
-
-    .logo-badge {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 56px;
-      height: 56px;
-      border-radius: 16px;
-      background: var(--primary-light);
-      color: var(--primary);
-      margin-bottom: 12px;
-    }
-
-    .logo-badge svg {
-      width: 28px;
-      height: 28px;
-    }
-
-    h1 {
-      font-size: 20px;
-      font-weight: 800;
-      color: var(--slate-900);
-      margin-bottom: 6px;
-    }
-
-    .subtitle {
-      font-size: 13px;
-      color: var(--slate-600);
-    }
-
-    .phase-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      margin-top: 12px;
-      padding: 6px 14px;
-      border-radius: 20px;
-      font-size: 13px;
-      font-weight: 700;
-    }
-
-    .phase-entry {
-      background: var(--primary-light);
-      color: var(--primary);
-    }
-
-    .phase-exit {
-      background: #FEF3C7;
-      color: #B45309;
-    }
-
-    .card {
-      background: white;
-      border-radius: 20px;
-      padding: 24px;
-      border: 1px solid var(--slate-200);
-      box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05);
-      margin-bottom: 16px;
-    }
-
-    .greeting-box {
-      background: var(--primary-light);
-      border: 1px solid #C7D2FE;
-      border-radius: 14px;
-      padding: 16px;
-      margin-bottom: 20px;
-      text-align: center;
-    }
-
-    .greeting-title {
-      font-size: 16px;
-      font-weight: 800;
-      color: var(--slate-900);
-      margin-bottom: 4px;
-    }
-
-    .greeting-subtitle {
-      font-size: 13px;
-      color: var(--primary);
-      font-weight: 600;
-    }
-
-    .form-group {
-      margin-bottom: 16px;
-      text-align: left;
-    }
-
-    label {
-      display: block;
-      font-size: 13px;
-      font-weight: 700;
-      color: var(--slate-700);
-      margin-bottom: 6px;
-    }
-
-    input {
-      width: 100%;
-      padding: 14px 16px;
-      font-size: 15px;
-      border: 1.5px solid var(--slate-200);
-      border-radius: 12px;
-      outline: none;
-      transition: all 0.2s ease;
-      background: #FAFAFA;
-      color: var(--slate-900);
-    }
-
-    input:focus {
-      border-color: var(--primary);
-      background: white;
-      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
-    }
-
-    .btn {
-      width: 100%;
-      padding: 15px;
-      font-size: 15px;
-      font-weight: 800;
-      border-radius: 12px;
-      border: none;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      transition: all 0.2s ease;
-    }
-
-    .btn-primary {
-      background: var(--primary);
-      color: white;
-      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
-    }
-
-    .btn-primary:active {
-      transform: scale(0.98);
-      background: var(--primary-hover);
-    }
-
-    .btn-secondary {
-      background: var(--slate-100);
-      color: var(--slate-700);
-      margin-top: 10px;
-      font-size: 13px;
-      padding: 10px;
-    }
-
-    .result-card {
-      border-radius: 20px;
-      padding: 24px;
-      text-align: center;
-      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08);
-      animation: fadeIn 0.3s ease;
-    }
-
-    .result-accredited {
-      background: white;
-      border: 2px solid var(--success);
-    }
-
-    .result-entry {
-      background: white;
-      border: 2px solid var(--primary);
-    }
-
-    .result-icon {
-      font-size: 48px;
-      margin-bottom: 12px;
-    }
-
-    .result-title {
-      font-size: 20px;
-      font-weight: 800;
-      color: var(--slate-900);
-      margin-bottom: 8px;
-    }
-
-    .result-desc {
-      font-size: 14px;
-      color: var(--slate-600);
-      line-height: 1.5;
-      margin-bottom: 20px;
-    }
-
-    .stamps-grid {
-      background: var(--slate-50);
-      border-radius: 14px;
-      padding: 14px;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-bottom: 18px;
-      text-align: left;
-    }
-
-    .stamp-item {
-      padding: 8px;
-    }
-
-    .stamp-label {
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      color: var(--slate-600);
-      margin-bottom: 4px;
-    }
-
-    .stamp-val {
-      font-size: 14px;
-      font-weight: 800;
-      color: var(--slate-900);
-    }
-
-    .stamp-sealed {
-      font-size: 10px;
-      font-weight: 700;
-      color: var(--success);
-      display: inline-flex;
-      align-items: center;
-      gap: 3px;
-    }
-
-    .security-badge {
-      font-size: 11px;
-      color: var(--slate-600);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 4px;
-      margin-top: 16px;
-    }
-
-    .loading-spinner {
-      border: 3px solid rgba(255, 255, 255, 0.3);
-      border-top: 3px solid white;
-      border-radius: 50%;
-      width: 18px;
-      height: 18px;
-      animation: spin 0.8s linear infinite;
-    }
-
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(6px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .hidden {
-      display: none !important;
-    }
-  </style>
-</head>
-<body>
-
-  <div class="container">
-    <!-- CABECERA -->
-    <div class="header-card">
-      <div class="logo-badge">
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-        </svg>
-      </div>
-      <h1 id="workshopTitle">Asistencia de Taller</h1>
-      <div class="subtitle" id="sessionTitle">Cargando datos de la sesión...</div>
-      <div id="phaseBadgeContainer" class="hidden">
-        <span id="phaseBadge" class="phase-badge">Fase</span>
-      </div>
-    </div>
-
-    <!-- TARJETA PRINCIPAL: FORMULARIO INTELIGENTE -->
-    <div id="actionCard" class="card">
-      
-      <!-- CASO 1: ALUMNO YA REGISTRADO ANTERIORMENTE (PASE AUTOMÁTICO SIN TOCAR BOTONES) -->
-      <div id="savedStudentView" class="hidden">
-        <div class="greeting-box">
-          <div class="greeting-title" id="savedGreetingName">¡Hola!</div>
-          <div class="greeting-subtitle" id="savedGreetingControl">Matrícula: </div>
-        </div>
-
-        <p id="autoSubmitStatusText" style="font-size: 14px; font-weight: 700; color: var(--primary); margin-bottom: 16px; text-align: center;">
-          ⏳ Registrando tu asistencia automáticamente...
-        </p>
-
-        <button id="btnConfirmAttendance" class="btn btn-primary hidden" onclick="submitAttendance(true)">
-          <span id="btnConfirmText">Confirmar Asistencia</span>
-        </button>
-        <div style="text-align: center; margin-top: 10px;">
-          <button type="button" onclick="clearSavedStudent()" style="background: none; border: none; color: var(--slate-600); text-decoration: underline; font-size: 12px; cursor: pointer; padding: 4px;">
-            ¿No eres tú? Cambiar de alumno / ingresar otra matrícula
-          </button>
-        </div>
-      </div>
-
-      <!-- CASO 2: FORMULARIO (PRIMERA VEZ O CAMBIO DE ALUMNO) -->
-      <div id="newStudentForm">
-        <div class="form-group">
-          <label for="controlNumber">Número de Control / Matrícula</label>
-          <input 
-            type="text" 
-            id="controlNumber" 
-            placeholder="Ej. 21280001" 
-            autocomplete="off" 
-            autocapitalize="characters"
-            oninput="handleControlInput(this.value)"
-          >
-          <div id="controlHelper" style="font-size: 11px; color: var(--slate-600); margin-top: 4px;">
-            Ingresa tu matrícula para validar tu registro.
-          </div>
-        </div>
-
-        <!-- Campo de nombre: se muestra si no está previamente inscrito -->
-        <div id="nameGroup" class="form-group">
-          <label for="fullName">Nombre Completo</label>
-          <input 
-            type="text" 
-            id="fullName" 
-            placeholder="Nombre(s) y Apellidos" 
-            autocomplete="name"
-          >
-          <div style="font-size: 11px; color: var(--primary); margin-top: 4px; font-weight: 600;">
-            ✨ Primera vez en este taller. Solo necesitas ingresar tu nombre una vez.
-          </div>
-        </div>
-
-        <!-- Campo opcional de nota / incidencia del alumno -->
-        <div class="form-group" style="margin-top: 10px;">
-          <label for="studentNote" style="font-size: 12px; color: var(--slate-600);">📝 ¿Algún inconveniente o nota para el docente? (Opcional)</label>
-          <input 
-            type="text" 
-            id="studentNote" 
-            placeholder="Ej. Falla de red, retardo justificado, batería baja..." 
-            style="padding: 11px 14px; font-size: 13px;"
-          >
-        </div>
-
-        <div id="toleranceInfoBox" style="background: #ECFDF5; border: 1px solid #A7F3D0; color: #065F46; border-radius: 10px; padding: 8px 12px; font-size: 11px; font-weight: 700; margin-bottom: 12px; text-align: center;">
-          ⏱️ Tiempo de tolerancia puntual del taller: 15 minutos
-        </div>
-
-        <button id="btnSubmitForm" class="btn btn-primary" onclick="submitAttendance(false)">
-          <span id="btnSubmitText">Registrar Mi Asistencia</span>
-        </button>
-      </div>
-
-      <div class="security-badge">
-        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-        </svg>
-        Registro Oficial Sellado e Inmutable
-      </div>
-      <div id="deviceIdBadge" style="font-size: 11px; color: #0284C7; font-weight: 700; text-align: center; margin-top: 6px;">
-        📱 ID de tu Celular: Cargando...
-      </div>
-    </div>
-
-    <!-- TARJETA DE RESULTADO / COMPROBANTE -->
-    <div id="resultCard" class="card result-card hidden">
-      <div id="resultIcon" class="result-icon">✅</div>
-      <div id="resultTitle" class="result-title">¡Asistencia Sellada!</div>
-      <div id="resultDesc" class="result-desc">Tu hora de asistencia ha sido registrada exitosamente.</div>
-
-      <div class="stamps-grid">
-        <div class="stamp-item">
-          <div class="stamp-label">🟢 Entrada</div>
-          <div id="stampCheckIn" class="stamp-val">--:--:--</div>
-          <div id="badgeCheckIn" class="stamp-sealed hidden">🔒 Sellado</div>
-        </div>
-        <div class="stamp-item">
-          <div class="stamp-label">🔴 Salida</div>
-          <div id="stampCheckOut" class="stamp-val">--:--:--</div>
-          <div id="badgeCheckOut" class="stamp-sealed hidden">🔒 Sellado</div>
-        </div>
-      </div>
-
-      <div style="font-size: 12px; color: var(--slate-600); margin-bottom: 12px;" id="resultStudentName">
-        Alumno: -
-      </div>
-
-      <div id="evidenceCardBox" class="hidden" style="background: #F5F3FF; border: 1.5px solid #C4B5FD; border-radius: 12px; padding: 12px; margin-bottom: 16px; text-align: left;">
-        <div style="font-size: 11px; font-weight: 800; color: #6D28D9; margin-bottom: 4px;">
-          📋 COMPROBANTE DE EVIDENCIA / NOTA REGISTRADA:
-        </div>
-        <div id="evidenceCardText" style="font-size: 12px; font-weight: 600; color: #4C1D95; line-height: 1.4;"></div>
-      </div>
-
-      <button class="btn btn-secondary" onclick="location.reload()">
-        Volver a revisar
-      </button>
-    </div>
-
-  </div>
-
-  <!-- Supabase Cloud SDK -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <script>
-    // Configuración directa de Supabase en la nube
-    const SUPABASE_URL = 'https://qukqvrowgzdkqoccbfdb.supabase.co';
-    const SUPABASE_KEY = 'sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN';
-    const supabaseClient = (typeof supabase !== 'undefined' && supabase.createClient)
-      ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
-      : null;
-
-    // Variables globales extraídas de la URL del QR
-    const urlParams = new URLSearchParams(window.location.search);
-    let token = urlParams.get('token') || '';
-    let sessionId = urlParams.get('session') || '';
-    let workshopId = urlParams.get('workshop') || '';
-    let currentPhase = urlParams.get('phase') || 'entry';
-    let toleranceMinutes = parseInt(urlParams.get('tol') || '15', 10);
-    let registrationWindowMinutes = parseInt(urlParams.get('win') || '45', 10);
-    let phaseStartedAtMs = parseInt(urlParams.get('start') || '0', 10);
-    let isStudentEnrolledInDb = false;
-
-    // Si viene en formato compacto ?qr=...
-    const qrParam = urlParams.get('qr');
-    if (qrParam) {
-      try {
-        const decoded = JSON.parse(decodeURIComponent(qrParam));
-        if (decoded.s) sessionId = decoded.s;
-        if (decoded.w) workshopId = decoded.w;
-        if (decoded.p) currentPhase = decoded.p;
-        if (decoded.tol) toleranceMinutes = parseInt(decoded.tol, 10) || 15;
-        if (decoded.win) registrationWindowMinutes = parseInt(decoded.win, 10) || 45;
-        if (decoded.start) phaseStartedAtMs = parseInt(decoded.start, 10) || 0;
-        if (decoded.sig && !token) token = `${decoded.p}_${decoded.t}_${decoded.sig}`;
-      } catch (e) {
-        console.warn('Lectura de parámetro qr alternativo:', e);
-      }
-    }
-
-    // Formatear hora local HH:MM:SS
-    function formatTime(isoStr) {
-      if (!isoStr) return '--:--:--';
-      const d = new Date(isoStr);
-      return d.toLocaleTimeString('es-MX', { hour12: false });
-    }
-
-    // Obtener o generar el ID único e intransferible de este teléfono celular
-    function getOrCreateDeviceId() {
-      let devId = localStorage.getItem('asistencia_device_id') || sessionStorage.getItem('asistencia_device_id');
-      if (!devId) {
-        const match = document.cookie.match(/(^| )asistencia_device_id=([^;]+)/);
-        if (match) devId = match[2];
-      }
-      if (!devId) {
-        const rand = Math.random().toString(36).substring(2, 8).toUpperCase();
-        devId = `CEL-${rand}`;
-      }
-      localStorage.setItem('asistencia_device_id', devId);
-      sessionStorage.setItem('asistencia_device_id', devId);
-      document.cookie = `asistencia_device_id=${devId}; max-age=31536000; path=/`;
-      return devId;
-    }
-
-    const currentDeviceId = getOrCreateDeviceId();
-
-    function parseStudentDeviceMeta(rawEmail, fallbackCtrl) {
-      const fallback = `${(fallbackCtrl || 'alumno').toLowerCase()}@alumno.edu`;
-      if (!rawEmail) {
-        return { cleanEmail: fallback, boundDev: '', oldDev: '', allowNew: false };
-      }
-      const parts = String(rawEmail).split('||');
-      const cleanEmail = (parts[0] || '').trim() || fallback;
-      let boundDev = '';
-      let oldDev = '';
-      let allowNew = false;
-      for (let i = 1; i < parts.length; i++) {
-        const seg = parts[i].trim();
-        if (seg.startsWith('DEV:')) {
-          boundDev = seg.substring(4).trim().toUpperCase();
-        } else if (seg.startsWith('OLD_DEV:')) {
-          oldDev = seg.substring(8).trim().toUpperCase();
-        } else if (seg.startsWith('ALLOW_NEW_DEV:')) {
-          const v = seg.substring(14).trim();
-          if (v === '1' || v === 'true') {
-            allowNew = true;
-            boundDev = '';
-          }
-        }
-      }
-      return { cleanEmail, boundDev, oldDev, allowNew };
-    }
-
-    function buildStudentEmailWithDeviceMeta(cleanEmail, boundDev, oldDev, allowNew) {
-      const parts = [cleanEmail];
-      if (boundDev) parts.push(`DEV:${boundDev}`);
-      if (oldDev) parts.push(`OLD_DEV:${oldDev}`);
-      if (allowNew) parts.push('ALLOW_NEW_DEV:1');
-      return parts.join('||');
-    }
-
-    // Inicializar al cargar la página
-    window.addEventListener('DOMContentLoaded', async () => {
-      // Limpiar la barra de direcciones del navegador para que el enlace se vea corto y limpio
-      if (window.history && window.history.replaceState) {
-        window.history.replaceState({}, document.title, window.location.pathname);
-      }
-      const badgeEl = document.getElementById('deviceIdBadge');
-      if (badgeEl) {
-        badgeEl.textContent = `📱 ID de tu Celular: ${currentDeviceId}`;
-      }
-      setupPhaseBadge(currentPhase);
-      updateToleranceBanner();
-      await loadSessionMetadata();
-      await checkSavedStudent();
-    });
-
-    function updateToleranceBanner() {
-      const box = document.getElementById('toleranceInfoBox');
-      if (!box) return;
-      if (phaseStartedAtMs > 0) {
-        const elapsedMins = Math.floor((Date.now() - phaseStartedAtMs) / 60000);
-        if (elapsedMins > toleranceMinutes) {
-          box.style.background = '#FEF3C7';
-          box.style.borderColor = '#F59E0B';
-          box.style.color = '#92400E';
-          box.innerHTML = `🟠 Tolerancia de ${toleranceMinutes} min superada (+${elapsedMins} min). Tu registro se marcará con retraso.`;
-          return;
-        }
-      }
-      box.innerHTML = `⏱️ Tolerancia puntual configurada por el docente: ${toleranceMinutes} minutos`;
-    }
-
-    function setupPhaseBadge(phase) {
-      const container = document.getElementById('phaseBadgeContainer');
-      const badge = document.getElementById('phaseBadge');
-      container.classList.remove('hidden');
-
-      if (phase === 'entry') {
-        badge.className = 'phase-badge phase-entry';
-        badge.innerHTML = '🟢 Pase de ENTRADA';
-        document.getElementById('btnConfirmText').textContent = '✅ Confirmar Mi ENTRADA';
-        document.getElementById('btnSubmitText').textContent = 'Registrar Mi ENTRADA';
-      } else if (phase === 'exit') {
-        badge.className = 'phase-badge phase-exit';
-        badge.innerHTML = '🔴 Pase de SALIDA';
-        document.getElementById('btnConfirmText').textContent = '🎓 Confirmar Mi SALIDA y Acreditar';
-        document.getElementById('btnSubmitText').textContent = 'Registrar Mi SALIDA';
-      }
-    }
-
-    async function loadSessionMetadata() {
-      // 1. Cargar desde Supabase si tenemos sessionId
-      if (supabaseClient && sessionId) {
-        try {
-          const { data: sess } = await supabaseClient
-            .from('workshop_sessions')
-            .select('id, title, current_phase, workshop_id, workshops(id, name, instructor_name)')
-            .eq('id', sessionId)
-            .maybeSingle();
-
-          if (sess) {
-            workshopId = sess.workshop_id || workshopId;
-            if (sess.workshops) {
-              document.getElementById('workshopTitle').textContent = sess.workshops.name || 'Taller Formativo';
-              document.getElementById('sessionTitle').textContent = `${sess.title} • ${sess.workshops.instructor_name || 'Docente'}`;
-            } else {
-              document.getElementById('sessionTitle').textContent = sess.title;
-            }
-            if (sess.current_phase) {
-              currentPhase = sess.current_phase;
-              setupPhaseBadge(currentPhase);
-            }
-            return;
-          }
-        } catch (e) {
-          console.warn('Aviso leyendo sesión de Supabase:', e);
-        }
-      }
-
-      // 2. Fallback a servidor local si corre en PC
-      try {
-        const res = await fetch('/api/active-session');
-        const data = await res.json();
-        if (data.active) {
-          document.getElementById('workshopTitle').textContent = data.workshop.name;
-          document.getElementById('sessionTitle').textContent = `${data.session.title} • ${data.workshop.instructorName}`;
-          if (data.session.currentPhase) {
-            currentPhase = data.session.currentPhase;
-            setupPhaseBadge(currentPhase);
-          }
-        }
-      } catch (_) {}
-    }
-
-    // Comprobar si este celular ya tiene un alumno guardado en localStorage y registrar AUTOMÁTICAMENTE
-        function clearSavedStudent() {
-      localStorage.removeItem('asistencia_control_number');
-      localStorage.removeItem('asistencia_full_name');
-      document.getElementById('savedStudentView').classList.add('hidden');
-      document.getElementById('newStudentForm').classList.remove('hidden');
-      document.getElementById('controlNumber').value = '';
-      document.getElementById('fullName').value = '';
-      document.getElementById('controlHelper').innerHTML = 'Ingresa tu matrícula para validar tu registro.';
-      document.getElementById('controlHelper').style.color = 'var(--slate-600)';
-    }
-
-    async function checkSavedStudent() {
-      const savedControl = localStorage.getItem('asistencia_control_number');
-      const savedName = localStorage.getItem('asistencia_full_name');
-
-      if (savedControl) {
-        let studentName = savedName || 'Alumno';
-
-        if (supabaseClient) {
-          try {
-            const { data: stdArr } = await supabaseClient
-              .from('students')
-              .select('full_name')
-              .ilike('enrollment_number', savedControl)
-              .limit(1);
-            const std = stdArr && stdArr.length > 0 ? stdArr[0] : null;
-            if (std && std.full_name) {
-              studentName = std.full_name;
-              localStorage.setItem('asistencia_full_name', studentName);
-            }
-          } catch (_) {}
-        }
-
-        document.getElementById('savedGreetingName').textContent = `¡Hola, ${studentName}! 👋`;
-        document.getElementById('savedGreetingControl').textContent = `Matrícula: ${savedControl}`;
-        document.getElementById('savedStudentView').classList.remove('hidden');
-        document.getElementById('newStudentForm').classList.add('hidden');
-
-        // Pase automático inmediato al leer el QR sin tocar ningún botón
-        await submitAttendance(true);
-        return;
-      }
-
-      // Si no hay datos guardados, mostrar formulario de primera vez
-      document.getElementById('savedStudentView').classList.add('hidden');
-      document.getElementById('newStudentForm').classList.remove('hidden');
-    }
-
-    // Al teclear número de control: verificación en tiempo real y envío automático si ya está inscrito
-    let searchTimeout;
-    let autoSubmitTimeout;
-    async function handleControlInput(val) {
-      clearTimeout(searchTimeout);
-      clearTimeout(autoSubmitTimeout);
-      const cleanVal = val.trim().toUpperCase();
-      if (cleanVal.length < 3) {
-        document.getElementById('nameGroup').classList.add('hidden');
-        return;
-      }
-
-      searchTimeout = setTimeout(async () => {
-        let foundStudent = null;
-
-        if (supabaseClient) {
-          try {
-            const { data: stdArr } = await supabaseClient
-              .from('students')
-              .select('full_name, enrollment_number')
-              .ilike('enrollment_number', cleanVal)
-              .limit(1);
-            foundStudent = stdArr && stdArr.length > 0 ? stdArr[0] : null;
-          } catch (_) {}
-        } else {
-          try {
-            const res = await fetch(`/api/check-student?controlNumber=${encodeURIComponent(cleanVal)}&sessionId=${encodeURIComponent(sessionId)}`);
-            const info = await res.json();
-            if (info.exists) foundStudent = info.student;
-          } catch (_) {}
-        }
-
-        if (foundStudent) {
-          isStudentEnrolledInDb = true;
-          document.getElementById('controlHelper').innerHTML = `ℹ️ Matrícula registrada para: <strong>${foundStudent.full_name || foundStudent.fullName}</strong>. Ingresa tu nombre para confirmar tu identidad.`;
-          document.getElementById('controlHelper').style.color = 'var(--primary)';
-        } else {
-          isStudentEnrolledInDb = false;
-          document.getElementById('controlHelper').innerHTML = '✨ Nueva matrícula en este taller. Ingresa tu nombre completo para inscribirte.';
-          document.getElementById('controlHelper').style.color = 'var(--slate-600)';
-        }
-      }, 350);
-    }
-
-    // Enviar registro de asistencia
-    async function submitAttendance(useSaved) {
-      let controlNumber = '';
-      let fullName = '';
-
-      if (useSaved) {
-        controlNumber = localStorage.getItem('asistencia_control_number');
-        fullName = localStorage.getItem('asistencia_full_name') || '';
-      } else {
-        controlNumber = document.getElementById('controlNumber').value.trim();
-        fullName = document.getElementById('fullName').value.trim();
-
-        if (!controlNumber) {
-          alert('Por favor ingresa tu Número de Control o Matrícula.');
-          document.getElementById('controlNumber').focus();
-          return;
-        }
-
-        if (!isStudentEnrolledInDb && !fullName) {
-          alert('Por favor ingresa tu Nombre Completo para registrarte en el taller.');
-          document.getElementById('fullName').focus();
-          return;
-        }
-      }
-
-      const cleanControl = controlNumber.trim().toUpperCase();
-
-      // --- PROTECCIÓN ANTIFRAUDE: UN SOLO ALUMNO POR CELULAR ---
-      const activeSessionKey = 'session_locked_device_' + (sessionId || 'ses_001');
-      let registeredStudentOnDevice = localStorage.getItem(activeSessionKey) || 
-                                     sessionStorage.getItem(activeSessionKey);
-      if (!registeredStudentOnDevice) {
-        const match = document.cookie.match(new RegExp('(^| )' + activeSessionKey + '=([^;]+)'));
-        if (match) registeredStudentOnDevice = match[2];
-      }
-
-      if (registeredStudentOnDevice && registeredStudentOnDevice !== cleanControl) {
-        const teacherCode = prompt(
-          '⚠️ BLOQUEO DE SEGURIDAD ANTIFRAUDE:\n\n' +
-          `Este celular ya fue registrado en esta sesión por el alumno con matrícula: ${registeredStudentOnDevice}.\n\n` +
-          'No está permitido registrar a otro compañero desde el mismo teléfono.\n\n' +
-          '¿El docente autorizó usar este teléfono por causa justificada? Ingrese el PIN de docente o clave de sesión para desbloquear:'
-        );
-        const validTokens = [(token || '').toUpperCase(), '1234', 'DOCENTE', 'MAESTRO'];
-        if (teacherCode && validTokens.includes(teacherCode.trim().toUpperCase())) {
-          localStorage.removeItem(activeSessionKey);
-          sessionStorage.removeItem(activeSessionKey);
-          document.cookie = `${activeSessionKey}=; max-age=0; path=/`;
-          alert('✅ Dispositivo desbloqueado con éxito por autorización del docente. Procede con tu registro.');
-        } else {
-          alert('⛔ Registro cancelado. Acércate con el docente para que te registre directamente en su consola de inventario.');
-          return;
-        }
-      }
-
-      // Animación de carga
-      const btn = useSaved ? document.getElementById('btnConfirmAttendance') : document.getElementById('btnSubmitForm');
-      const originalText = btn.innerHTML;
-      btn.innerHTML = '<div class="loading-spinner"></div> Sellando asistencia en Supabase...';
-      btn.disabled = true;
-
-      try {
-        let result = null;
-
-        if (supabaseClient) {
-          // --- REGISTRO DIRECTO EN SUPABASE (Sin PC requerida) ---
-          const cleanCtrl = controlNumber.toUpperCase();
-
-          // Asegurar que el taller y la sesión existan en Supabase para evitar errores de clave foránea
-          if (workshopId) {
-            try {
-              await supabaseClient.from('workshops').upsert({
-                id: workshopId,
-                name: document.getElementById('workshopTitle').textContent || 'Taller Activo',
-                code: 'TAL-01',
-                instructor_name: 'Docente Responsable'
-              }, { onConflict: 'id' });
-            } catch (_) {}
-          }
-          if (sessionId) {
-            try {
-              await supabaseClient.from('workshop_sessions').upsert({
-                id: sessionId,
-                workshop_id: workshopId || null,
-                title: document.getElementById('sessionTitle').textContent || 'Sesión de Taller',
-                current_phase: currentPhase
-              }, { onConflict: 'id' });
-            } catch (_) {}
-          }
-
-          // Función auxiliar para normalizar nombres eliminando acentos y espacios extras
-          function normalizeName(s) {
-            return (s || '')
-              .toLowerCase()
-              .normalize('NFD')
-              .replace(/[\u0300-\u036f]/g, '')
-              .replace(/\s+/g, ' ')
-              .trim();
-          }
-
-          // 1. Obtener o registrar estudiante con validación estricta de no repetición
-          let student = null;
-          let allStudentIds = [];
-          const { data: existingStdList } = await supabaseClient
-            .from('students')
-            .select('*')
-            .ilike('enrollment_number', cleanCtrl)
-            .order('created_at', { ascending: true });
-
-          if (existingStdList && existingStdList.length > 0) {
-            student = existingStdList[0];
-            allStudentIds = existingStdList.map(s => s.id);
-            const existingName = student.full_name || '';
-            const normExisting = normalizeName(existingName);
-            const normInput = normalizeName(fullName);
-
-            const isPlaceholder = normExisting.startsWith('alumno ') ||
-                                  normExisting === normalizeName(cleanCtrl) ||
-                                  !normExisting;
-
-            if (!isPlaceholder && normInput) {
-              const inputTokens = normInput.split(' ').filter(t => t.length > 2);
-              const existingTokens = normExisting.split(' ').filter(t => t.length > 2);
-              const common = inputTokens.filter(t => existingTokens.includes(t));
-
-              if (common.length === 0 && normInput !== normExisting) {
-                alert(
-                  `⛔ MATRÍCULA YA ASIGNADA:\n\n` +
-                  `El número de control "${cleanCtrl}" ya pertenece al alumno registrado:\n"${existingName}".\n\n` +
-                  `Los datos que ingresaste ("${fullName}") no coinciden con el alumno titular.\n\n` +
-                  `El número de control y nombre son únicos y no pueden duplicarse ni reutilizarse por otra persona.\n\n` +
-                  `Por favor ingresa tu propio número de control y nombre completo.`
-                );
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-                return;
-              }
-            } else if (normInput && isPlaceholder) {
-              try {
-                await supabaseClient
-                  .from('students')
-                  .update({ full_name: fullName.trim() })
-                  .eq('id', student.id);
-                student.full_name = fullName.trim();
-              } catch (_) {}
-            }
-          } else {
-            // Si la matrícula no existe, verificar que el nombre no esté registrado bajo otra matrícula
-            if (fullName) {
-              try {
-                const { data: sameNameList } = await supabaseClient
-                  .from('students')
-                  .select('enrollment_number, full_name')
-                  .ilike('full_name', fullName.trim())
-                  .limit(5);
-
-                if (sameNameList && sameNameList.length > 0) {
-                  const conflict = sameNameList.find(s => s.enrollment_number.toUpperCase() !== cleanCtrl);
-                  if (conflict) {
-                    alert(
-                      `⛔ ALUMNO YA REGISTRADO:\n\n` +
-                      `Ya existe un alumno registrado con el nombre "${conflict.full_name}" bajo el número de control "${conflict.enrollment_number}".\n\n` +
-                      `El nombre y número de control no pueden repetirse. Por favor verifica tus datos oficiales.`
-                    );
-                    btn.innerHTML = originalText;
-                    btn.disabled = false;
-                    return;
-                  }
-                }
-              } catch (_) {}
-            }
-            const newId = 'std_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
-            const initialEncodedMail = buildStudentEmailWithDeviceMeta(
-              `${cleanCtrl.toLowerCase()}@alumno.edu`,
-              currentDeviceId,
-              '',
-              false
-            );
-            let insertPayload = {
-              id: newId,
-              workshop_id: workshopId || null,
-              enrollment_number: cleanCtrl,
-              full_name: fullName || 'Alumno',
-              email: initialEncodedMail
-            };
-
-            let { data: createdStd, error: stdErr } = await supabaseClient
-              .from('students')
-              .insert(insertPayload)
-              .select()
-              .single();
-
-            // Si falla por restricción de clave foránea de workshop_id, reintentar con workshop_id nulo
-            if (stdErr && (stdErr.code === '23503' || (stdErr.message && stdErr.message.includes('foreign key')))) {
-              insertPayload.workshop_id = null;
-              const retry = await supabaseClient
-                .from('students')
-                .insert(insertPayload)
-                .select()
-                .single();
-              createdStd = retry.data;
-              stdErr = retry.error;
-            }
-
-            if (stdErr) throw stdErr;
-            student = createdStd;
-            allStudentIds = [student.id];
-          }
-
-          // --- VALIDACIÓN DE CAMBIO DE CELULAR (BORRAR VIEJO Y DAR ACCESO AL NUEVO) ---
-          let deviceChangeAuditNote = '';
-          const devMeta = parseStudentDeviceMeta(student.email, cleanCtrl);
-
-          // Caso A: Este teléfono es el CELULAR VIEJO que ya fue dado de baja y reemplazado
-          if (devMeta.oldDev && devMeta.oldDev === currentDeviceId && devMeta.boundDev !== currentDeviceId) {
-            localStorage.removeItem('asistencia_control_number');
-            localStorage.removeItem('asistencia_full_name');
-            localStorage.removeItem(activeSessionKey);
-            sessionStorage.removeItem(activeSessionKey);
-            alert(
-              `⛔ CELULAR ANTERIOR DADO DE BAJA (${currentDeviceId}):\n\n` +
-              `Este dispositivo fue borrado porque registraste un nuevo celular (${devMeta.boundDev || 'Nuevo Dispositivo'}) con autorización del docente encargado.\n\n` +
-              `Por favor realiza tu registro desde tu nuevo celular.`
-            );
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-            return;
-          }
-
-          // Caso B: El alumno ya tenía un celular vinculado distinto a este nuevo celular
-          if (devMeta.boundDev && devMeta.boundDev !== currentDeviceId) {
-            if (!devMeta.allowNew) {
-              const authPin = prompt(
-                `📱 NUEVO CELULAR DETECTADO (ID: ${currentDeviceId})\n\n` +
-                `Tu matrícula (${cleanCtrl}) está vinculada a tu celular anterior (${devMeta.boundDev}).\n\n` +
-                `Para que el celular viejo se borre y este nuevo celular tome su lugar:\n` +
-                `• Pídele al docente que toque "📱 Nuevo Celular (Borrar Viejo)" en tu ficha de alumno y vuelve a intentar, O\n` +
-                `• Si el docente está contigo ahora mismo, ingresa aquí el PIN Docente para autorizar el nuevo celular:`
-              );
-              const validPins = [(token || '').toUpperCase(), '1234', 'DOCENTE', 'MAESTRO'];
-              if (!authPin || !validPins.includes(authPin.trim().toUpperCase())) {
-                alert('⛔ Cambio de celular pendiente de autorización. Pídele a tu docente encargado que presione "📱 Nuevo Celular (Borrar Viejo)" en la sección de Alumnos.');
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-                return;
-              }
-            }
-            // Reemplazar celular viejo por el nuevo celular y borrar el anterior
-            const replacedOld = devMeta.boundDev;
-            const newEncodedEmail = buildStudentEmailWithDeviceMeta(
-              devMeta.cleanEmail,
-              currentDeviceId,
-              replacedOld,
-              false
-            );
-            try {
-              await supabaseClient
-                .from('students')
-                .update({ email: newEncodedEmail })
-                .ilike('enrollment_number', cleanCtrl);
-            } catch (_) {}
-            deviceChangeAuditNote = `[Cambio de Celular Autorizado] Celular viejo (${replacedOld}) borrado y reemplazado por nuevo celular (${currentDeviceId})`;
-          } else if (devMeta.allowNew || !devMeta.boundDev) {
-            // Caso C: El docente ya había autorizado el cambio en la app (allowNew = true) o es el primer celular que vincula el alumno
-            const prevOld = devMeta.oldDev || '';
-            const newEncodedEmail = buildStudentEmailWithDeviceMeta(
-              devMeta.cleanEmail,
-              currentDeviceId,
-              prevOld,
-              false
-            );
-            try {
-              await supabaseClient
-                .from('students')
-                .update({ email: newEncodedEmail })
-                .ilike('enrollment_number', cleanCtrl);
-            } catch (_) {}
-            if (devMeta.allowNew) {
-              deviceChangeAuditNote = `[Nuevo Celular Activado] Celular anterior (${prevOld || 'Previo'}) borrado; nuevo celular (${currentDeviceId}) tomó su lugar con autorización del docente`;
-            }
-          }
-
-          // 2. Obtener registro de asistencia previo (ESTRICTAMENTE de esta sesión y taller)
-          const targetSessionId = sessionId || 'ses_001';
-          const { data: studentRecs } = await supabaseClient
-            .from('attendance_records')
-            .select('*')
-            .eq('session_id', targetSessionId)
-            .in('student_id', allStudentIds)
-            .order('created_at', { ascending: false });
-
-          const recsArray = studentRecs || [];
-          let existingRec = recsArray.length > 0 ? recsArray[0] : null;
-
-          const nowDate = new Date();
-          const nowIso = nowDate.toISOString();
-          let baseStatus = 'pending';
-          let checkInIso = existingRec ? existingRec.check_in_time : null;
-          let checkOutIso = existingRec ? existingRec.check_out_time : null;
-          let title = '';
-          let message = '';
-
-          // Extraer nota o retardo previos si existían en el registro previo de ESTA sesión
-          let prevLateMins = 0;
-          let prevNote = '';
-          if (existingRec && existingRec.status) {
-            const parts = String(existingRec.status).split('||');
-            if (parts[0] === 'accredited') baseStatus = 'accredited';
-            for (let i = 1; i < parts.length; i++) {
-              if (parts[i].startsWith('LATE:') && prevLateMins === 0) {
-                prevLateMins = parseInt(parts[i].substring(5), 10) || 0;
-              } else if (parts[i].startsWith('NOTE:') && !prevNote) {
-                prevNote = parts[i].substring(5);
-              }
-            }
-          }
-
-          const studentNoteInput = (document.getElementById('studentNote') ? document.getElementById('studentNote').value.trim() : '');
-          if (studentNoteInput) {
-            prevNote = prevNote ? `${prevNote} | Nota Alumno: ${studentNoteInput}` : `[Nota Alumno ${formatTime(nowIso)}] ${studentNoteInput}`;
-          }
-          if (deviceChangeAuditNote) {
-            prevNote = prevNote ? `${prevNote} | ${deviceChangeAuditNote}` : deviceChangeAuditNote;
-          }
-
-          if (currentPhase === 'entry') {
-            if (checkInIso) {
-              title = baseStatus === 'accredited' ? '🎓 ¡Taller Acreditado!' : 'Entrada Ya Registrada';
-              message = `Tu entrada ya estaba sellada a las ${formatTime(checkInIso)} hrs.`;
-              if (checkOutIso || baseStatus === 'accredited') baseStatus = 'accredited';
-            } else {
-              checkInIso = nowIso;
-              baseStatus = checkOutIso ? 'accredited' : 'pending';
-              if (phaseStartedAtMs > 0) {
-                const elapsedM = Math.floor((Date.now() - phaseStartedAtMs) / 60000);
-                if (elapsedM > toleranceMinutes) {
-                  prevLateMins = elapsedM;
-                }
-              }
-              if (prevLateMins > 0) {
-                title = '🟠 Entrada con Retraso Registrada';
-                message = `Entrada sellada a las ${formatTime(nowIso)} hrs (+${prevLateMins} min respecto al inicio; tolerancia de ${toleranceMinutes} min).`;
-              } else {
-                title = '🟢 Entrada Puntual Registrada';
-                message = `Entrada sellada a las ${formatTime(nowIso)} hrs dentro de los ${toleranceMinutes} min de tolerancia. Recuerda escanear al concluir el taller para Acreditar.`;
-              }
-            }
-          } else if (currentPhase === 'exit') {
-            if (checkOutIso) {
-              title = checkInIso ? '¡Taller Ya Acreditado!' : 'Salida Ya Registrada';
-              message = `Tu salida ya estaba sellada a las ${formatTime(checkOutIso)} hrs.`;
-              baseStatus = checkInIso ? 'accredited' : 'incompleteExitOnly';
-            } else {
-              checkOutIso = nowIso;
-              if (checkInIso) {
-                baseStatus = 'accredited';
-                title = '¡TALLER ACREDITADO! 🎉';
-                message = 'Cumpliste con Entrada y Salida. Has obtenido la Acreditación oficial del taller.';
-              } else {
-                baseStatus = 'incompleteExitOnly';
-                title = '⚠️ Salida Registrada Sin Entrada Previa';
-                message = 'Se registró tu salida, pero no tenías entrada sellada al inicio del taller.';
-              }
-            }
-          }
-
-          let encodedStatus = `${baseStatus}||DEV:${currentDeviceId}`;
-          if (prevLateMins > 0) encodedStatus += `||LATE:${prevLateMins}`;
-          if (prevNote) encodedStatus += `||NOTE:${prevNote.replace(/\|\|/g, ' - ')}`;
-
-          // 3. Guardar en attendance_records
-          const recId = existingRec ? existingRec.id : ('rec_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6));
-          let { error: upsertErr } = await supabaseClient
-            .from('attendance_records')
-            .upsert({
-              id: recId,
-              student_id: student.id,
-              session_id: targetSessionId,
-              check_in_time: checkInIso,
-              check_out_time: checkOutIso,
-              is_locked: true,
-              status: encodedStatus
-            });
-
-          // Si falla por sesión foránea, crear sesión y reintentar
-          if (upsertErr && (upsertErr.code === '23503' || (upsertErr.message && upsertErr.message.includes('foreign key')))) {
-            try {
-              await supabaseClient.from('workshop_sessions').upsert({
-                id: targetSessionId,
-                title: 'Sesión Activa',
-                current_phase: currentPhase
-              });
-              const retryUpsert = await supabaseClient
-                .from('attendance_records')
-                .upsert({
-                  id: recId,
-                  student_id: student.id,
-                  session_id: targetSessionId,
-                  check_in_time: checkInIso,
-                  check_out_time: checkOutIso,
-                  is_locked: true,
-                  status: encodedStatus
-                });
-              upsertErr = retryUpsert.error;
-            } catch (_) {}
-          }
-
-          if (upsertErr) throw upsertErr;
-
-          result = {
-            success: true,
-            status: baseStatus,
-            title,
-            message,
-            evidenceNote: prevNote,
-            student: { fullName: student.full_name, enrollmentNumber: student.enrollment_number },
-            checkInTime: formatTime(checkInIso),
-            checkOutTime: formatTime(checkOutIso)
-          };
-        } else {
-          // Fallback a API local
-          const response = await fetch('/api/register-attendance', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ controlNumber, fullName, token, sessionId })
-          });
-          result = await response.json();
-        }
-
-        if (result && result.success) {
-          // Guardar en este celular para futuros escaneos automáticos
-          localStorage.setItem('asistencia_control_number', controlNumber);
-          if (result.student && result.student.fullName) {
-            localStorage.setItem('asistencia_full_name', result.student.fullName);
-          }
-
-          // Vincular permanentemente este dispositivo a este alumno para esta sesión (Antifraude)
-          localStorage.setItem(activeSessionKey, cleanControl);
-          sessionStorage.setItem(activeSessionKey, cleanControl);
-          document.cookie = `${activeSessionKey}=${cleanControl}; max-age=86400; path=/`;
-
-          // Mostrar tarjeta de resultado
-          document.getElementById('actionCard').classList.add('hidden');
-          const resultCard = document.getElementById('resultCard');
-          resultCard.classList.remove('hidden');
-
-          if (result.status === 'accredited') {
-            resultCard.className = 'card result-card result-accredited';
-            document.getElementById('resultIcon').textContent = '🎓';
-            document.getElementById('resultTitle').textContent = result.title || '¡TALLER ACREDITADO! 🎉';
-          } else {
-            resultCard.className = 'card result-card result-entry';
-            document.getElementById('resultIcon').textContent = '✅';
-            document.getElementById('resultTitle').textContent = result.title || 'Asistencia Sellada';
-          }
-
-          document.getElementById('resultDesc').textContent = result.message;
-          document.getElementById('resultStudentName').textContent = `Alumno: ${result.student.fullName} (${controlNumber})`;
-
-          if (result.evidenceNote) {
-            document.getElementById('evidenceCardText').textContent = result.evidenceNote;
-            document.getElementById('evidenceCardBox').classList.remove('hidden');
-          }
-
-          if (result.checkInTime && result.checkInTime !== '--:--:--') {
-            document.getElementById('stampCheckIn').textContent = result.checkInTime + ' hrs';
-            document.getElementById('badgeCheckIn').classList.remove('hidden');
-          }
-          if (result.checkOutTime && result.checkOutTime !== '--:--:--') {
-            document.getElementById('stampCheckOut').textContent = result.checkOutTime + ' hrs';
-            document.getElementById('badgeCheckOut').classList.remove('hidden');
-          }
-        } else {
-          alert((result && result.message) || 'Error al sellar asistencia.');
-          btn.innerHTML = originalText;
-          btn.disabled = false;
-        }
-      } catch (err) {
-        console.error('Error sellando asistencia:', err);
-        const errMsg = err.message || (typeof err === 'string' ? err : JSON.stringify(err));
-        alert('Aviso de Supabase: ' + errMsg);
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-      }
-    }
-  </script>
-</body>
-</html>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Registro de Asistencia - Taller</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #4F46E5;
+      --primary-hover: #4338CA;
+      --primary-light: #EEF2FF;
+      --success: #10B981;
+      --success-light: #ECFDF5;
+      --warning: #F59E0B;
+      --warning-light: #FFFBEB;
+      --slate-50: #F8FAFC;
+      --slate-100: #F1F5F9;
+      --slate-200: #E2E8F0;
+      --slate-600: #475569;
+      --slate-700: #334155;
+      --slate-900: #0F172A;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--slate-50);
+      color: var(--slate-900);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 440px;
+      margin: auto;
+    }
+
+    .header-card {
+      background: white;
+      border-radius: 20px;
+      padding: 24px;
+      border: 1px solid var(--slate-200);
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    .logo-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+      background: var(--primary-light);
+      color: var(--primary);
+      margin-bottom: 12px;
+    }
+
+    .logo-badge svg {
+      width: 28px;
+      height: 28px;
+    }
+
+    h1 {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--slate-900);
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      color: var(--slate-600);
+    }
+
+    .phase-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 12px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .phase-entry {
+      background: var(--primary-light);
+      color: var(--primary);
+    }
+
+    .phase-exit {
+      background: #FEF3C7;
+      color: #B45309;
+    }
+
+    .card {
+      background: white;
+      border-radius: 20px;
+      padding: 24px;
+      border: 1px solid var(--slate-200);
+      box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05);
+      margin-bottom: 16px;
+    }
+
+    .greeting-box {
+      background: var(--primary-light);
+      border: 1px solid #C7D2FE;
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .greeting-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--slate-900);
+      margin-bottom: 4px;
+    }
+
+    .greeting-subtitle {
+      font-size: 13px;
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+      text-align: left;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--slate-700);
+      margin-bottom: 6px;
+    }
+
+    input {
+      width: 100%;
+      padding: 14px 16px;
+      font-size: 15px;
+      border: 1.5px solid var(--slate-200);
+      border-radius: 12px;
+      outline: none;
+      transition: all 0.2s ease;
+      background: #FAFAFA;
+      color: var(--slate-900);
+    }
+
+    input:focus {
+      border-color: var(--primary);
+      background: white;
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 15px;
+      font-size: 15px;
+      font-weight: 800;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+    }
+
+    .btn-primary:active {
+      transform: scale(0.98);
+      background: var(--primary-hover);
+    }
+
+    .btn-secondary {
+      background: var(--slate-100);
+      color: var(--slate-700);
+      margin-top: 10px;
+      font-size: 13px;
+      padding: 10px;
+    }
+
+    .result-card {
+      border-radius: 20px;
+      padding: 24px;
+      text-align: center;
+      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08);
+      animation: fadeIn 0.3s ease;
+    }
+
+    .result-accredited {
+      background: white;
+      border: 2px solid var(--success);
+    }
+
+    .result-entry {
+      background: white;
+      border: 2px solid var(--primary);
+    }
+
+    .result-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+
+    .result-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--slate-900);
+      margin-bottom: 8px;
+    }
+
+    .result-desc {
+      font-size: 14px;
+      color: var(--slate-600);
+      line-height: 1.5;
+      margin-bottom: 20px;
+    }
+
+    .stamps-grid {
+      background: var(--slate-50);
+      border-radius: 14px;
+      padding: 14px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 18px;
+      text-align: left;
+    }
+
+    .stamp-item {
+      padding: 8px;
+    }
+
+    .stamp-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--slate-600);
+      margin-bottom: 4px;
+    }
+
+    .stamp-val {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--slate-900);
+    }
+
+    .stamp-sealed {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--success);
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .security-badge {
+      font-size: 11px;
+      color: var(--slate-600);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      margin-top: 16px;
+    }
+
+    .loading-spinner {
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-top: 3px solid white;
+      border-radius: 50%;
+      width: 18px;
+      height: 18px;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- CABECERA -->
+    <div class="header-card">
+      <div class="logo-badge">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+      </div>
+      <h1 id="workshopTitle">Asistencia de Taller</h1>
+      <div class="subtitle" id="sessionTitle">Cargando datos de la sesión...</div>
+      <div id="phaseBadgeContainer" class="hidden">
+        <span id="phaseBadge" class="phase-badge">Fase</span>
+      </div>
+    </div>
+
+    <!-- TARJETA PRINCIPAL: FORMULARIO INTELIGENTE -->
+    <div id="actionCard" class="card">
+      
+      <!-- CASO 1: ALUMNO YA REGISTRADO ANTERIORMENTE (PASE AUTOMÁTICO SIN TOCAR BOTONES) -->
+      <div id="savedStudentView" class="hidden">
+        <div class="greeting-box">
+          <div class="greeting-title" id="savedGreetingName">¡Hola!</div>
+          <div class="greeting-subtitle" id="savedGreetingControl">Matrícula: </div>
+        </div>
+
+        <p id="autoSubmitStatusText" style="font-size: 14px; font-weight: 700; color: var(--primary); margin-bottom: 16px; text-align: center;">
+          ⏳ Registrando tu asistencia automáticamente...
+        </p>
+
+        <button id="btnConfirmAttendance" class="btn btn-primary hidden" onclick="submitAttendance(true)">
+          <span id="btnConfirmText">Confirmar Asistencia</span>
+        </button>
+        <div style="text-align: center; margin-top: 10px;">
+          <button type="button" onclick="clearSavedStudent()" style="background: none; border: none; color: var(--slate-600); text-decoration: underline; font-size: 12px; cursor: pointer; padding: 4px;">
+            ¿No eres tú? Cambiar de alumno / ingresar otra matrícula
+          </button>
+        </div>
+      </div>
+
+      <!-- CASO 2: FORMULARIO (PRIMERA VEZ O CAMBIO DE ALUMNO) -->
+      <div id="newStudentForm">
+        <div class="form-group">
+          <label for="controlNumber">Número de Control / Matrícula</label>
+          <input 
+            type="text" 
+            id="controlNumber" 
+            placeholder="Ej. 21280001" 
+            autocomplete="off" 
+            autocapitalize="characters"
+            oninput="handleControlInput(this.value)"
+          >
+          <div id="controlHelper" style="font-size: 11px; color: var(--slate-600); margin-top: 4px;">
+            Ingresa tu matrícula para validar tu registro.
+          </div>
+        </div>
+
+        <!-- Campo de nombre: se muestra si no está previamente inscrito -->
+        <div id="nameGroup" class="form-group">
+          <label for="fullName">Nombre Completo</label>
+          <input 
+            type="text" 
+            id="fullName" 
+            placeholder="Nombre(s) y Apellidos" 
+            autocomplete="name"
+          >
+          <div style="font-size: 11px; color: var(--primary); margin-top: 4px; font-weight: 600;">
+            ✨ Primera vez en este taller. Solo necesitas ingresar tu nombre una vez.
+          </div>
+        </div>
+
+        <!-- Campo opcional de nota / incidencia del alumno -->
+        <div class="form-group" style="margin-top: 10px;">
+          <label for="studentNote" style="font-size: 12px; color: var(--slate-600);">📝 ¿Algún inconveniente o nota para el docente? (Opcional)</label>
+          <input 
+            type="text" 
+            id="studentNote" 
+            placeholder="Ej. Falla de red, retardo justificado, batería baja..." 
+            style="padding: 11px 14px; font-size: 13px;"
+          >
+        </div>
+
+        <div id="toleranceInfoBox" style="background: #ECFDF5; border: 1px solid #A7F3D0; color: #065F46; border-radius: 10px; padding: 8px 12px; font-size: 11px; font-weight: 700; margin-bottom: 12px; text-align: center;">
+          ⏱️ Tiempo de tolerancia puntual del taller: 15 minutos
+        </div>
+
+        <button id="btnSubmitForm" class="btn btn-primary" onclick="submitAttendance(false)">
+          <span id="btnSubmitText">Registrar Mi Asistencia</span>
+        </button>
+      </div>
+
+      <div class="security-badge">
+        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+        </svg>
+        Registro Oficial Sellado e Inmutable
+      </div>
+      <div id="deviceIdBadge" style="font-size: 11px; color: #0284C7; font-weight: 700; text-align: center; margin-top: 6px;">
+        📱 ID de tu Celular: Cargando...
+      </div>
+    </div>
+
+    <!-- TARJETA DE RESULTADO / COMPROBANTE -->
+    <div id="resultCard" class="card result-card hidden">
+      <div id="resultIcon" class="result-icon">✅</div>
+      <div id="resultTitle" class="result-title">¡Asistencia Sellada!</div>
+      <div id="resultDesc" class="result-desc">Tu hora de asistencia ha sido registrada exitosamente.</div>
+
+      <div class="stamps-grid">
+        <div class="stamp-item">
+          <div class="stamp-label">🟢 Entrada</div>
+          <div id="stampCheckIn" class="stamp-val">--:--:--</div>
+          <div id="badgeCheckIn" class="stamp-sealed hidden">🔒 Sellado</div>
+        </div>
+        <div class="stamp-item">
+          <div class="stamp-label">🔴 Salida</div>
+          <div id="stampCheckOut" class="stamp-val">--:--:--</div>
+          <div id="badgeCheckOut" class="stamp-sealed hidden">🔒 Sellado</div>
+        </div>
+      </div>
+
+      <div style="font-size: 12px; color: var(--slate-600); margin-bottom: 12px;" id="resultStudentName">
+        Alumno: -
+      </div>
+
+      <div id="evidenceCardBox" class="hidden" style="background: #F5F3FF; border: 1.5px solid #C4B5FD; border-radius: 12px; padding: 12px; margin-bottom: 16px; text-align: left;">
+        <div style="font-size: 11px; font-weight: 800; color: #6D28D9; margin-bottom: 4px;">
+          📋 COMPROBANTE DE EVIDENCIA / NOTA REGISTRADA:
+        </div>
+        <div id="evidenceCardText" style="font-size: 12px; font-weight: 600; color: #4C1D95; line-height: 1.4;"></div>
+      </div>
+
+      <button class="btn btn-secondary" onclick="location.reload()">
+        Volver a revisar
+      </button>
+    </div>
+
+  </div>
+
+  <!-- Supabase Cloud SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <script>
+    // Configuración directa de Supabase en la nube
+    const SUPABASE_URL = 'https://qukqvrowgzdkqoccbfdb.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_A-jiTpI9-hoDwOaln0_BWw_omLvRnRN';
+    const supabaseClient = (typeof supabase !== 'undefined' && supabase.createClient)
+      ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+      : null;
+
+    // Variables globales extraídas de la URL del QR
+    const urlParams = new URLSearchParams(window.location.search);
+    let token = urlParams.get('token') || '';
+    let sessionId = urlParams.get('session') || '';
+    let workshopId = urlParams.get('workshop') || '';
+    let currentPhase = urlParams.get('phase') || 'entry';
+    let toleranceMinutes = parseInt(urlParams.get('tol') || '15', 10);
+    let registrationWindowMinutes = parseInt(urlParams.get('win') || '45', 10);
+    let phaseStartedAtMs = parseInt(urlParams.get('start') || '0', 10);
+    let isStudentEnrolledInDb = false;
+    let isConferenceMode = urlParams.get('type') === 'conf' || urlParams.get('conf') === '1';
+
+    // Si viene en formato compacto ?qr=...
+    const qrParam = urlParams.get('qr');
+    if (qrParam) {
+      try {
+        const decoded = JSON.parse(decodeURIComponent(qrParam));
+        if (decoded.s) sessionId = decoded.s;
+        if (decoded.w) workshopId = decoded.w;
+        if (decoded.p) currentPhase = decoded.p;
+        if (decoded.tol) toleranceMinutes = parseInt(decoded.tol, 10) || 15;
+        if (decoded.win) registrationWindowMinutes = parseInt(decoded.win, 10) || 45;
+        if (decoded.start) phaseStartedAtMs = parseInt(decoded.start, 10) || 0;
+        if (decoded.sig && !token) token = `${decoded.p}_${decoded.t}_${decoded.sig}`;
+        if (decoded.type === 'conf' || decoded.isConf) isConferenceMode = true;
+      } catch (e) {
+        console.warn('Lectura de parámetro qr alternativo:', e);
+      }
+    }
+
+    // Formatear hora local HH:MM:SS
+    function formatTime(isoStr) {
+      if (!isoStr) return '--:--:--';
+      const d = new Date(isoStr);
+      return d.toLocaleTimeString('es-MX', { hour12: false });
+    }
+
+    // Obtener o generar el ID único e intransferible de este teléfono celular
+    function getOrCreateDeviceId() {
+      let devId = localStorage.getItem('asistencia_device_id') || sessionStorage.getItem('asistencia_device_id');
+      if (!devId) {
+        const match = document.cookie.match(/(^| )asistencia_device_id=([^;]+)/);
+        if (match) devId = match[2];
+      }
+      if (!devId) {
+        const rand = Math.random().toString(36).substring(2, 8).toUpperCase();
+        devId = `CEL-${rand}`;
+      }
+      localStorage.setItem('asistencia_device_id', devId);
+      sessionStorage.setItem('asistencia_device_id', devId);
+      document.cookie = `asistencia_device_id=${devId}; max-age=31536000; path=/`;
+      return devId;
+    }
+
+    const currentDeviceId = getOrCreateDeviceId();
+
+    function parseStudentDeviceMeta(rawEmail, fallbackCtrl) {
+      const fallback = `${(fallbackCtrl || 'alumno').toLowerCase()}@alumno.edu`;
+      if (!rawEmail) {
+        return { cleanEmail: fallback, boundDev: '', oldDev: '', allowNew: false };
+      }
+      const parts = String(rawEmail).split('||');
+      const cleanEmail = (parts[0] || '').trim() || fallback;
+      let boundDev = '';
+      let oldDev = '';
+      let allowNew = false;
+      for (let i = 1; i < parts.length; i++) {
+        const seg = parts[i].trim();
+        if (seg.startsWith('DEV:')) {
+          boundDev = seg.substring(4).trim().toUpperCase();
+        } else if (seg.startsWith('OLD_DEV:')) {
+          oldDev = seg.substring(8).trim().toUpperCase();
+        } else if (seg.startsWith('ALLOW_NEW_DEV:')) {
+          const v = seg.substring(14).trim();
+          if (v === '1' || v === 'true') {
+            allowNew = true;
+            boundDev = '';
+          }
+        }
+      }
+      return { cleanEmail, boundDev, oldDev, allowNew };
+    }
+
+    function buildStudentEmailWithDeviceMeta(cleanEmail, boundDev, oldDev, allowNew) {
+      const parts = [cleanEmail];
+      if (boundDev) parts.push(`DEV:${boundDev}`);
+      if (oldDev) parts.push(`OLD_DEV:${oldDev}`);
+      if (allowNew) parts.push('ALLOW_NEW_DEV:1');
+      return parts.join('||');
+    }
+
+    // Inicializar al cargar la página
+    window.addEventListener('DOMContentLoaded', async () => {
+      // Limpiar la barra de direcciones del navegador para que el enlace se vea corto y limpio
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+      const badgeEl = document.getElementById('deviceIdBadge');
+      if (badgeEl) {
+        badgeEl.textContent = `📱 ID de tu Celular: ${currentDeviceId}`;
+      }
+      setupPhaseBadge(currentPhase);
+      updateToleranceBanner();
+      await loadSessionMetadata();
+      await checkSavedStudent();
+    });
+
+    function updateToleranceBanner() {
+      const box = document.getElementById('toleranceInfoBox');
+      if (!box) return;
+      if (phaseStartedAtMs > 0) {
+        const elapsedMins = Math.floor((Date.now() - phaseStartedAtMs) / 60000);
+        if (elapsedMins > toleranceMinutes) {
+          box.style.background = '#FEF3C7';
+          box.style.borderColor = '#F59E0B';
+          box.style.color = '#92400E';
+          box.innerHTML = `🟠 Tolerancia de ${toleranceMinutes} min superada (+${elapsedMins} min). Tu registro se marcará con retraso.`;
+          return;
+        }
+      }
+      box.innerHTML = `⏱️ Tolerancia puntual configurada por el docente: ${toleranceMinutes} minutos`;
+    }
+
+    function setupPhaseBadge(phase) {
+      const container = document.getElementById('phaseBadgeContainer');
+      const badge = document.getElementById('phaseBadge');
+      container.classList.remove('hidden');
+
+      if (isConferenceMode) {
+        badge.className = 'phase-badge';
+        badge.style.background = '#F5F3FF';
+        badge.style.color = '#6D28D9';
+        badge.style.borderColor = '#8B5CF6';
+        badge.innerHTML = '🎤 Pase Único de CONFERENCIA';
+        const btnC = document.getElementById('btnConfirmText');
+        if (btnC) btnC.textContent = '🎓 Confirmar Asistencia a Conferencia';
+        const btnS = document.getElementById('btnSubmitText');
+        if (btnS) btnS.textContent = 'Registrar Asistencia a Conferencia';
+        return;
+      }
+
+      if (phase === 'entry') {
+        badge.className = 'phase-badge phase-entry';
+        badge.innerHTML = '🟢 Pase de ENTRADA';
+        document.getElementById('btnConfirmText').textContent = '✅ Confirmar Mi ENTRADA';
+        document.getElementById('btnSubmitText').textContent = 'Registrar Mi ENTRADA';
+      } else if (phase === 'exit') {
+        badge.className = 'phase-badge phase-exit';
+        badge.innerHTML = '🔴 Pase de SALIDA';
+        document.getElementById('btnConfirmText').textContent = '🎓 Confirmar Mi SALIDA y Acreditar';
+        document.getElementById('btnSubmitText').textContent = 'Registrar Mi SALIDA';
+      }
+    }
+
+    async function loadSessionMetadata() {
+      // 1. Cargar desde Supabase si tenemos sessionId
+      if (supabaseClient && sessionId) {
+        try {
+          const { data: sess } = await supabaseClient
+            .from('workshop_sessions')
+            .select('id, title, current_phase, workshop_id, workshops(id, name, instructor_name)')
+            .eq('id', sessionId)
+            .maybeSingle();
+
+          if (sess) {
+            workshopId = sess.workshop_id || workshopId;
+            if (sess.workshops) {
+              const wName = sess.workshops.name || 'Taller Formativo';
+              document.getElementById('workshopTitle').textContent = wName;
+              document.getElementById('sessionTitle').textContent = `${sess.title} • ${sess.workshops.instructor_name || 'Docente'}`;
+              if (sess.workshops.event_type === 'conference' || wName.toUpperCase().includes('CONFERENCIA')) {
+                isConferenceMode = true;
+              }
+            } else {
+              document.getElementById('sessionTitle').textContent = sess.title;
+            }
+            if (sess.title && sess.title.toUpperCase().includes('CONFERENCIA')) {
+              isConferenceMode = true;
+            }
+            if (sess.current_phase) {
+              currentPhase = sess.current_phase;
+            }
+            setupPhaseBadge(currentPhase);
+            return;
+          }
+        } catch (e) {
+          console.warn('Aviso leyendo sesión de Supabase:', e);
+        }
+      }
+
+      // 2. Fallback a servidor local si corre en PC
+      try {
+        const res = await fetch('/api/active-session');
+        const data = await res.json();
+        if (data.active) {
+          document.getElementById('workshopTitle').textContent = data.workshop.name;
+          document.getElementById('sessionTitle').textContent = `${data.session.title} • ${data.workshop.instructorName}`;
+          if (data.session.currentPhase) {
+            currentPhase = data.session.currentPhase;
+            setupPhaseBadge(currentPhase);
+          }
+        }
+      } catch (_) {}
+    }
+
+    // Comprobar si este celular ya tiene un alumno guardado en localStorage y registrar AUTOMÁTICAMENTE
+        function clearSavedStudent() {
+      localStorage.removeItem('asistencia_control_number');
+      localStorage.removeItem('asistencia_full_name');
+      document.getElementById('savedStudentView').classList.add('hidden');
+      document.getElementById('newStudentForm').classList.remove('hidden');
+      document.getElementById('controlNumber').value = '';
+      document.getElementById('fullName').value = '';
+      document.getElementById('controlHelper').innerHTML = 'Ingresa tu matrícula para validar tu registro.';
+      document.getElementById('controlHelper').style.color = 'var(--slate-600)';
+    }
+
+    async function checkSavedStudent() {
+      const savedControl = localStorage.getItem('asistencia_control_number');
+      const savedName = localStorage.getItem('asistencia_full_name');
+
+      if (savedControl) {
+        let studentName = savedName || 'Alumno';
+
+        if (supabaseClient) {
+          try {
+            const { data: stdArr } = await supabaseClient
+              .from('students')
+              .select('full_name')
+              .ilike('enrollment_number', savedControl)
+              .limit(1);
+            const std = stdArr && stdArr.length > 0 ? stdArr[0] : null;
+            if (std && std.full_name) {
+              studentName = std.full_name;
+              localStorage.setItem('asistencia_full_name', studentName);
+            }
+          } catch (_) {}
+        }
+
+        document.getElementById('savedGreetingName').textContent = `¡Hola, ${studentName}! 👋`;
+        document.getElementById('savedGreetingControl').textContent = `Matrícula: ${savedControl}`;
+        document.getElementById('savedStudentView').classList.remove('hidden');
+        document.getElementById('newStudentForm').classList.add('hidden');
+
+        // Pase automático inmediato al leer el QR sin tocar ningún botón
+        await submitAttendance(true);
+        return;
+      }
+
+      // Si no hay datos guardados, mostrar formulario de primera vez
+      document.getElementById('savedStudentView').classList.add('hidden');
+      document.getElementById('newStudentForm').classList.remove('hidden');
+    }
+
+    // Al teclear número de control: verificación en tiempo real y envío automático si ya está inscrito
+    let searchTimeout;
+    let autoSubmitTimeout;
+    async function handleControlInput(val) {
+      clearTimeout(searchTimeout);
+      clearTimeout(autoSubmitTimeout);
+      const cleanVal = val.trim().toUpperCase();
+      if (cleanVal.length < 3) {
+        document.getElementById('nameGroup').classList.add('hidden');
+        return;
+      }
+
+      searchTimeout = setTimeout(async () => {
+        let foundStudent = null;
+
+        if (supabaseClient) {
+          try {
+            const { data: stdArr } = await supabaseClient
+              .from('students')
+              .select('full_name, enrollment_number')
+              .ilike('enrollment_number', cleanVal)
+              .limit(1);
+            foundStudent = stdArr && stdArr.length > 0 ? stdArr[0] : null;
+          } catch (_) {}
+        } else {
+          try {
+            const res = await fetch(`/api/check-student?controlNumber=${encodeURIComponent(cleanVal)}&sessionId=${encodeURIComponent(sessionId)}`);
+            const info = await res.json();
+            if (info.exists) foundStudent = info.student;
+          } catch (_) {}
+        }
+
+        if (foundStudent) {
+          isStudentEnrolledInDb = true;
+          document.getElementById('controlHelper').innerHTML = `ℹ️ Matrícula registrada para: <strong>${foundStudent.full_name || foundStudent.fullName}</strong>. Ingresa tu nombre para confirmar tu identidad.`;
+          document.getElementById('controlHelper').style.color = 'var(--primary)';
+        } else {
+          isStudentEnrolledInDb = false;
+          document.getElementById('controlHelper').innerHTML = '✨ Nueva matrícula en este taller. Ingresa tu nombre completo para inscribirte.';
+          document.getElementById('controlHelper').style.color = 'var(--slate-600)';
+        }
+      }, 350);
+    }
+
+    // Enviar registro de asistencia
+    async function submitAttendance(useSaved) {
+      let controlNumber = '';
+      let fullName = '';
+
+      if (useSaved) {
+        controlNumber = localStorage.getItem('asistencia_control_number');
+        fullName = localStorage.getItem('asistencia_full_name') || '';
+      } else {
+        controlNumber = document.getElementById('controlNumber').value.trim();
+        fullName = document.getElementById('fullName').value.trim();
+
+        if (!controlNumber) {
+          alert('Por favor ingresa tu Número de Control o Matrícula.');
+          document.getElementById('controlNumber').focus();
+          return;
+        }
+
+        if (!isStudentEnrolledInDb && !fullName) {
+          alert('Por favor ingresa tu Nombre Completo para registrarte en el taller.');
+          document.getElementById('fullName').focus();
+          return;
+        }
+      }
+
+      const cleanControl = controlNumber.trim().toUpperCase();
+
+      // --- PROTECCIÓN ANTIFRAUDE: UN SOLO ALUMNO POR CELULAR ---
+      const activeSessionKey = 'session_locked_device_' + (sessionId || 'ses_001');
+      let registeredStudentOnDevice = localStorage.getItem(activeSessionKey) || 
+                                     sessionStorage.getItem(activeSessionKey);
+      if (!registeredStudentOnDevice) {
+        const match = document.cookie.match(new RegExp('(^| )' + activeSessionKey + '=([^;]+)'));
+        if (match) registeredStudentOnDevice = match[2];
+      }
+
+      if (registeredStudentOnDevice && registeredStudentOnDevice !== cleanControl) {
+        const teacherCode = prompt(
+          '⚠️ BLOQUEO DE SEGURIDAD ANTIFRAUDE:\n\n' +
+          `Este celular ya fue registrado en esta sesión por el alumno con matrícula: ${registeredStudentOnDevice}.\n\n` +
+          'No está permitido registrar a otro compañero desde el mismo teléfono.\n\n' +
+          '¿El docente autorizó usar este teléfono por causa justificada? Ingrese el PIN de docente o clave de sesión para desbloquear:'
+        );
+        const validTokens = [(token || '').toUpperCase(), '1234', 'DOCENTE', 'MAESTRO'];
+        if (teacherCode && validTokens.includes(teacherCode.trim().toUpperCase())) {
+          localStorage.removeItem(activeSessionKey);
+          sessionStorage.removeItem(activeSessionKey);
+          document.cookie = `${activeSessionKey}=; max-age=0; path=/`;
+          alert('✅ Dispositivo desbloqueado con éxito por autorización del docente. Procede con tu registro.');
+        } else {
+          alert('⛔ Registro cancelado. Acércate con el docente para que te registre directamente en su consola de inventario.');
+          return;
+        }
+      }
+
+      // Animación de carga
+      const btn = useSaved ? document.getElementById('btnConfirmAttendance') : document.getElementById('btnSubmitForm');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '<div class="loading-spinner"></div> Sellando asistencia en Supabase...';
+      btn.disabled = true;
+
+      try {
+        let result = null;
+
+        if (supabaseClient) {
+          // --- REGISTRO DIRECTO EN SUPABASE (Sin PC requerida) ---
+          const cleanCtrl = controlNumber.toUpperCase();
+
+          // Asegurar que el taller y la sesión existan en Supabase para evitar errores de clave foránea
+          if (workshopId) {
+            try {
+              await supabaseClient.from('workshops').upsert({
+                id: workshopId,
+                name: document.getElementById('workshopTitle').textContent || 'Taller Activo',
+                code: 'TAL-01',
+                instructor_name: 'Docente Responsable'
+              }, { onConflict: 'id' });
+            } catch (_) {}
+          }
+          if (sessionId) {
+            try {
+              await supabaseClient.from('workshop_sessions').upsert({
+                id: sessionId,
+                workshop_id: workshopId || null,
+                title: document.getElementById('sessionTitle').textContent || 'Sesión de Taller',
+                current_phase: currentPhase
+              }, { onConflict: 'id' });
+            } catch (_) {}
+          }
+
+          // Función auxiliar para normalizar nombres eliminando acentos y espacios extras
+          function normalizeName(s) {
+            return (s || '')
+              .toLowerCase()
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .replace(/\s+/g, ' ')
+              .trim();
+          }
+
+          // 1. Obtener o registrar estudiante con validación estricta de no repetición
+          let student = null;
+          let allStudentIds = [];
+          const { data: existingStdList } = await supabaseClient
+            .from('students')
+            .select('*')
+            .ilike('enrollment_number', cleanCtrl)
+            .order('created_at', { ascending: true });
+
+          if (existingStdList && existingStdList.length > 0) {
+            student = existingStdList[0];
+            allStudentIds = existingStdList.map(s => s.id);
+            const existingName = student.full_name || '';
+            const normExisting = normalizeName(existingName);
+            const normInput = normalizeName(fullName);
+
+            const isPlaceholder = normExisting.startsWith('alumno ') ||
+                                  normExisting === normalizeName(cleanCtrl) ||
+                                  !normExisting;
+
+            if (!isPlaceholder && normInput) {
+              const inputTokens = normInput.split(' ').filter(t => t.length > 2);
+              const existingTokens = normExisting.split(' ').filter(t => t.length > 2);
+              const common = inputTokens.filter(t => existingTokens.includes(t));
+
+              if (common.length === 0 && normInput !== normExisting) {
+                alert(
+                  `⛔ MATRÍCULA YA ASIGNADA:\n\n` +
+                  `El número de control "${cleanCtrl}" ya pertenece al alumno registrado:\n"${existingName}".\n\n` +
+                  `Los datos que ingresaste ("${fullName}") no coinciden con el alumno titular.\n\n` +
+                  `El número de control y nombre son únicos y no pueden duplicarse ni reutilizarse por otra persona.\n\n` +
+                  `Por favor ingresa tu propio número de control y nombre completo.`
+                );
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                return;
+              }
+            } else if (normInput && isPlaceholder) {
+              try {
+                await supabaseClient
+                  .from('students')
+                  .update({ full_name: fullName.trim() })
+                  .eq('id', student.id);
+                student.full_name = fullName.trim();
+              } catch (_) {}
+            }
+          } else {
+            // Si la matrícula no existe, verificar que el nombre no esté registrado bajo otra matrícula
+            if (fullName) {
+              try {
+                const { data: sameNameList } = await supabaseClient
+                  .from('students')
+                  .select('enrollment_number, full_name')
+                  .ilike('full_name', fullName.trim())
+                  .limit(5);
+
+                if (sameNameList && sameNameList.length > 0) {
+                  const conflict = sameNameList.find(s => s.enrollment_number.toUpperCase() !== cleanCtrl);
+                  if (conflict) {
+                    alert(
+                      `⛔ ALUMNO YA REGISTRADO:\n\n` +
+                      `Ya existe un alumno registrado con el nombre "${conflict.full_name}" bajo el número de control "${conflict.enrollment_number}".\n\n` +
+                      `El nombre y número de control no pueden repetirse. Por favor verifica tus datos oficiales.`
+                    );
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    return;
+                  }
+                }
+              } catch (_) {}
+            }
+            const newId = 'std_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+            const initialEncodedMail = buildStudentEmailWithDeviceMeta(
+              `${cleanCtrl.toLowerCase()}@alumno.edu`,
+              currentDeviceId,
+              '',
+              false
+            );
+            let insertPayload = {
+              id: newId,
+              workshop_id: workshopId || null,
+              enrollment_number: cleanCtrl,
+              full_name: fullName || 'Alumno',
+              email: initialEncodedMail
+            };
+
+            let { data: createdStd, error: stdErr } = await supabaseClient
+              .from('students')
+              .insert(insertPayload)
+              .select()
+              .single();
+
+            // Si falla por restricción de clave foránea de workshop_id, reintentar con workshop_id nulo
+            if (stdErr && (stdErr.code === '23503' || (stdErr.message && stdErr.message.includes('foreign key')))) {
+              insertPayload.workshop_id = null;
+              const retry = await supabaseClient
+                .from('students')
+                .insert(insertPayload)
+                .select()
+                .single();
+              createdStd = retry.data;
+              stdErr = retry.error;
+            }
+
+            if (stdErr) throw stdErr;
+            student = createdStd;
+            allStudentIds = [student.id];
+          }
+
+          // --- VALIDACIÓN DE CAMBIO DE CELULAR (BORRAR VIEJO Y DAR ACCESO AL NUEVO) ---
+          let deviceChangeAuditNote = '';
+          const devMeta = parseStudentDeviceMeta(student.email, cleanCtrl);
+
+          // Caso A: Este teléfono es el CELULAR VIEJO que ya fue dado de baja y reemplazado
+          if (devMeta.oldDev && devMeta.oldDev === currentDeviceId && devMeta.boundDev !== currentDeviceId) {
+            localStorage.removeItem('asistencia_control_number');
+            localStorage.removeItem('asistencia_full_name');
+            localStorage.removeItem(activeSessionKey);
+            sessionStorage.removeItem(activeSessionKey);
+            alert(
+              `⛔ CELULAR ANTERIOR DADO DE BAJA (${currentDeviceId}):\n\n` +
+              `Este dispositivo fue borrado porque registraste un nuevo celular (${devMeta.boundDev || 'Nuevo Dispositivo'}) con autorización del docente encargado.\n\n` +
+              `Por favor realiza tu registro desde tu nuevo celular.`
+            );
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            return;
+          }
+
+          // Caso B: El alumno ya tenía un celular vinculado distinto a este nuevo celular
+          if (devMeta.boundDev && devMeta.boundDev !== currentDeviceId) {
+            if (!devMeta.allowNew) {
+              const authPin = prompt(
+                `📱 NUEVO CELULAR DETECTADO (ID: ${currentDeviceId})\n\n` +
+                `Tu matrícula (${cleanCtrl}) está vinculada a tu celular anterior (${devMeta.boundDev}).\n\n` +
+                `Para que el celular viejo se borre y este nuevo celular tome su lugar:\n` +
+                `• Pídele al docente que toque "📱 Nuevo Celular (Borrar Viejo)" en tu ficha de alumno y vuelve a intentar, O\n` +
+                `• Si el docente está contigo ahora mismo, ingresa aquí el PIN Docente para autorizar el nuevo celular:`
+              );
+              const validPins = [(token || '').toUpperCase(), '1234', 'DOCENTE', 'MAESTRO'];
+              if (!authPin || !validPins.includes(authPin.trim().toUpperCase())) {
+                alert('⛔ Cambio de celular pendiente de autorización. Pídele a tu docente encargado que presione "📱 Nuevo Celular (Borrar Viejo)" en la sección de Alumnos.');
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                return;
+              }
+            }
+            // Reemplazar celular viejo por el nuevo celular y borrar el anterior
+            const replacedOld = devMeta.boundDev;
+            const newEncodedEmail = buildStudentEmailWithDeviceMeta(
+              devMeta.cleanEmail,
+              currentDeviceId,
+              replacedOld,
+              false
+            );
+            try {
+              await supabaseClient
+                .from('students')
+                .update({ email: newEncodedEmail })
+                .ilike('enrollment_number', cleanCtrl);
+            } catch (_) {}
+            deviceChangeAuditNote = `[Cambio de Celular Autorizado] Celular viejo (${replacedOld}) borrado y reemplazado por nuevo celular (${currentDeviceId})`;
+          } else if (devMeta.allowNew || !devMeta.boundDev) {
+            // Caso C: El docente ya había autorizado el cambio en la app (allowNew = true) o es el primer celular que vincula el alumno
+            const prevOld = devMeta.oldDev || '';
+            const newEncodedEmail = buildStudentEmailWithDeviceMeta(
+              devMeta.cleanEmail,
+              currentDeviceId,
+              prevOld,
+              false
+            );
+            try {
+              await supabaseClient
+                .from('students')
+                .update({ email: newEncodedEmail })
+                .ilike('enrollment_number', cleanCtrl);
+            } catch (_) {}
+            if (devMeta.allowNew) {
+              deviceChangeAuditNote = `[Nuevo Celular Activado] Celular anterior (${prevOld || 'Previo'}) borrado; nuevo celular (${currentDeviceId}) tomó su lugar con autorización del docente`;
+            }
+          }
+
+          // 2. Obtener registro de asistencia previo (ESTRICTAMENTE de esta sesión y taller)
+          const targetSessionId = sessionId || 'ses_001';
+          const { data: studentRecs } = await supabaseClient
+            .from('attendance_records')
+            .select('*')
+            .eq('session_id', targetSessionId)
+            .in('student_id', allStudentIds)
+            .order('created_at', { ascending: false });
+
+          const recsArray = studentRecs || [];
+          let existingRec = recsArray.length > 0 ? recsArray[0] : null;
+
+          const nowDate = new Date();
+          const nowIso = nowDate.toISOString();
+          let baseStatus = 'pending';
+          let checkInIso = existingRec ? existingRec.check_in_time : null;
+          let checkOutIso = existingRec ? existingRec.check_out_time : null;
+          let title = '';
+          let message = '';
+
+          // Extraer nota o retardo previos si existían en el registro previo de ESTA sesión
+          let prevLateMins = 0;
+          let prevNote = '';
+          if (existingRec && existingRec.status) {
+            const parts = String(existingRec.status).split('||');
+            if (parts[0] === 'accredited') baseStatus = 'accredited';
+            for (let i = 1; i < parts.length; i++) {
+              if (parts[i].startsWith('LATE:') && prevLateMins === 0) {
+                prevLateMins = parseInt(parts[i].substring(5), 10) || 0;
+              } else if (parts[i].startsWith('NOTE:') && !prevNote) {
+                prevNote = parts[i].substring(5);
+              }
+            }
+          }
+
+          const studentNoteInput = (document.getElementById('studentNote') ? document.getElementById('studentNote').value.trim() : '');
+          if (studentNoteInput) {
+            prevNote = prevNote ? `${prevNote} | Nota Alumno: ${studentNoteInput}` : `[Nota Alumno ${formatTime(nowIso)}] ${studentNoteInput}`;
+          }
+          if (deviceChangeAuditNote) {
+            prevNote = prevNote ? `${prevNote} | ${deviceChangeAuditNote}` : deviceChangeAuditNote;
+          }
+
+          if (isConferenceMode) {
+            checkInIso = checkInIso || nowIso;
+            checkOutIso = checkOutIso || nowIso;
+            baseStatus = 'accredited';
+            if (existingRec && existingRec.status && existingRec.status.includes('accredited')) {
+              title = '🎓 ¡Conferencia Ya Acreditada!';
+              message = `Tu asistencia ya estaba sellada a las ${formatTime(checkInIso)} hrs con acreditación oficial.`;
+            } else {
+              title = '🎓 ¡CONFERENCIA ACREDITADA! 🎉';
+              message = `Tu asistencia ha sido registrada y acreditada exitosamente a las ${formatTime(nowIso)} hrs. (Pase único de conferencia).`;
+            }
+          } else if (currentPhase === 'entry') {
+            if (checkInIso) {
+              title = baseStatus === 'accredited' ? '🎓 ¡Taller Acreditado!' : 'Entrada Ya Registrada';
+              message = `Tu entrada ya estaba sellada a las ${formatTime(checkInIso)} hrs.`;
+              if (checkOutIso || baseStatus === 'accredited') baseStatus = 'accredited';
+            } else {
+              checkInIso = nowIso;
+              baseStatus = checkOutIso ? 'accredited' : 'pending';
+              if (phaseStartedAtMs > 0) {
+                const elapsedM = Math.floor((Date.now() - phaseStartedAtMs) / 60000);
+                if (elapsedM > toleranceMinutes) {
+                  prevLateMins = elapsedM;
+                }
+              }
+              if (prevLateMins > 0) {
+                title = '🟠 Entrada con Retraso Registrada';
+                message = `Entrada sellada a las ${formatTime(nowIso)} hrs (+${prevLateMins} min respecto al inicio; tolerancia de ${toleranceMinutes} min).`;
+              } else {
+                title = '🟢 Entrada Puntual Registrada';
+                message = `Entrada sellada a las ${formatTime(nowIso)} hrs dentro de los ${toleranceMinutes} min de tolerancia. Recuerda escanear al concluir el taller para Acreditar.`;
+              }
+            }
+          } else if (currentPhase === 'exit') {
+            if (checkOutIso) {
+              title = checkInIso ? '¡Taller Ya Acreditado!' : 'Salida Ya Registrada';
+              message = `Tu salida ya estaba sellada a las ${formatTime(checkOutIso)} hrs.`;
+              baseStatus = checkInIso ? 'accredited' : 'incompleteExitOnly';
+            } else {
+              checkOutIso = nowIso;
+              if (checkInIso) {
+                baseStatus = 'accredited';
+                title = '¡TALLER ACREDITADO! 🎉';
+                message = 'Cumpliste con Entrada y Salida. Has obtenido la Acreditación oficial del taller.';
+              } else {
+                baseStatus = 'incompleteExitOnly';
+                title = '⚠️ Salida Registrada Sin Entrada Previa';
+                message = 'Se registró tu salida, pero no tenías entrada sellada al inicio del taller.';
+              }
+            }
+          }
+
+          let encodedStatus = `${baseStatus}||DEV:${currentDeviceId}`;
+          if (prevLateMins > 0) encodedStatus += `||LATE:${prevLateMins}`;
+          if (prevNote) encodedStatus += `||NOTE:${prevNote.replace(/\|\|/g, ' - ')}`;
+
+          // 3. Guardar en attendance_records
+          const recId = existingRec ? existingRec.id : ('rec_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6));
+          let { error: upsertErr } = await supabaseClient
+            .from('attendance_records')
+            .upsert({
+              id: recId,
+              student_id: student.id,
+              session_id: targetSessionId,
+              check_in_time: checkInIso,
+              check_out_time: checkOutIso,
+              is_locked: true,
+              status: encodedStatus
+            });
+
+          // Si falla por sesión foránea, crear sesión y reintentar
+          if (upsertErr && (upsertErr.code === '23503' || (upsertErr.message && upsertErr.message.includes('foreign key')))) {
+            try {
+              await supabaseClient.from('workshop_sessions').upsert({
+                id: targetSessionId,
+                title: 'Sesión Activa',
+                current_phase: currentPhase
+              });
+              const retryUpsert = await supabaseClient
+                .from('attendance_records')
+                .upsert({
+                  id: recId,
+                  student_id: student.id,
+                  session_id: targetSessionId,
+                  check_in_time: checkInIso,
+                  check_out_time: checkOutIso,
+                  is_locked: true,
+                  status: encodedStatus
+                });
+              upsertErr = retryUpsert.error;
+            } catch (_) {}
+          }
+
+          if (upsertErr) throw upsertErr;
+
+          result = {
+            success: true,
+            status: baseStatus,
+            title,
+            message,
+            evidenceNote: prevNote,
+            student: { fullName: student.full_name, enrollmentNumber: student.enrollment_number },
+            checkInTime: formatTime(checkInIso),
+            checkOutTime: formatTime(checkOutIso)
+          };
+        } else {
+          // Fallback a API local
+          const response = await fetch('/api/register-attendance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ controlNumber, fullName, token, sessionId })
+          });
+          result = await response.json();
+        }
+
+        if (result && result.success) {
+          // Guardar en este celular para futuros escaneos automáticos
+          localStorage.setItem('asistencia_control_number', controlNumber);
+          if (result.student && result.student.fullName) {
+            localStorage.setItem('asistencia_full_name', result.student.fullName);
+          }
+
+          // Vincular permanentemente este dispositivo a este alumno para esta sesión (Antifraude)
+          localStorage.setItem(activeSessionKey, cleanControl);
+          sessionStorage.setItem(activeSessionKey, cleanControl);
+          document.cookie = `${activeSessionKey}=${cleanControl}; max-age=86400; path=/`;
+
+          // Mostrar tarjeta de resultado
+          document.getElementById('actionCard').classList.add('hidden');
+          const resultCard = document.getElementById('resultCard');
+          resultCard.classList.remove('hidden');
+
+          if (result.status === 'accredited') {
+            resultCard.className = 'card result-card result-accredited';
+            document.getElementById('resultIcon').textContent = isConferenceMode ? '🎤' : '🎓';
+            document.getElementById('resultTitle').textContent = result.title || (isConferenceMode ? '¡CONFERENCIA ACREDITADA! 🎉' : '¡TALLER ACREDITADO! 🎉');
+          } else {
+            resultCard.className = 'card result-card result-entry';
+            document.getElementById('resultIcon').textContent = '✅';
+            document.getElementById('resultTitle').textContent = result.title || 'Asistencia Sellada';
+          }
+
+          document.getElementById('resultDesc').textContent = result.message;
+          document.getElementById('resultStudentName').textContent = `Alumno: ${result.student.fullName} (${controlNumber})`;
+
+          if (result.evidenceNote) {
+            document.getElementById('evidenceCardText').textContent = result.evidenceNote;
+            document.getElementById('evidenceCardBox').classList.remove('hidden');
+          }
+
+          if (result.checkInTime && result.checkInTime !== '--:--:--') {
+            document.getElementById('stampCheckIn').textContent = result.checkInTime + ' hrs';
+            document.getElementById('badgeCheckIn').classList.remove('hidden');
+          }
+          if (result.checkOutTime && result.checkOutTime !== '--:--:--') {
+            document.getElementById('stampCheckOut').textContent = result.checkOutTime + ' hrs';
+            document.getElementById('badgeCheckOut').classList.remove('hidden');
+          }
+        } else {
+          alert((result && result.message) || 'Error al sellar asistencia.');
+          btn.innerHTML = originalText;
+          btn.disabled = false;
+        }
+      } catch (err) {
+        console.error('Error sellando asistencia:', err);
+        const errMsg = err.message || (typeof err === 'string' ? err : JSON.stringify(err));
+        alert('Aviso de Supabase: ' + errMsg);
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>

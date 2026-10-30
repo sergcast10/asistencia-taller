@@ -90,6 +90,7 @@ class QrService {
     int? toleranceMinutes,
     int? registrationWindowMinutes,
     DateTime? phaseStartedAt,
+    bool isConference = false,
   }) {
     final window = getCurrentWindow(now: now);
     final rawData = '$sessionId:${phase.name}:$window';
@@ -124,6 +125,9 @@ class QrService {
       }
       if (phaseStartedAt != null) {
         extraParams.write('&start=${phaseStartedAt.millisecondsSinceEpoch}');
+      }
+      if (isConference) {
+        extraParams.write('&type=conf');
       }
       return '$cleanBase${separator}session=$sessionId&workshop=$workshopId&phase=${phase.name}&token=$dynamicToken$extraParams';
     }
