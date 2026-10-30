@@ -347,6 +347,11 @@
         <button id="btnConfirmAttendance" class="btn btn-primary hidden" onclick="submitAttendance(true)">
           <span id="btnConfirmText">Confirmar Asistencia</span>
         </button>
+        <div style="text-align: center; margin-top: 10px;">
+          <button type="button" onclick="clearSavedStudent()" style="background: none; border: none; color: var(--slate-600); text-decoration: underline; font-size: 12px; cursor: pointer; padding: 4px;">
+            ¿No eres tú? Cambiar de alumno / ingresar otra matrícula
+          </button>
+        </div>
       </div>
 
       <!-- CASO 2: FORMULARIO (PRIMERA VEZ O CAMBIO DE ALUMNO) -->
@@ -367,7 +372,7 @@
         </div>
 
         <!-- Campo de nombre: se muestra si no está previamente inscrito -->
-        <div id="nameGroup" class="form-group hidden">
+        <div id="nameGroup" class="form-group">
           <label for="fullName">Nombre Completo</label>
           <input 
             type="text" 
@@ -643,6 +648,17 @@
     }
 
     // Comprobar si este celular ya tiene un alumno guardado en localStorage y registrar AUTOMÁTICAMENTE
+        function clearSavedStudent() {
+      localStorage.removeItem('asistencia_control_number');
+      localStorage.removeItem('asistencia_full_name');
+      document.getElementById('savedStudentView').classList.add('hidden');
+      document.getElementById('newStudentForm').classList.remove('hidden');
+      document.getElementById('controlNumber').value = '';
+      document.getElementById('fullName').value = '';
+      document.getElementById('controlHelper').innerHTML = 'Ingresa tu matrícula para validar tu registro.';
+      document.getElementById('controlHelper').style.color = 'var(--slate-600)';
+    }
+
     async function checkSavedStudent() {
       const savedControl = localStorage.getItem('asistencia_control_number');
       const savedName = localStorage.getItem('asistencia_full_name');
@@ -714,18 +730,12 @@
 
         if (foundStudent) {
           isStudentEnrolledInDb = true;
-          document.getElementById('nameGroup').classList.add('hidden');
-          document.getElementById('controlHelper').innerHTML = `✅ Alumno reconocido: <strong>${foundStudent.full_name || foundStudent.fullName}</strong> • Registrando automáticamente...`;
-          document.getElementById('controlHelper').style.color = 'var(--success)';
-          // Redirigir y sellar automáticamente sin que tenga que tocar el botón
-          autoSubmitTimeout = setTimeout(() => {
-            submitAttendance(false);
-          }, 500);
+          document.getElementById('controlHelper').innerHTML = `ℹ️ Matrícula registrada para: <strong>${foundStudent.full_name || foundStudent.fullName}</strong>. Ingresa tu nombre para confirmar tu identidad.`;
+          document.getElementById('controlHelper').style.color = 'var(--primary)';
         } else {
           isStudentEnrolledInDb = false;
-          document.getElementById('nameGroup').classList.remove('hidden');
-          document.getElementById('controlHelper').innerHTML = '⚠️ Matrícula no encontrada en lista previa. Ingresa tu nombre para registrarte.';
-          document.getElementById('controlHelper').style.color = 'var(--primary)';
+          document.getElementById('controlHelper').innerHTML = '✨ Nueva matrícula en este taller. Ingresa tu nombre completo para inscribirte.';
+          document.getElementById('controlHelper').style.color = 'var(--slate-600)';
         }
       }, 350);
     }
@@ -820,7 +830,17 @@
             } catch (_) {}
           }
 
-          // 1. Obtener o registrar estudiante (soportando múltiples registros previos de la misma matrícula)
+          // Función auxiliar para normalizar nombres eliminando acentos y espacios extras
+          function normalizeName(s) {
+            return (s || '')
+              .toLowerCase()
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .replace(/\s+/g, ' ')
+              .trim();
+          }
+
+          // 1. Obtener o registrar estudiante con validación estricta de no repetición
           let student = null;
           let allStudentIds = [];
           const { data: existingStdList } = await supabaseClient
@@ -832,7 +852,65 @@
           if (existingStdList && existingStdList.length > 0) {
             student = existingStdList[0];
             allStudentIds = existingStdList.map(s => s.id);
+            const existingName = student.full_name || '';
+            const normExisting = normalizeName(existingName);
+            const normInput = normalizeName(fullName);
+
+            const isPlaceholder = normExisting.startsWith('alumno ') ||
+                                  normExisting === normalizeName(cleanCtrl) ||
+                                  !normExisting;
+
+            if (!isPlaceholder && normInput) {
+              const inputTokens = normInput.split(' ').filter(t => t.length > 2);
+              const existingTokens = normExisting.split(' ').filter(t => t.length > 2);
+              const common = inputTokens.filter(t => existingTokens.includes(t));
+
+              if (common.length === 0 && normInput !== normExisting) {
+                alert(
+                  `⛔ MATRÍCULA YA ASIGNADA:\n\n` +
+                  `El número de control "${cleanCtrl}" ya pertenece al alumno registrado:\n"${existingName}".\n\n` +
+                  `Los datos que ingresaste ("${fullName}") no coinciden con el alumno titular.\n\n` +
+                  `El número de control y nombre son únicos y no pueden duplicarse ni reutilizarse por otra persona.\n\n` +
+                  `Por favor ingresa tu propio número de control y nombre completo.`
+                );
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                return;
+              }
+            } else if (normInput && isPlaceholder) {
+              try {
+                await supabaseClient
+                  .from('students')
+                  .update({ full_name: fullName.trim() })
+                  .eq('id', student.id);
+                student.full_name = fullName.trim();
+              } catch (_) {}
+            }
           } else {
+            // Si la matrícula no existe, verificar que el nombre no esté registrado bajo otra matrícula
+            if (fullName) {
+              try {
+                const { data: sameNameList } = await supabaseClient
+                  .from('students')
+                  .select('enrollment_number, full_name')
+                  .ilike('full_name', fullName.trim())
+                  .limit(5);
+
+                if (sameNameList && sameNameList.length > 0) {
+                  const conflict = sameNameList.find(s => s.enrollment_number.toUpperCase() !== cleanCtrl);
+                  if (conflict) {
+                    alert(
+                      `⛔ ALUMNO YA REGISTRADO:\n\n` +
+                      `Ya existe un alumno registrado con el nombre "${conflict.full_name}" bajo el número de control "${conflict.enrollment_number}".\n\n` +
+                      `El nombre y número de control no pueden repetirse. Por favor verifica tus datos oficiales.`
+                    );
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    return;
+                  }
+                }
+              } catch (_) {}
+            }
             const newId = 'std_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
             const initialEncodedMail = buildStudentEmailWithDeviceMeta(
               `${cleanCtrl.toLowerCase()}@alumno.edu`,

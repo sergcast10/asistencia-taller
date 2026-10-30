@@ -133,10 +133,8 @@ class _StudentWebAttendanceScreenState
       deviceId: _deviceId,
     );
 
-    // Si este era el celular viejo y fue reemplazado, borrar datos guardados aquí
-    if (!result.success &&
-        result.student != null &&
-        result.student!.previousDeviceId == _deviceId) {
+    // Si no fue exitoso (error de validación, matrícula duplicada/ajena, etc.), limpiar datos para no ciclar el teléfono
+    if (!result.success) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('student_saved_control_number');
       await prefs.remove('student_saved_full_name');
@@ -641,6 +639,41 @@ class _StudentWebAttendanceScreenState
               ],
             ),
           ),
+          if (!isSuccess) ...[
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.edit_note_rounded, size: 20),
+                label: const Text(
+                  'Corregir Datos / Ingresar Mi Matrícula',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () async {
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.remove('student_saved_control_number');
+                  await prefs.remove('student_saved_full_name');
+                  await prefs.remove('student_saved_email');
+                  setState(() {
+                    _savedControlNumber = '';
+                    _savedFullName = '';
+                    _controlNumberController.clear();
+                    _fullNameController.clear();
+                    _attendanceResult = null;
+                    _isLoading = false;
+                  });
+                },
+              ),
+            ),
+          ],
         ],
       ),
     );

@@ -3,8 +3,8 @@ import 'dart:convert';
 class Student {
   final String id;
   final String enrollmentNumber; // Matrícula / DNI / Código
-  final String fullName;
-  final String email;
+  String fullName;
+  String email;
   bool isSuspended; // 🚫 Indica si el alumno fue suspendido por conducta inapropiada
   String? suspensionReason; // Motivo o comportamiento reportado por el docente encargado
   DateTime? suspendedAt;

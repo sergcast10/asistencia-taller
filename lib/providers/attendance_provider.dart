@@ -1089,25 +1089,105 @@ class AttendanceProvider extends ChangeNotifier {
       );
     }
 
-    // 3. Buscar al estudiante en la lista de inscritos
+    final cleanInputControl = studentEnrollmentNumber.trim();
+    final cleanInputName = (studentFullName ?? '').trim();
+
+    String normalize(String s) {
+      return s
+          .toLowerCase()
+          .replaceAll('á', 'a')
+          .replaceAll('é', 'e')
+          .replaceAll('í', 'i')
+          .replaceAll('ó', 'o')
+          .replaceAll('ú', 'u')
+          .replaceAll(RegExp(r'\s+'), ' ')
+          .trim();
+    }
+
+    // 3. Buscar al estudiante en la lista de inscritos por número de control
     Student? student = workshop.enrolledStudents.cast<Student?>().firstWhere(
       (s) =>
           s != null &&
           s.enrollmentNumber.trim().toLowerCase() ==
-              studentEnrollmentNumber.trim().toLowerCase(),
+              cleanInputControl.toLowerCase(),
       orElse: () => null,
     );
 
+    // Validación A: Si la matrícula ya existe en el taller, verificar que el nombre coincida
+    if (student != null && cleanInputName.isNotEmpty) {
+      final normInput = normalize(cleanInputName);
+      final normExisting = normalize(student.fullName);
+
+      final isPlaceholderName = normExisting.startsWith('alumno ') ||
+          normExisting == normalize(student.enrollmentNumber) ||
+          normExisting.isEmpty;
+
+      if (!isPlaceholderName) {
+        final inputTokens =
+            normInput.split(' ').where((t) => t.length > 2).toSet();
+        final existingTokens =
+            normExisting.split(' ').where((t) => t.length > 2).toSet();
+        final commonTokens = inputTokens.intersection(existingTokens);
+
+        // Si no comparten palabras y son distintos, rechazar por duplicidad/suplantación
+        if (commonTokens.isEmpty && normInput != normExisting) {
+          return AttendanceProcessResult(
+            success: false,
+            title: '⛔ Matrícula Ya Registrada',
+            message:
+                'El número de control "$cleanInputControl" ya pertenece al alumno registrado "${student.fullName}". Los datos no corresponden a "$cleanInputName". Los números de control y nombres no pueden repetirse ni duplicarse.',
+            status: AttendanceStatus.absent,
+            student: student,
+          );
+        }
+      } else {
+        student.fullName = cleanInputName;
+        _persist();
+        _pushStudentToSupabaseAsync(student, workshop.id);
+      }
+    }
+
+    // Validación B: Si la matrícula no existe, verificar que el nombre no esté registrado
+    // bajo otro número de control distinto (para evitar duplicados del mismo alumno)
+    if (student == null && cleanInputName.isNotEmpty) {
+      final normInput = normalize(cleanInputName);
+      Student? studentWithSameName =
+          workshop.enrolledStudents.cast<Student?>().firstWhere(
+        (s) {
+          if (s == null) return false;
+          final normExisting = normalize(s.fullName);
+          if (normExisting.startsWith('alumno ') ||
+              normExisting == normalize(s.enrollmentNumber)) {
+            return false;
+          }
+          return normExisting == normInput;
+        },
+        orElse: () => null,
+      );
+
+      if (studentWithSameName != null &&
+          studentWithSameName.enrollmentNumber.trim().toLowerCase() !=
+              cleanInputControl.toLowerCase()) {
+        return AttendanceProcessResult(
+          success: false,
+          title: '⛔ Nombre Ya Registrado',
+          message:
+              'Ya existe un alumno registrado con el nombre "$cleanInputName" bajo el número de control "${studentWithSameName.enrollmentNumber}". El nombre y número de control no pueden repetirse. Por favor verifica tus datos oficiales.',
+          status: AttendanceStatus.absent,
+        );
+      }
+    }
+
     // Auto-inscribir al estudiante si escanea por primera vez desde su celular
     if (student == null) {
-      if (studentFullName != null && studentFullName.trim().isNotEmpty) {
+      if (cleanInputName.isNotEmpty) {
         student = Student(
           id: 'std_${_uuid.v4().substring(0, 8)}',
-          enrollmentNumber: studentEnrollmentNumber.trim(),
-          fullName: studentFullName.trim(),
+          enrollmentNumber: cleanInputControl,
+          fullName: cleanInputName,
           email: studentEmail?.trim().isNotEmpty == true
               ? studentEmail!.trim()
-              : '${studentEnrollmentNumber.trim().toLowerCase()}@alumno.edu',
+              : '${cleanInputControl.toLowerCase()}@alumno.edu',
           boundDeviceId: deviceId?.trim().isNotEmpty == true
               ? deviceId!.trim().toUpperCase()
               : null,
@@ -1115,12 +1195,13 @@ class AttendanceProvider extends ChangeNotifier {
         );
         workshop.enrolledStudents.add(student);
         _persist();
+        _pushStudentToSupabaseAsync(student, workshop.id);
       } else {
         return AttendanceProcessResult(
           success: false,
           title: 'Estudiante No Inscrito',
           message:
-              'La matrícula "$studentEnrollmentNumber" no se encuentra registrada en la lista oficial de este taller (${workshop.name}).',
+              'La matrícula "$cleanInputControl" no se encuentra registrada en la lista oficial de este taller (${workshop.name}).',
         );
       }
     } else if (deviceId != null && deviceId.trim().isNotEmpty) {
